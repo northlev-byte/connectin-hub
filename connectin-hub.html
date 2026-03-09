@@ -1,0 +1,457 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ConnectIn Events — Tools Hub</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Syne:wght@700;800&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --lime: #c6f135;
+    --lime-dim: #9fbe2a;
+    --bg: #0e0f0c;
+    --surface: #161710;
+    --card: #1a1c14;
+    --card-hover: #1f2118;
+    --border: #2a2e1e;
+    --text: #e8ecda;
+    --muted: #6b7155;
+    --mono: 'DM Mono', monospace;
+    --head: 'Syne', sans-serif;
+    --body: 'DM Sans', sans-serif;
+  }
+
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--body);
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  /* Grid background */
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background-image:
+      linear-gradient(rgba(198,241,53,0.03) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(198,241,53,0.03) 1px, transparent 1px);
+    background-size: 40px 40px;
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  .wrapper {
+    position: relative;
+    z-index: 1;
+    max-width: 960px;
+    margin: 0 auto;
+    padding: 60px 32px 80px;
+  }
+
+  /* Header */
+  header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    margin-bottom: 64px;
+    gap: 24px;
+    flex-wrap: wrap;
+  }
+
+  .logo-block {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+
+  .logo-eyebrow {
+    font-family: var(--mono);
+    font-size: 11px;
+    letter-spacing: 0.2em;
+    color: var(--lime);
+    text-transform: uppercase;
+    opacity: 0.8;
+  }
+
+  h1 {
+    font-family: var(--head);
+    font-size: clamp(28px, 5vw, 42px);
+    font-weight: 800;
+    line-height: 1;
+    color: var(--text);
+    letter-spacing: -0.02em;
+  }
+
+  h1 span {
+    color: var(--lime);
+  }
+
+  .header-meta {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-top: 4px;
+  }
+
+  .dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: var(--lime);
+    animation: pulse 2.5s ease-in-out infinite;
+  }
+
+  @keyframes pulse {
+    0%, 100% { opacity: 1; transform: scale(1); }
+    50% { opacity: 0.4; transform: scale(0.7); }
+  }
+
+  .header-meta span {
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--muted);
+    letter-spacing: 0.1em;
+  }
+
+  .tool-count {
+    align-self: flex-end;
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--muted);
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    padding-bottom: 4px;
+  }
+
+  /* Section label */
+  .section-label {
+    font-family: var(--mono);
+    font-size: 10px;
+    letter-spacing: 0.25em;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin-bottom: 20px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+
+  .section-label::after {
+    content: '';
+    flex: 1;
+    height: 1px;
+    background: var(--border);
+  }
+
+  /* Grid */
+  .tools-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    gap: 2px;
+    margin-bottom: 2px;
+  }
+
+  /* Card */
+  .tool-card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    padding: 28px;
+    text-decoration: none;
+    color: inherit;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    position: relative;
+    overflow: hidden;
+    transition: background 0.2s ease, border-color 0.2s ease, transform 0.2s ease;
+    cursor: pointer;
+  }
+
+  .tool-card::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 2px;
+    background: var(--lime);
+    transform: scaleX(0);
+    transform-origin: left;
+    transition: transform 0.3s ease;
+  }
+
+  .tool-card:hover {
+    background: var(--card-hover);
+    border-color: rgba(198,241,53,0.2);
+    transform: translateY(-2px);
+  }
+
+  .tool-card:hover::before {
+    transform: scaleX(1);
+  }
+
+  .tool-card.placeholder {
+    border-style: dashed;
+    border-color: var(--border);
+    opacity: 0.5;
+    cursor: default;
+    pointer-events: none;
+  }
+
+  .card-header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+  }
+
+  .card-icon {
+    width: 40px;
+    height: 40px;
+    background: rgba(198,241,53,0.08);
+    border: 1px solid rgba(198,241,53,0.15);
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 18px;
+    flex-shrink: 0;
+    transition: background 0.2s;
+  }
+
+  .tool-card:hover .card-icon {
+    background: rgba(198,241,53,0.14);
+  }
+
+  .card-badge {
+    font-family: var(--mono);
+    font-size: 9px;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    padding: 3px 8px;
+    border-radius: 2px;
+    background: rgba(198,241,53,0.08);
+    color: var(--lime-dim);
+    border: 1px solid rgba(198,241,53,0.12);
+  }
+
+  .card-badge.new {
+    background: rgba(198,241,53,0.15);
+    color: var(--lime);
+    border-color: rgba(198,241,53,0.3);
+  }
+
+  .card-title {
+    font-family: var(--head);
+    font-size: 17px;
+    font-weight: 700;
+    letter-spacing: -0.01em;
+    line-height: 1.2;
+  }
+
+  .card-desc {
+    font-size: 13px;
+    line-height: 1.6;
+    color: var(--muted);
+    font-weight: 300;
+  }
+
+  .card-footer {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-top: auto;
+    padding-top: 16px;
+    border-top: 1px solid var(--border);
+  }
+
+  .card-tags {
+    display: flex;
+    gap: 6px;
+    flex-wrap: wrap;
+  }
+
+  .tag {
+    font-family: var(--mono);
+    font-size: 9px;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--muted);
+  }
+
+  .arrow {
+    font-size: 16px;
+    color: var(--lime);
+    opacity: 0;
+    transform: translateX(-6px);
+    transition: opacity 0.2s, transform 0.2s;
+  }
+
+  .tool-card:hover .arrow {
+    opacity: 1;
+    transform: translateX(0);
+  }
+
+  /* Placeholder card */
+  .placeholder-inner {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    min-height: 120px;
+    text-align: center;
+  }
+
+  .placeholder-inner .plus {
+    font-size: 24px;
+    color: var(--border);
+  }
+
+  .placeholder-inner span {
+    font-family: var(--mono);
+    font-size: 10px;
+    color: var(--muted);
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+  }
+
+  /* Footer */
+  footer {
+    margin-top: 64px;
+    padding-top: 24px;
+    border-top: 1px solid var(--border);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 16px;
+    flex-wrap: wrap;
+  }
+
+  footer span {
+    font-family: var(--mono);
+    font-size: 10px;
+    color: var(--muted);
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+  }
+
+  footer .brand {
+    color: var(--lime);
+    opacity: 0.7;
+  }
+
+  /* Animate in */
+  @keyframes fadeUp {
+    from { opacity: 0; transform: translateY(16px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  header { animation: fadeUp 0.5s ease both; }
+  .section-label { animation: fadeUp 0.5s ease 0.1s both; }
+  .tool-card:nth-child(1) { animation: fadeUp 0.4s ease 0.15s both; }
+  .tool-card:nth-child(2) { animation: fadeUp 0.4s ease 0.22s both; }
+  .tool-card:nth-child(3) { animation: fadeUp 0.4s ease 0.29s both; }
+  .tool-card:nth-child(4) { animation: fadeUp 0.4s ease 0.36s both; }
+  .tool-card:nth-child(5) { animation: fadeUp 0.4s ease 0.43s both; }
+  .tool-card:nth-child(6) { animation: fadeUp 0.4s ease 0.50s both; }
+</style>
+</head>
+<body>
+<div class="wrapper">
+
+  <header>
+    <div class="logo-block">
+      <span class="logo-eyebrow">ConnectIn Events</span>
+      <h1>Tools <span>Hub</span></h1>
+      <div class="header-meta">
+        <div class="dot"></div>
+        <span>Internal tools — Manchester</span>
+      </div>
+    </div>
+    <span class="tool-count" id="tool-count">3 tools active</span>
+  </header>
+
+  <div class="section-label">Active tools</div>
+
+  <div class="tools-grid">
+
+    <!-- Event Tracker -->
+    <a class="tool-card" href="https://my-tracker-bice.vercel.app" target="_blank">
+      <div class="card-header">
+        <div class="card-icon">📋</div>
+        <span class="card-badge new">Live</span>
+      </div>
+      <div>
+        <div class="card-title">Event & Lead Tracker</div>
+        <div class="card-desc">Track events, leads, team assignments, and FY pipeline. Calendar view with holiday conflict detection.</div>
+      </div>
+      <div class="card-footer">
+        <div class="card-tags">
+          <span class="tag">React</span>
+          <span class="tag">Vercel</span>
+          <span class="tag">Sheets</span>
+        </div>
+        <span class="arrow">→</span>
+      </div>
+    </a>
+
+    <!-- Social Media Scheduler -->
+    <a class="tool-card" href="#" target="_blank" id="social-link">
+      <div class="card-header">
+        <div class="card-icon">📅</div>
+        <span class="card-badge new">Live</span>
+      </div>
+      <div>
+        <div class="card-title">Social Media Scheduler</div>
+        <div class="card-desc">Plan posts month-by-month with platform tagging and an AI-powered caption writing tool.</div>
+      </div>
+      <div class="card-footer">
+        <div class="card-tags">
+          <span class="tag">HTML</span>
+          <span class="tag">Claude API</span>
+          <span class="tag">Scheduler</span>
+        </div>
+        <span class="arrow">→</span>
+      </div>
+    </a>
+
+    <!-- Venues Sheet -->
+    <a class="tool-card" href="#" target="_blank" id="venues-link">
+      <div class="card-header">
+        <div class="card-icon">🏛️</div>
+        <span class="card-badge new">Live</span>
+      </div>
+      <div>
+        <div class="card-title">Venues Sheet</div>
+        <div class="card-desc">Browse, filter, and manage venue information for events across your network.</div>
+      </div>
+      <div class="card-footer">
+        <div class="card-tags">
+          <span class="tag">Sheets</span>
+          <span class="tag">Database</span>
+        </div>
+        <span class="arrow">→</span>
+      </div>
+    </a>
+
+    <!-- Placeholder -->
+    <div class="tool-card placeholder">
+      <div class="placeholder-inner">
+        <span class="plus">+</span>
+        <span>Next tool</span>
+      </div>
+    </div>
+
+  </div>
+
+  <footer>
+    <span>ConnectIn Events · Internal use only</span>
+    <span class="brand">connectinevents.co.uk</span>
+  </footer>
+
+</div>
+</body>
+</html>
