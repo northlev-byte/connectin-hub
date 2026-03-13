@@ -1,0 +1,492 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ConnectIn Events — Tools Hub</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Syne:wght@700;800&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --lime: #c6f135;
+    --lime-dim: #9fbe2a;
+    --lime-glow: rgba(198,241,53,0.12);
+    --bg: #0e0f0c;
+    --surface: #161710;
+    --card: #1a1c14;
+    --card-hover: #1f2219;
+    --border: #272b1c;
+    --border-hover: rgba(198,241,53,0.25);
+    --text: #e8ecda;
+    --muted: #5e6449;
+    --mono: 'DM Mono', monospace;
+    --head: 'Syne', sans-serif;
+    --body: 'DM Sans', sans-serif;
+  }
+
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  html { scroll-behavior: smooth; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--body);
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background-image:
+      linear-gradient(rgba(198,241,53,0.025) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(198,241,53,0.025) 1px, transparent 1px);
+    background-size: 48px 48px;
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  body::after {
+    content: '';
+    position: fixed;
+    top: -200px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 700px;
+    height: 400px;
+    background: radial-gradient(ellipse, rgba(198,241,53,0.06) 0%, transparent 70%);
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  .wrapper {
+    position: relative;
+    z-index: 1;
+    max-width: 1000px;
+    margin: 0 auto;
+    padding: 64px 32px 96px;
+  }
+
+  header {
+    margin-bottom: 72px;
+    animation: fadeUp 0.6s ease both;
+  }
+
+  .header-top {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 24px;
+    flex-wrap: wrap;
+    margin-bottom: 20px;
+  }
+
+  .logo-eyebrow {
+    font-family: var(--mono);
+    font-size: 10px;
+    letter-spacing: 0.25em;
+    color: var(--lime);
+    text-transform: uppercase;
+    opacity: 0.75;
+    margin-bottom: 10px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .logo-eyebrow::before {
+    content: '';
+    display: inline-block;
+    width: 24px;
+    height: 1px;
+    background: var(--lime);
+    opacity: 0.5;
+  }
+
+  h1 {
+    font-family: var(--head);
+    font-size: clamp(36px, 6vw, 56px);
+    font-weight: 800;
+    line-height: 0.95;
+    letter-spacing: -0.03em;
+    color: var(--text);
+  }
+
+  h1 .accent {
+    color: var(--lime);
+    display: block;
+  }
+
+  .status-pill {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    background: rgba(198,241,53,0.06);
+    border: 1px solid rgba(198,241,53,0.15);
+    border-radius: 100px;
+    padding: 8px 16px;
+    align-self: flex-start;
+    margin-top: 8px;
+  }
+
+  .dot {
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background: var(--lime);
+    animation: pulse 2.5s ease-in-out infinite;
+    flex-shrink: 0;
+  }
+
+  @keyframes pulse {
+    0%, 100% { opacity: 1; box-shadow: 0 0 0 0 rgba(198,241,53,0.4); }
+    50% { opacity: 0.5; box-shadow: 0 0 0 4px rgba(198,241,53,0); }
+  }
+
+  .status-pill span {
+    font-family: var(--mono);
+    font-size: 10px;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    color: var(--lime);
+    opacity: 0.8;
+  }
+
+  .header-rule {
+    height: 1px;
+    background: linear-gradient(to right, var(--border), transparent);
+    margin-top: 32px;
+  }
+
+  .section-label {
+    font-family: var(--mono);
+    font-size: 10px;
+    letter-spacing: 0.25em;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin-bottom: 24px;
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    animation: fadeUp 0.5s ease 0.15s both;
+  }
+
+  .section-label::after {
+    content: '';
+    flex: 1;
+    height: 1px;
+    background: var(--border);
+  }
+
+  .tools-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 12px;
+  }
+
+  @media (max-width: 640px) {
+    .tools-grid { grid-template-columns: 1fr; }
+  }
+
+  .tool-card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    padding: 32px;
+    text-decoration: none;
+    color: inherit;
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+    position: relative;
+    overflow: hidden;
+    transition: background 0.25s ease, border-color 0.25s ease, transform 0.25s ease, box-shadow 0.25s ease;
+    border-radius: 2px;
+  }
+
+  .tool-card::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: radial-gradient(ellipse at top left, rgba(198,241,53,0.04), transparent 60%);
+    opacity: 0;
+    transition: opacity 0.3s ease;
+    pointer-events: none;
+  }
+
+  .tool-card:hover {
+    background: var(--card-hover);
+    border-color: var(--border-hover);
+    transform: translateY(-3px);
+    box-shadow: 0 12px 40px rgba(0,0,0,0.4), 0 0 0 1px rgba(198,241,53,0.08);
+  }
+
+  .tool-card:hover::after {
+    opacity: 1;
+  }
+
+  .card-stripe {
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 2px;
+    background: linear-gradient(to right, var(--lime), transparent);
+    transform: scaleX(0);
+    transform-origin: left;
+    transition: transform 0.35s ease;
+  }
+
+  .tool-card:hover .card-stripe { transform: scaleX(1); }
+
+  .card-top {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 12px;
+  }
+
+  .card-icon {
+    width: 48px;
+    height: 48px;
+    background: rgba(198,241,53,0.07);
+    border: 1px solid rgba(198,241,53,0.12);
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 22px;
+    flex-shrink: 0;
+    transition: background 0.2s, border-color 0.2s;
+  }
+
+  .tool-card:hover .card-icon {
+    background: rgba(198,241,53,0.12);
+    border-color: rgba(198,241,53,0.22);
+  }
+
+  .card-status {
+    font-family: var(--mono);
+    font-size: 9px;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    padding: 4px 10px;
+    border-radius: 2px;
+  }
+
+  .status-live {
+    background: rgba(198,241,53,0.1);
+    color: var(--lime);
+    border: 1px solid rgba(198,241,53,0.2);
+  }
+
+  .card-body { flex: 1; }
+
+  .card-title {
+    font-family: var(--head);
+    font-size: 20px;
+    font-weight: 700;
+    letter-spacing: -0.02em;
+    line-height: 1.15;
+    margin-bottom: 10px;
+  }
+
+  .card-desc {
+    font-size: 13.5px;
+    line-height: 1.65;
+    color: var(--muted);
+    font-weight: 300;
+  }
+
+  .card-footer {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding-top: 20px;
+    border-top: 1px solid var(--border);
+    margin-top: auto;
+  }
+
+  .card-tags {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+  }
+
+  .tag {
+    font-family: var(--mono);
+    font-size: 9px;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--muted);
+    background: rgba(255,255,255,0.03);
+    border: 1px solid var(--border);
+    padding: 3px 8px;
+    border-radius: 2px;
+  }
+
+  .card-arrow {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-family: var(--mono);
+    font-size: 10px;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--lime);
+    opacity: 0;
+    transform: translateX(-8px);
+    transition: opacity 0.2s, transform 0.2s;
+  }
+
+  .tool-card:hover .card-arrow {
+    opacity: 1;
+    transform: translateX(0);
+  }
+
+  footer {
+    margin-top: 72px;
+    padding-top: 24px;
+    border-top: 1px solid var(--border);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 16px;
+    flex-wrap: wrap;
+    animation: fadeUp 0.5s ease 0.6s both;
+  }
+
+  footer span {
+    font-family: var(--mono);
+    font-size: 10px;
+    color: var(--muted);
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+  }
+
+  footer .brand { color: var(--lime); opacity: 0.6; }
+
+  @keyframes fadeUp {
+    from { opacity: 0; transform: translateY(18px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+
+  .tool-card:nth-child(1) { animation: fadeUp 0.45s ease 0.2s both; }
+  .tool-card:nth-child(2) { animation: fadeUp 0.45s ease 0.28s both; }
+  .tool-card:nth-child(3) { animation: fadeUp 0.45s ease 0.36s both; }
+  .tool-card:nth-child(4) { animation: fadeUp 0.45s ease 0.44s both; }
+</style>
+</head>
+<body>
+<div class="wrapper">
+
+  <header>
+    <div class="header-top">
+      <div>
+        <div class="logo-eyebrow">ConnectIn Events · Manchester</div>
+        <h1>Internal<span class="accent">Tools Hub</span></h1>
+      </div>
+      <div class="status-pill">
+        <div class="dot"></div>
+        <span>4 of 4 live</span>
+      </div>
+    </div>
+    <div class="header-rule"></div>
+  </header>
+
+  <div class="section-label">All tools</div>
+
+  <div class="tools-grid">
+
+    <!-- 1. Event & Lead Tracker -->
+    <a class="tool-card" href="https://my-tracker-bice.vercel.app" target="_blank">
+      <div class="card-stripe"></div>
+      <div class="card-top">
+        <div class="card-icon">📋</div>
+        <span class="card-status status-live">Live</span>
+      </div>
+      <div class="card-body">
+        <div class="card-title">Event & Lead Tracker</div>
+        <div class="card-desc">Track events, leads, and team assignments across your FY pipeline. Kanban, table, and calendar views with holiday conflict detection.</div>
+      </div>
+      <div class="card-footer">
+        <div class="card-tags">
+          <span class="tag">React</span>
+          <span class="tag">Vercel</span>
+          <span class="tag">Google Sheets</span>
+        </div>
+        <div class="card-arrow">Open →</div>
+      </div>
+    </a>
+
+    <!-- 2. Social Media Scheduler -->
+    <a class="tool-card" href="https://connectin-scheduler.vercel.app" target="_blank">
+      <div class="card-stripe"></div>
+      <div class="card-top">
+        <div class="card-icon">📱</div>
+        <span class="card-status status-live">Live</span>
+      </div>
+      <div class="card-body">
+        <div class="card-title">Social Media Scheduler</div>
+        <div class="card-desc">Plan and schedule posts month-by-month with platform tagging, an AI caption writer, image studio, follower tracker, and competitor strategy tab.</div>
+      </div>
+      <div class="card-footer">
+        <div class="card-tags">
+          <span class="tag">HTML</span>
+          <span class="tag">Claude API</span>
+          <span class="tag">Chart.js</span>
+        </div>
+        <div class="card-arrow">Open →</div>
+      </div>
+    </a>
+
+    <!-- 3. Venue Portal -->
+    <a class="tool-card" href="https://connectin-venue-portal.vercel.app" target="_blank">
+      <div class="card-stripe"></div>
+      <div class="card-top">
+        <div class="card-icon">🏛️</div>
+        <span class="card-status status-live">Live</span>
+      </div>
+      <div class="card-body">
+        <div class="card-title">Venues Database</div>
+        <div class="card-desc">Browse, filter, and manage venue information across your event network. Search by capacity, location, and type.</div>
+      </div>
+      <div class="card-footer">
+        <div class="card-tags">
+          <span class="tag">HTML</span>
+          <span class="tag">Database</span>
+        </div>
+        <div class="card-arrow">Open →</div>
+      </div>
+    </a>
+
+    <!-- 4. Supplier & Event Build -->
+    <a class="tool-card" href="https://connectin-supplier-db.vercel.app" target="_blank">
+      <div class="card-stripe"></div>
+      <div class="card-top">
+        <div class="card-icon">🔧</div>
+        <span class="card-status status-live">Live</span>
+      </div>
+      <div class="card-body">
+        <div class="card-title">Supplier & Event Build</div>
+        <div class="card-desc">Manage suppliers, build event quotes, calculate margins, and generate PPTX and Excel exports. Includes invoice attachments and Google Sheets sync.</div>
+      </div>
+      <div class="card-footer">
+        <div class="card-tags">
+          <span class="tag">HTML</span>
+          <span class="tag">PPTX Export</span>
+          <span class="tag">Google Sheets</span>
+        </div>
+        <div class="card-arrow">Open →</div>
+      </div>
+    </a>
+
+  </div>
+
+  <footer>
+    <span>ConnectIn Events · Internal use only</span>
+    <span class="brand">connectinevents.co.uk</span>
+  </footer>
+
+</div>
+</body>
+</html>
