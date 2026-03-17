@@ -3,1182 +3,490 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>ConnectIn Events — Social Media Scheduler</title>
-<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:ital,wght@0,300;0,400;0,500;0,700;1,400&display=swap" rel="stylesheet">
+<title>ConnectIn Events — Tools Hub</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Syne:wght@700;800&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
 <style>
-*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
-:root{
-  --dark:#0f0f0f;--dark2:#1a1a1a;--dark3:#242424;--dark4:#2e2e2e;
-  --green:#c6f135;--green-dim:#8fb01f;--green-glow:rgba(198,241,53,0.12);
-  --text:#f0f0f0;--text-dim:#888;--text-muted:#555;
-  --orange:#ff6b35;--blue:#4fc3f7;--purple:#ce93d8;--gold:#ffd54f;--red:#ef5350;
-  --radius:12px;--radius-sm:8px;
-}
-html{scroll-behavior:smooth}
-body{background:var(--dark);color:var(--text);font-family:'DM Sans',sans-serif;min-height:100vh;overflow-x:hidden}
-body::before{content:'';position:fixed;inset:0;background-image:url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.03'/%3E%3C/svg%3E");pointer-events:none;z-index:0}
-header{padding:28px 40px 24px;border-bottom:1px solid var(--dark4);display:flex;align-items:center;justify-content:space-between;gap:20px;flex-wrap:wrap;background:linear-gradient(180deg,#111 0%,var(--dark) 100%);position:relative;z-index:2}
-.logo-block h1{font-family:'Bebas Neue',sans-serif;font-size:clamp(24px,3vw,42px);letter-spacing:3px;color:var(--text);line-height:1}
-.logo-block h1 span{color:var(--green)}
-.logo-block p{font-size:10px;letter-spacing:3px;text-transform:uppercase;color:var(--text-dim);margin-top:4px}
-.header-stats{display:flex;gap:20px;flex-wrap:wrap}
-.stat{text-align:center}
-.stat-num{font-family:'Bebas Neue',sans-serif;font-size:28px;line-height:1;color:var(--green)}
-.stat-label{font-size:9px;letter-spacing:2px;text-transform:uppercase;color:var(--text-dim);margin-top:2px}
-.year-bar{display:flex;padding:0 40px;background:#111;border-bottom:1px solid var(--dark4);gap:4px;z-index:3;position:relative}
-.year-btn{padding:10px 20px;font-family:'Bebas Neue',sans-serif;font-size:16px;letter-spacing:3px;color:var(--text-muted);background:none;border:none;border-bottom:3px solid transparent;cursor:pointer;transition:all 0.2s}
-.year-btn:hover{color:var(--text-dim)}
-.year-btn.active{color:var(--green);border-bottom-color:var(--green)}
-.top-nav{display:flex;padding:0 40px;border-bottom:1px solid var(--dark4);background:var(--dark);position:relative;z-index:2;overflow-x:auto;scrollbar-width:none}
-.top-nav::-webkit-scrollbar{display:none}
-.top-tab{flex-shrink:0;padding:13px 18px;font-size:11px;letter-spacing:1.5px;text-transform:uppercase;font-weight:600;color:var(--text-dim);cursor:pointer;border-bottom:2px solid transparent;border-top:none;border-left:none;border-right:none;transition:all 0.2s;background:none;font-family:'DM Sans',sans-serif;white-space:nowrap}
-.top-tab:hover{color:var(--text)}
-.top-tab.active{color:var(--green);border-bottom-color:var(--green)}
-.month-nav-wrap{background:var(--dark2);border-bottom:1px solid var(--dark4);position:relative;z-index:2}
-.month-nav{display:flex;overflow-x:auto;padding:0 40px;scrollbar-width:none}
-.month-nav::-webkit-scrollbar{display:none}
-.month-tab{flex-shrink:0;padding:11px 14px;font-size:10px;letter-spacing:1.5px;text-transform:uppercase;font-weight:700;color:var(--text-muted);cursor:pointer;border-bottom:3px solid transparent;border-top:none;border-left:none;border-right:none;transition:all 0.2s;background:none;font-family:'DM Sans',sans-serif;position:relative;white-space:nowrap}
-.month-tab:hover{color:var(--text-dim)}
-.month-tab.active{color:var(--green);border-bottom-color:var(--green)}
-.month-tab .month-dot{width:5px;height:5px;border-radius:50%;background:var(--green);position:absolute;top:7px;right:6px;display:none}
-.month-tab.has-posts .month-dot{display:block}
-.month-tab.current-month::after{content:'NOW';font-size:7px;letter-spacing:1px;color:var(--orange);display:block;margin-top:1px;text-align:center}
-main{padding:24px 40px;max-width:1400px;position:relative;z-index:1}
-.view-panel{display:none}
-.view-panel.active{display:block}
-.month-banner{display:flex;align-items:center;justify-content:space-between;gap:14px;margin-bottom:22px;padding:18px 20px;background:var(--dark2);border:1px solid var(--dark4);border-radius:var(--radius);flex-wrap:wrap}
-.month-banner-left h2{font-family:'Bebas Neue',sans-serif;font-size:26px;letter-spacing:4px;color:var(--text);line-height:1}
-.month-banner-left p{font-size:11px;color:var(--text-muted);margin-top:3px;letter-spacing:1px}
-.month-progress-bar{width:100%;height:3px;background:var(--dark4);border-radius:2px;margin-top:9px}
-.month-progress-fill{height:100%;border-radius:2px;background:var(--green);transition:width 0.4s ease}
-.month-stats{display:flex;gap:16px}
-.month-stat{text-align:center}
-.month-stat-num{font-family:'Bebas Neue',sans-serif;font-size:22px;color:var(--green);line-height:1}
-.month-stat-label{font-size:9px;letter-spacing:1.5px;text-transform:uppercase;color:var(--text-muted);margin-top:2px}
-.week-section{margin-bottom:26px}
-.week-header{display:flex;align-items:center;gap:12px;margin-bottom:11px}
-.week-label{font-family:'Bebas Neue',sans-serif;font-size:17px;letter-spacing:4px;color:var(--text-muted)}
-.week-line{flex:1;height:1px;background:var(--dark4)}
-.week-progress{font-size:10px;letter-spacing:1px;color:var(--text-muted)}
-.posts-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(330px,1fr));gap:12px}
-.week-empty{border:2px dashed var(--dark4);border-radius:var(--radius);padding:18px;text-align:center;color:var(--text-muted);font-size:11px;letter-spacing:1px}
-.post-card{background:var(--dark2);border:1px solid var(--dark4);border-radius:var(--radius);padding:18px;position:relative;transition:transform 0.2s,border-color 0.2s,box-shadow 0.2s;overflow:hidden}
-.post-card::before{content:'';position:absolute;top:0;left:0;right:0;height:3px;border-radius:var(--radius) var(--radius) 0 0;background:var(--pillar-color,var(--green))}
-.post-card:hover{transform:translateY(-2px);border-color:var(--dark3);box-shadow:0 8px 28px rgba(0,0,0,0.4)}
-.post-card.done{opacity:0.42}
-.post-card.done::after{content:'POSTED';position:absolute;top:11px;right:11px;font-size:8px;letter-spacing:2px;font-weight:700;color:var(--green);background:var(--green-glow);padding:2px 6px;border-radius:4px}
-.card-meta{display:flex;align-items:center;gap:6px;margin-bottom:9px;flex-wrap:wrap}
-.day-badge{font-size:9px;font-weight:700;letter-spacing:2px;text-transform:uppercase;padding:3px 7px;border-radius:4px;background:var(--dark3);color:var(--text-dim)}
-.day-badge.monday{background:rgba(198,241,53,0.1);color:var(--green)}
-.day-badge.wednesday{background:rgba(79,195,247,0.12);color:var(--blue)}
-.day-badge.friday{background:rgba(255,107,53,0.12);color:var(--orange)}
-.day-badge.tuesday,.day-badge.thursday,.day-badge.saturday,.day-badge.sunday{background:rgba(206,147,216,0.12);color:var(--purple)}
-.date-label{font-size:10px;color:var(--text-muted)}
-.pillar-tag{margin-left:auto;font-size:8px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;padding:2px 6px;border-radius:4px;border:1px solid}
-.card-hook{font-size:12px;font-weight:500;line-height:1.5;color:var(--text);margin-bottom:11px;font-style:italic}
-.caption-preview{background:var(--dark3);border-radius:var(--radius-sm);padding:10px 12px;font-size:11px;line-height:1.7;color:var(--text-dim);max-height:0;overflow:hidden;transition:max-height 0.4s ease}
-.caption-preview.open{max-height:600px;margin-bottom:10px}
-.caption-preview p{margin-bottom:4px}
-.hashtags{font-size:10px;color:var(--green-dim);margin-bottom:10px;line-height:1.6;display:none}
-.hashtags.open{display:block}
-.visual-tip{font-size:9px;color:var(--gold);background:rgba(255,213,79,0.06);border:1px solid rgba(255,213,79,0.15);border-radius:var(--radius-sm);padding:5px 9px;margin-bottom:10px;display:none}
-.visual-tip::before{content:'📸  '}
-.visual-tip.open{display:block}
-.platform-label{font-size:9px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;color:var(--text-muted);margin-bottom:5px}
-.platform-row{display:flex;gap:5px;flex-wrap:wrap;margin-bottom:10px}
-.platform-chip{display:flex;align-items:center;gap:4px;font-size:8px;font-weight:700;letter-spacing:1px;text-transform:uppercase;padding:3px 8px;border-radius:20px;border:1px solid var(--dark4);cursor:pointer;background:var(--dark3);color:var(--text-muted);transition:all 0.18s;user-select:none}
-.platform-chip:hover{border-color:var(--text-muted);color:var(--text-dim)}
-.platform-chip .chip-icon{font-size:10px;line-height:1}
-.platform-chip.active-li{border-color:#0a66c2;color:#4da3ff;background:rgba(10,102,194,0.12)}
-.platform-chip.active-ig{border-color:#e1306c;color:#f06292;background:rgba(225,48,108,0.12)}
-.platform-chip.active-tt{border-color:#69c9d0;color:#80deea;background:rgba(105,201,208,0.12)}
-.platform-chip.active-ot{border-color:#888;color:#bbb;background:rgba(136,136,136,0.12)}
-.photo-section{margin-bottom:10px}
-.photo-drop-zone{border:2px dashed var(--dark4);border-radius:var(--radius-sm);padding:10px;text-align:center;cursor:pointer;transition:border-color 0.2s,background 0.2s;position:relative;background:var(--dark3)}
-.photo-drop-zone:hover,.photo-drop-zone.dragover{border-color:var(--green-dim);background:var(--green-glow)}
-.photo-drop-zone input[type="file"]{position:absolute;inset:0;opacity:0;cursor:pointer;width:100%;height:100%}
-.photo-drop-zone .drop-icon{font-size:14px;margin-bottom:2px}
-.photo-drop-zone .drop-label{font-size:9px;font-weight:600;letter-spacing:1px;text-transform:uppercase;color:var(--text-dim)}
-.photo-drop-zone .drop-sub{font-size:8px;color:var(--text-muted);margin-top:1px}
-.photo-preview{display:none;position:relative;border-radius:var(--radius-sm);overflow:hidden;background:var(--dark3);border:1px solid var(--dark4)}
-.photo-preview.has-image{display:block}
-.photo-preview img{width:100%;max-height:150px;object-fit:cover;display:block}
-.photo-uploaded-badge{position:absolute;top:5px;left:5px;font-size:7px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;background:var(--green);color:#000;padding:2px 5px;border-radius:3px}
-.photo-preview-bar{display:flex;align-items:center;gap:5px;padding:5px 9px;background:var(--dark3);border-top:1px solid var(--dark4);flex-wrap:wrap}
-.photo-preview-name{font-size:9px;color:var(--text-dim);flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0}
-.photo-preview-actions{display:flex;gap:4px;flex-shrink:0}
-.btn-pa{font-size:8px;font-weight:700;letter-spacing:1px;text-transform:uppercase;padding:3px 7px;border-radius:4px;cursor:pointer;font-family:'DM Sans',sans-serif;transition:all 0.2s;position:relative;border:1px solid}
-.btn-pa input[type="file"]{position:absolute;inset:0;opacity:0;cursor:pointer;width:100%;height:100%}
-.btn-dl{background:var(--green-glow);border-color:var(--green-dim);color:var(--green)}
-.btn-dl:hover{background:var(--green-dim);color:#000}
-.btn-ch{background:var(--dark3);border-color:var(--dark4);color:var(--text-dim)}
-.btn-ch:hover{border-color:var(--text-muted);color:var(--text)}
-.btn-rm{background:transparent;border-color:var(--dark4);color:var(--text-muted)}
-.btn-rm:hover{border-color:var(--red);color:var(--red)}
-.card-actions{display:flex;gap:5px;flex-wrap:wrap}
-.btn{font-family:'DM Sans',sans-serif;font-size:9px;font-weight:600;letter-spacing:1px;text-transform:uppercase;padding:6px 10px;border-radius:var(--radius-sm);border:1px solid var(--dark4);cursor:pointer;transition:all 0.2s;background:var(--dark3);color:var(--text-dim);white-space:nowrap}
-.btn:hover{border-color:var(--text-muted);color:var(--text)}
-.btn-copy{background:var(--green-dim);border-color:var(--green-dim);color:#000;flex:1}
-.btn-copy:hover{background:var(--green);border-color:var(--green)}
-.btn-copy.copied{background:var(--dark3);border-color:var(--green);color:var(--green)}
-.btn-done.active{background:var(--green-glow);border-color:var(--green-dim);color:var(--green)}
-.btn-del{border-color:transparent;color:var(--text-muted)}
-.btn-del:hover{border-color:var(--red);color:var(--red);background:transparent}
-.next-up{background:linear-gradient(135deg,#1a2800,#263800);border:1px solid var(--green-dim);border-radius:var(--radius);padding:14px 20px;display:flex;align-items:center;gap:14px;margin-bottom:20px;position:relative;overflow:hidden}
-.next-up::before{content:'NEXT';position:absolute;right:-2px;top:50%;transform:translateY(-50%) rotate(90deg);font-family:'Bebas Neue',sans-serif;font-size:48px;color:rgba(198,241,53,0.04);pointer-events:none}
-.next-up-icon{font-size:20px;flex-shrink:0}
-.next-up-text strong{display:block;font-size:9px;font-weight:700;letter-spacing:2px;text-transform:uppercase;margin-bottom:3px;color:rgba(198,241,53,0.6)}
-.next-up-text span{font-size:13px;font-weight:500;color:var(--text)}
-.next-up-date{margin-left:auto;text-align:right;flex-shrink:0}
-.next-up-date .date-big{font-family:'Bebas Neue',sans-serif;font-size:26px;line-height:1;color:var(--green)}
-.next-up-date .date-sub{font-size:9px;letter-spacing:2px;text-transform:uppercase;color:var(--text-muted)}
-.add-post-wrap{margin-top:24px}
-.add-post-toggle{display:flex;align-items:center;gap:12px;cursor:pointer;padding:14px 18px;background:var(--dark2);border:2px dashed var(--dark4);border-radius:var(--radius);transition:border-color 0.2s,background 0.2s;width:100%;text-align:left}
-.add-post-toggle:hover{border-color:var(--green-dim);background:var(--green-glow)}
-.add-post-toggle .plus{font-family:'Bebas Neue',sans-serif;font-size:24px;color:var(--green);line-height:1;flex-shrink:0}
-.add-label{font-size:11px;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:var(--text-dim)}
-.add-sub{font-size:9px;color:var(--text-muted);margin-top:2px}
-.add-post-form{display:none;margin-top:10px;background:var(--dark2);border:1px solid var(--dark4);border-radius:var(--radius);padding:22px}
-.add-post-form.open{display:block}
-.add-post-form h3{font-family:'Bebas Neue',sans-serif;font-size:17px;letter-spacing:3px;color:var(--green);margin-bottom:16px}
-.form-grid{display:grid;grid-template-columns:1fr 1fr;gap:11px}
-.form-group{display:flex;flex-direction:column;gap:5px;margin-bottom:9px}
-.form-group.full{grid-column:1/-1}
-.form-group label{font-size:9px;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:var(--text-dim)}
-.form-input,.form-select,.form-textarea{background:var(--dark3);border:1px solid var(--dark4);border-radius:var(--radius-sm);color:var(--text);font-family:'DM Sans',sans-serif;font-size:13px;padding:8px 11px;transition:border-color 0.2s;outline:none;width:100%}
-.form-input:focus,.form-select:focus,.form-textarea:focus{border-color:var(--green-dim)}
-.form-textarea{resize:vertical;min-height:100px;line-height:1.7}
-.form-select option{background:var(--dark3)}
-.pillar-pills{display:flex;gap:5px;flex-wrap:wrap}
-.pillar-pill{font-size:9px;font-weight:700;letter-spacing:1px;text-transform:uppercase;padding:4px 10px;border-radius:20px;border:1px solid var(--dark4);cursor:pointer;background:var(--dark3);color:var(--text-dim);transition:all 0.2s}
-.pillar-pill:hover{border-color:var(--text-muted);color:var(--text)}
-.pillar-pill.selected{border-color:currentColor;background:rgba(255,255,255,0.05)}
-.form-actions{display:flex;gap:7px;margin-top:16px;flex-wrap:wrap}
-.btn-submit{background:var(--green-dim);border:none;border-radius:var(--radius-sm);color:#000;font-family:'DM Sans',sans-serif;font-size:10px;font-weight:700;letter-spacing:2px;text-transform:uppercase;padding:10px 20px;cursor:pointer;transition:background 0.2s}
-.btn-submit:hover{background:var(--green)}
-.btn-cancel{background:transparent;border:1px solid var(--dark4);border-radius:var(--radius-sm);color:var(--text-dim);font-family:'DM Sans',sans-serif;font-size:10px;font-weight:700;letter-spacing:2px;text-transform:uppercase;padding:10px 14px;cursor:pointer;transition:all 0.2s}
-.btn-cancel:hover{border-color:var(--text-muted);color:var(--text)}
-/* CALENDAR */
-.cal-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;flex-wrap:wrap;gap:10px}
-.cal-header h2{font-family:'Bebas Neue',sans-serif;font-size:24px;letter-spacing:4px;color:var(--text)}
-.cal-legend{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:12px}
-.cal-legend-item{display:flex;align-items:center;gap:5px;font-size:9px;color:var(--text-dim)}
-.cal-legend-dot{width:8px;height:8px;border-radius:2px}
-.cal-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:2px;margin-bottom:22px}
-.cal-head{font-size:9px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;color:var(--text-muted);text-align:center;padding:7px 3px}
-.cal-day{background:var(--dark2);border:1px solid var(--dark4);border-radius:5px;min-height:72px;padding:5px;transition:border-color 0.2s}
-.cal-day.other-month{opacity:0.25}
-.cal-day.today{border-color:var(--green-dim)}
-.cal-day-num{font-size:10px;font-weight:700;color:var(--text-muted);margin-bottom:3px}
-.cal-day.today .cal-day-num{color:var(--green)}
-.cal-post-dot{font-size:8px;line-height:1.3;padding:1px 3px;border-radius:2px;margin-bottom:1px;overflow:hidden;white-space:nowrap;text-overflow:ellipsis}
-/* WRITER */
-.writer-wrap{max-width:1050px}
-.writer-title{font-family:'Bebas Neue',sans-serif;font-size:24px;letter-spacing:4px;color:var(--green);margin-bottom:4px}
-.writer-sub{font-size:12px;color:var(--text-dim);line-height:1.6;margin-bottom:18px}
-.writer-body{display:grid;grid-template-columns:1fr 1fr;gap:18px;align-items:start}
-.writer-textarea{min-height:150px}
-.btn-generate{width:100%;padding:12px;background:linear-gradient(135deg,var(--green-dim),#5a7010);border:none;border-radius:var(--radius-sm);color:#000;font-family:'DM Sans',sans-serif;font-size:11px;font-weight:700;letter-spacing:2px;text-transform:uppercase;cursor:pointer;transition:all 0.2s;margin-top:4px}
-.btn-generate:hover{background:linear-gradient(135deg,var(--green),var(--green-dim));transform:translateY(-1px);box-shadow:0 4px 18px rgba(198,241,53,0.2)}
-.btn-generate:disabled{opacity:0.5;cursor:not-allowed;transform:none}
-@keyframes spin{to{transform:rotate(360deg)}}
-.spinner{display:inline-block;animation:spin 0.8s linear infinite;margin-right:5px}
-.writer-output-box{background:var(--dark2);border:1px solid var(--dark4);border-radius:var(--radius);min-height:340px;display:flex;flex-direction:column}
-.writer-placeholder{display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;flex:1;padding:32px 18px;gap:7px}
-.placeholder-icon{font-size:32px;margin-bottom:3px;opacity:0.3}
-.writer-placeholder p{font-size:11px;color:var(--text-muted);line-height:1.6}
-.writer-result{padding:18px;display:flex;flex-direction:column;gap:11px;flex:1}
-.result-label{font-size:9px;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:var(--green)}
-.result-hook{font-size:13px;font-weight:700;color:var(--text);line-height:1.5;font-style:italic;padding-bottom:10px;border-bottom:1px solid var(--dark4)}
-.result-caption{font-size:12px;color:var(--text-dim);line-height:1.8;white-space:pre-wrap;flex:1}
-.result-hashtags{font-size:10px;color:var(--green-dim);line-height:1.6}
-.writer-result-actions{display:flex;gap:6px;flex-wrap:wrap;padding-top:10px;border-top:1px solid var(--dark4);margin-top:auto}
-.btn-wr{font-family:'DM Sans',sans-serif;font-size:9px;font-weight:700;letter-spacing:1px;text-transform:uppercase;padding:7px 13px;border-radius:var(--radius-sm);cursor:pointer;transition:all 0.2s}
-.btn-wr-primary{background:var(--green-dim);border:none;color:#000}
-.btn-wr-primary:hover{background:var(--green)}
-.btn-wr-sec{background:var(--dark3);border:1px solid var(--dark4);color:var(--text-dim)}
-.btn-wr-sec:hover{border-color:var(--green-dim);color:var(--green)}
-.btn-wr-ghost{background:transparent;border:1px solid var(--dark4);color:var(--text-muted)}
-.btn-wr-ghost:hover{border-color:var(--text-muted);color:var(--text-dim)}
-@keyframes blink{0%,100%{opacity:1}50%{opacity:0}}
-.streaming::after{content:'▋';animation:blink 0.7s infinite;color:var(--green)}
-/* IMAGE STUDIO */
-.imgex-wrap{max-width:1050px}
-.imgex-title{font-family:'Bebas Neue',sans-serif;font-size:24px;letter-spacing:4px;color:var(--green);margin-bottom:4px}
-.imgex-sub{font-size:12px;color:var(--text-dim);line-height:1.6;margin-bottom:18px}
-.imgex-body{display:grid;grid-template-columns:1fr 1fr;gap:18px;align-items:start}
-.imgex-upload{border:2px dashed var(--dark4);border-radius:var(--radius);padding:28px;text-align:center;cursor:pointer;transition:all 0.2s;position:relative;background:var(--dark2)}
-.imgex-upload:hover,.imgex-upload.dragover{border-color:var(--green-dim);background:var(--green-glow)}
-.imgex-upload input[type="file"]{position:absolute;inset:0;opacity:0;cursor:pointer;width:100%;height:100%}
-.imgex-upload-icon{font-size:36px;margin-bottom:9px;opacity:0.5}
-.imgex-upload h3{font-family:'Bebas Neue',sans-serif;font-size:18px;letter-spacing:2px;color:var(--text-dim)}
-.imgex-upload p{font-size:10px;color:var(--text-muted);margin-top:5px}
-.effect-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:7px;margin-bottom:12px}
-.effect-btn{padding:7px;background:var(--dark3);border:1px solid var(--dark4);border-radius:var(--radius-sm);cursor:pointer;text-align:center;transition:all 0.2s;font-family:'DM Sans',sans-serif}
-.effect-btn:hover{border-color:var(--green-dim)}
-.effect-btn.active{border-color:var(--green);background:var(--green-glow)}
-.effect-btn .ef-icon{font-size:16px;margin-bottom:2px}
-.effect-btn .ef-name{font-size:8px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:var(--text-dim)}
-.effect-btn.active .ef-name{color:var(--green)}
-.canvas-wrap{position:relative;border-radius:var(--radius);overflow:hidden;background:var(--dark3);border:1px solid var(--dark4)}
-#effect-canvas{width:100%;height:auto;display:block;max-height:360px;object-fit:contain}
-.canvas-placeholder{display:flex;align-items:center;justify-content:center;min-height:260px;flex-direction:column;gap:7px;color:var(--text-muted);font-size:11px;text-align:center;padding:18px}
-.canvas-placeholder .cp-icon{font-size:36px;opacity:0.25}
-.imgex-actions{display:flex;gap:7px;margin-top:11px;flex-wrap:wrap}
-.imgex-slider-row{display:flex;align-items:center;gap:9px;margin-bottom:7px}
-.imgex-slider-row label{font-size:9px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;color:var(--text-dim);width:76px;flex-shrink:0}
-.imgex-slider-row input[type="range"]{flex:1;accent-color:var(--green)}
-.imgex-slider-row span{font-size:10px;color:var(--text-muted);width:28px;text-align:right}
-/* TRENDS */
-.trends-wrap{max-width:1050px}
-.trends-title{font-family:'Bebas Neue',sans-serif;font-size:24px;letter-spacing:4px;color:var(--green);margin-bottom:4px}
-.trends-sub{font-size:12px;color:var(--text-dim);line-height:1.6;margin-bottom:14px}
-.trends-refresh{display:flex;align-items:center;gap:11px;margin-bottom:18px;flex-wrap:wrap}
-.btn-refresh{padding:8px 16px;background:var(--green-dim);border:none;border-radius:var(--radius-sm);color:#000;font-family:'DM Sans',sans-serif;font-size:10px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;cursor:pointer;transition:all 0.2s}
-.btn-refresh:hover{background:var(--green)}
-.btn-refresh:disabled{opacity:0.5;cursor:not-allowed}
-.trends-updated{font-size:10px;color:var(--text-muted);letter-spacing:1px}
-.trends-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:12px}
-.trend-card{background:var(--dark2);border:1px solid var(--dark4);border-radius:var(--radius);padding:18px}
-.trend-card h3{font-family:'Bebas Neue',sans-serif;font-size:15px;letter-spacing:2px;color:var(--green);margin-bottom:9px}
-.trend-item{display:flex;align-items:flex-start;gap:7px;margin-bottom:9px;padding-bottom:9px;border-bottom:1px solid var(--dark4)}
-.trend-item:last-child{margin-bottom:0;padding-bottom:0;border-bottom:none}
-.trend-icon{font-size:16px;flex-shrink:0;margin-top:1px}
-.trend-text strong{display:block;font-size:11px;color:var(--text);margin-bottom:2px}
-.trend-text p{font-size:10px;color:var(--text-dim);line-height:1.5}
-.trend-tag{display:inline-block;font-size:8px;font-weight:700;letter-spacing:1px;text-transform:uppercase;padding:2px 5px;border-radius:3px;margin-top:3px}
-.trend-tag.hot{background:rgba(255,107,53,0.12);color:var(--orange);border:1px solid rgba(255,107,53,0.25)}
-.trend-tag.rising{background:rgba(198,241,53,0.08);color:var(--green);border:1px solid rgba(198,241,53,0.18)}
-.trend-tag.steady{background:rgba(79,195,247,0.08);color:var(--blue);border:1px solid rgba(79,195,247,0.18)}
-.trends-loading{text-align:center;padding:36px;color:var(--text-muted);font-size:12px}
-.trends-loading .tl-spinner{font-size:24px;animation:spin 1s linear infinite;display:block;margin:0 auto 10px}
-/* TIPS */
-.tips-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:11px;margin-top:14px}
-.tip-card{background:var(--dark2);border:1px solid var(--dark4);border-radius:var(--radius);padding:18px}
-.tip-card h3{font-family:'Bebas Neue',sans-serif;font-size:15px;letter-spacing:2px;color:var(--green);margin-bottom:7px}
-.tip-card p,.tip-card li{font-size:12px;line-height:1.7;color:var(--text-dim)}
-.tip-card ul{padding-left:13px}
-.tip-card li{margin-bottom:4px}
-.empty-month{text-align:center;padding:44px 18px;border:2px dashed var(--dark4);border-radius:var(--radius)}
-.empty-month h3{font-family:'Bebas Neue',sans-serif;font-size:18px;letter-spacing:3px;color:var(--text-muted);margin-bottom:6px}
-.empty-month p{font-size:11px;color:var(--text-muted)}
-/* TRACKER */
-.tracker-wrap{max-width:1100px}
-.tracker-top{display:flex;align-items:flex-start;justify-content:space-between;gap:16px;margin-bottom:24px;flex-wrap:wrap}
-.tracker-title{font-family:'Bebas Neue',sans-serif;font-size:24px;letter-spacing:4px;color:var(--green);margin-bottom:4px}
-.tracker-sub{font-size:12px;color:var(--text-dim);line-height:1.6}
-.btn-log-entry{padding:11px 22px;background:var(--green-dim);border:none;border-radius:var(--radius-sm);color:#000;font-family:'DM Sans',sans-serif;font-size:11px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;cursor:pointer;transition:all 0.2s;white-space:nowrap;flex-shrink:0}
-.btn-log-entry:hover{background:var(--green)}
-.section-label{font-family:'Bebas Neue',sans-serif;font-size:16px;letter-spacing:3px;color:var(--text-muted)}
-/* Platform summary cards */
-.platform-summary-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-bottom:24px}
-.platform-card{background:var(--dark2);border:1px solid var(--dark4);border-radius:var(--radius);padding:20px;position:relative;overflow:hidden}
-.platform-card::before{content:'';position:absolute;top:0;left:0;right:0;height:3px;border-radius:var(--radius) var(--radius) 0 0;background:var(--pcolor)}
-.platform-card-header{display:flex;align-items:center;gap:10px;margin-bottom:14px}
-.platform-card-icon{font-size:20px}
-.platform-card-link{margin-left:auto;font-size:13px;color:var(--text-muted);text-decoration:none;padding:2px 6px;border-radius:4px;border:1px solid var(--dark4);transition:all 0.2s;line-height:1}
-.platform-card-link:hover{color:var(--pcolor);border-color:var(--pcolor);background:rgba(255,255,255,0.04)}
-.platform-card-name{font-family:'Bebas Neue',sans-serif;font-size:18px;letter-spacing:2px;color:var(--text)}
-.platform-follower-count{font-family:'Bebas Neue',sans-serif;font-size:42px;line-height:1;color:var(--text);margin-bottom:4px}
-.platform-follower-count.no-data{font-size:22px;color:var(--text-muted)}
-.platform-follower-label{font-size:9px;letter-spacing:2px;text-transform:uppercase;color:var(--text-muted);margin-bottom:12px}
-.platform-growth-row{display:flex;gap:16px;flex-wrap:wrap}
-.growth-item{text-align:center}
-.growth-num{font-family:'Bebas Neue',sans-serif;font-size:20px;line-height:1}
-.growth-num.pos{color:var(--green)}
-.growth-num.neg{color:var(--red)}
-.growth-num.neu{color:var(--text-muted)}
-.growth-label{font-size:8px;letter-spacing:1.5px;text-transform:uppercase;color:var(--text-muted);margin-top:2px}
-.platform-last-updated{font-size:9px;color:var(--text-muted);margin-top:10px}
-/* Chart */
-.chart-section{background:var(--dark2);border:1px solid var(--dark4);border-radius:var(--radius);padding:20px;margin-bottom:20px}
-.chart-header{display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:16px;flex-wrap:wrap;gap:10px}
-.chart-title-row{display:flex;align-items:center;gap:14px;flex-wrap:wrap}
-.chart-toggles{display:flex;gap:8px;flex-wrap:wrap}
-.chart-toggle{display:flex;align-items:center;gap:5px;padding:4px 10px;border-radius:20px;border:1px solid var(--dark4);cursor:pointer;font-size:9px;font-weight:700;letter-spacing:1px;text-transform:uppercase;background:var(--dark3);color:var(--text-muted);transition:all 0.2s;user-select:none}
-.chart-toggle.on{border-color:var(--toggle-color);color:var(--toggle-color);background:rgba(255,255,255,0.04)}
-.chart-toggle .ct-dot{width:7px;height:7px;border-radius:50%;background:var(--toggle-color)}
-.chart-period-tabs{display:flex;gap:5px}
-.period-tab{padding:5px 12px;font-size:9px;font-weight:700;letter-spacing:1px;text-transform:uppercase;border:1px solid var(--dark4);border-radius:20px;cursor:pointer;background:var(--dark3);color:var(--text-muted);transition:all 0.2s;font-family:'DM Sans',sans-serif}
-.period-tab:hover{border-color:var(--text-muted);color:var(--text-dim)}
-.period-tab.active{border-color:var(--green-dim);color:var(--green);background:var(--green-glow)}
-.chart-container{position:relative;height:240px}
-#followers-chart{width:100%!important;height:100%!important}
-.chart-empty{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:12px;color:var(--text-muted);text-align:center;padding:20px}
-/* Performance grid */
-.perf-section{margin-bottom:20px}
-.perf-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:10px}
-.perf-card{background:var(--dark2);border:1px solid var(--dark4);border-radius:var(--radius);padding:16px}
-.perf-card-platform{font-size:9px;font-weight:700;letter-spacing:2px;text-transform:uppercase;margin-bottom:8px}
-.perf-metric{display:flex;justify-content:space-between;align-items:center;margin-bottom:5px}
-.perf-metric:last-child{margin-bottom:0}
-.perf-metric-label{font-size:10px;color:var(--text-muted)}
-.perf-metric-value{font-family:'Bebas Neue',sans-serif;font-size:16px;color:var(--text)}
-.perf-metric-value.pos{color:var(--green)}
-.perf-metric-value.neg{color:var(--red)}
-/* Log table */
-.log-section{background:var(--dark2);border:1px solid var(--dark4);border-radius:var(--radius);padding:18px}
-.log-table-wrap{overflow-x:auto}
-.log-table{width:100%;border-collapse:collapse;font-size:12px}
-.log-table th{font-size:9px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;color:var(--text-muted);padding:8px 12px;text-align:left;border-bottom:1px solid var(--dark4)}
-.log-table td{padding:10px 12px;border-bottom:1px solid var(--dark4);color:var(--text-dim);vertical-align:middle}
-.log-table tr:last-child td{border-bottom:none}
-.log-table tr:hover td{background:var(--dark3);color:var(--text)}
-.log-date-cell{font-weight:600;color:var(--text);white-space:nowrap}
-.log-count{font-family:'Bebas Neue',sans-serif;font-size:16px;color:var(--text)}
-.log-delta{font-size:10px;font-weight:700;margin-left:4px}
-.log-delta.pos{color:var(--green)}
-.log-delta.neg{color:var(--red)}
-.log-notes-cell{font-size:11px;color:var(--text-muted);max-width:200px}
-.btn-del-log{background:transparent;border:none;color:var(--text-muted);cursor:pointer;font-size:12px;padding:2px 6px;border-radius:4px;transition:all 0.2s}
-.btn-del-log:hover{color:var(--red);background:rgba(239,83,80,0.1)}
-.log-empty{text-align:center;padding:32px;font-size:12px;color:var(--text-muted)}
-.btn-export{padding:6px 14px;background:transparent;border:1px solid var(--dark4);border-radius:var(--radius-sm);color:var(--text-dim);font-family:'DM Sans',sans-serif;font-size:9px;font-weight:700;letter-spacing:1px;text-transform:uppercase;cursor:pointer;transition:all 0.2s}
-.btn-export:hover{border-color:var(--green-dim);color:var(--green)}
-/* Modal */
-.modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,0.75);z-index:100;display:none;align-items:center;justify-content:center;padding:20px}
-.modal-overlay.open{display:flex}
-.modal-box{background:var(--dark2);border:1px solid var(--dark4);border-radius:var(--radius);padding:28px;width:100%;max-width:460px;position:relative}
-.modal-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:20px}
-.modal-header h3{font-family:'Bebas Neue',sans-serif;font-size:20px;letter-spacing:3px;color:var(--green)}
-.modal-close{background:none;border:none;color:var(--text-muted);font-size:18px;cursor:pointer;padding:2px 6px;border-radius:4px;transition:color 0.2s}
-.modal-close:hover{color:var(--text)}
-.modal-platforms{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px}
-.modal-actions{display:flex;gap:8px;margin-top:20px}
-@media(max-width:640px){.platform-summary-grid{grid-template-columns:1fr}.modal-platforms{grid-template-columns:1fr}}
-/* TOAST */position:fixed;bottom:22px;left:50%;transform:translateX(-50%) translateY(80px);background:var(--green);color:#000;font-size:11px;font-weight:700;letter-spacing:1px;padding:9px 18px;border-radius:100px;z-index:999;transition:transform 0.3s cubic-bezier(0.34,1.56,0.64,1);pointer-events:none;white-space:nowrap}
-#toast.show{transform:translateX(-50%) translateY(0)}
-@media(max-width:800px){.writer-body,.imgex-body{grid-template-columns:1fr}}
-@media(max-width:640px){
-  header,main,.top-nav,.year-bar{padding-left:16px;padding-right:16px}
-  .month-nav{padding:0 16px}
-  .posts-grid{grid-template-columns:1fr}
-  .next-up{flex-wrap:wrap}
-  .form-grid{grid-template-columns:1fr}
-  .cal-grid{grid-template-columns:repeat(7,1fr)}
-  .cal-day{min-height:44px;padding:2px}
-  .cal-day-num{font-size:8px}
-}
+  :root {
+    --lime: #c6f135;
+    --lime-dim: #9fbe2a;
+    --lime-glow: rgba(198,241,53,0.12);
+    --bg: #0e0f0c;
+    --surface: #161710;
+    --card: #1a1c14;
+    --card-hover: #1f2219;
+    --border: #272b1c;
+    --border-hover: rgba(198,241,53,0.25);
+    --text: #e8ecda;
+    --muted: #5e6449;
+    --mono: 'DM Mono', monospace;
+    --head: 'Syne', sans-serif;
+    --body: 'DM Sans', sans-serif;
+  }
+
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  html { scroll-behavior: smooth; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--body);
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background-image:
+      linear-gradient(rgba(198,241,53,0.025) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(198,241,53,0.025) 1px, transparent 1px);
+    background-size: 48px 48px;
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  body::after {
+    content: '';
+    position: fixed;
+    top: -200px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 700px;
+    height: 400px;
+    background: radial-gradient(ellipse, rgba(198,241,53,0.06) 0%, transparent 70%);
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  .wrapper {
+    position: relative;
+    z-index: 1;
+    max-width: 1000px;
+    margin: 0 auto;
+    padding: 64px 32px 96px;
+  }
+
+  header {
+    margin-bottom: 72px;
+    animation: fadeUp 0.6s ease both;
+  }
+
+  .header-top {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 24px;
+    flex-wrap: wrap;
+    margin-bottom: 20px;
+  }
+
+  .logo-eyebrow {
+    font-family: var(--mono);
+    font-size: 10px;
+    letter-spacing: 0.25em;
+    color: var(--lime);
+    text-transform: uppercase;
+    opacity: 0.75;
+    margin-bottom: 10px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .logo-eyebrow::before {
+    content: '';
+    display: inline-block;
+    width: 24px;
+    height: 1px;
+    background: var(--lime);
+    opacity: 0.5;
+  }
+
+  h1 {
+    font-family: var(--head);
+    font-size: clamp(36px, 6vw, 56px);
+    font-weight: 800;
+    line-height: 0.95;
+    letter-spacing: -0.03em;
+    color: var(--text);
+  }
+
+  h1 .accent {
+    color: var(--lime);
+    display: block;
+  }
+
+  .status-pill {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    background: rgba(198,241,53,0.06);
+    border: 1px solid rgba(198,241,53,0.15);
+    border-radius: 100px;
+    padding: 8px 16px;
+    align-self: flex-start;
+    margin-top: 8px;
+  }
+
+  .dot {
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background: var(--lime);
+    animation: pulse 2.5s ease-in-out infinite;
+    flex-shrink: 0;
+  }
+
+  @keyframes pulse {
+    0%, 100% { opacity: 1; box-shadow: 0 0 0 0 rgba(198,241,53,0.4); }
+    50% { opacity: 0.5; box-shadow: 0 0 0 4px rgba(198,241,53,0); }
+  }
+
+  .status-pill span {
+    font-family: var(--mono);
+    font-size: 10px;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    color: var(--lime);
+    opacity: 0.8;
+  }
+
+  .header-rule {
+    height: 1px;
+    background: linear-gradient(to right, var(--border), transparent);
+    margin-top: 32px;
+  }
+
+  .section-label {
+    font-family: var(--mono);
+    font-size: 10px;
+    letter-spacing: 0.25em;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin-bottom: 24px;
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    animation: fadeUp 0.5s ease 0.15s both;
+  }
+
+  .section-label::after {
+    content: '';
+    flex: 1;
+    height: 1px;
+    background: var(--border);
+  }
+
+  .tools-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 12px;
+  }
+
+  @media (max-width: 640px) {
+    .tools-grid { grid-template-columns: 1fr; }
+  }
+
+  .tool-card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    padding: 32px;
+    text-decoration: none;
+    color: inherit;
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+    position: relative;
+    overflow: hidden;
+    transition: background 0.25s ease, border-color 0.25s ease, transform 0.25s ease, box-shadow 0.25s ease;
+    border-radius: 2px;
+  }
+
+  .tool-card::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: radial-gradient(ellipse at top left, rgba(198,241,53,0.04), transparent 60%);
+    opacity: 0;
+    transition: opacity 0.3s ease;
+    pointer-events: none;
+  }
+
+  .tool-card:hover {
+    background: var(--card-hover);
+    border-color: var(--border-hover);
+    transform: translateY(-3px);
+    box-shadow: 0 12px 40px rgba(0,0,0,0.4), 0 0 0 1px rgba(198,241,53,0.08);
+  }
+
+  .tool-card:hover::after {
+    opacity: 1;
+  }
+
+  .card-stripe {
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 2px;
+    background: linear-gradient(to right, var(--lime), transparent);
+    transform: scaleX(0);
+    transform-origin: left;
+    transition: transform 0.35s ease;
+  }
+
+  .tool-card:hover .card-stripe { transform: scaleX(1); }
+
+  .card-top {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 12px;
+  }
+
+  .card-icon {
+    width: 48px;
+    height: 48px;
+    background: rgba(198,241,53,0.07);
+    border: 1px solid rgba(198,241,53,0.12);
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 22px;
+    flex-shrink: 0;
+    transition: background 0.2s, border-color 0.2s;
+  }
+
+  .tool-card:hover .card-icon {
+    background: rgba(198,241,53,0.12);
+    border-color: rgba(198,241,53,0.22);
+  }
+
+  .card-status {
+    font-family: var(--mono);
+    font-size: 9px;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    padding: 4px 10px;
+    border-radius: 2px;
+  }
+
+  .status-live {
+    background: rgba(198,241,53,0.1);
+    color: var(--lime);
+    border: 1px solid rgba(198,241,53,0.2);
+  }
+
+  .card-body { flex: 1; }
+
+  .card-title {
+    font-family: var(--head);
+    font-size: 20px;
+    font-weight: 700;
+    letter-spacing: -0.02em;
+    line-height: 1.15;
+    margin-bottom: 10px;
+  }
+
+  .card-desc {
+    font-size: 13.5px;
+    line-height: 1.65;
+    color: var(--muted);
+    font-weight: 300;
+  }
+
+  .card-footer {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding-top: 20px;
+    border-top: 1px solid var(--border);
+    margin-top: auto;
+  }
+
+  .card-tags {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+  }
+
+  .tag {
+    font-family: var(--mono);
+    font-size: 9px;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--muted);
+    background: rgba(255,255,255,0.03);
+    border: 1px solid var(--border);
+    padding: 3px 8px;
+    border-radius: 2px;
+  }
+
+  .card-arrow {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-family: var(--mono);
+    font-size: 10px;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--lime);
+    opacity: 0;
+    transform: translateX(-8px);
+    transition: opacity 0.2s, transform 0.2s;
+  }
+
+  .tool-card:hover .card-arrow {
+    opacity: 1;
+    transform: translateX(0);
+  }
+
+  footer {
+    margin-top: 72px;
+    padding-top: 24px;
+    border-top: 1px solid var(--border);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 16px;
+    flex-wrap: wrap;
+    animation: fadeUp 0.5s ease 0.6s both;
+  }
+
+  footer span {
+    font-family: var(--mono);
+    font-size: 10px;
+    color: var(--muted);
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+  }
+
+  footer .brand { color: var(--lime); opacity: 0.6; }
+
+  @keyframes fadeUp {
+    from { opacity: 0; transform: translateY(18px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+
+  .tool-card:nth-child(1) { animation: fadeUp 0.45s ease 0.2s both; }
+  .tool-card:nth-child(2) { animation: fadeUp 0.45s ease 0.28s both; }
+  .tool-card:nth-child(3) { animation: fadeUp 0.45s ease 0.36s both; }
+  .tool-card:nth-child(4) { animation: fadeUp 0.45s ease 0.44s both; }
 </style>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"></script>
 </head>
 <body>
+<div class="wrapper">
 
-<header>
-  <div class="logo-block">
-    <h1>CONNECTIN <span>EVENTS</span></h1>
-    <p>Social Media Scheduler</p>
-  </div>
-  <div class="header-stats">
-    <div class="stat"><div class="stat-num" id="stat-total">0</div><div class="stat-label">Total</div></div>
-    <div class="stat"><div class="stat-num" id="stat-done">0</div><div class="stat-label">Posted</div></div>
-    <div class="stat"><div class="stat-num" id="stat-remaining">0</div><div class="stat-label">To Go</div></div>
-  </div>
-</header>
+  <header>
+    <div class="header-top">
+      <div>
+        <div class="logo-eyebrow">ConnectIn Events · Manchester</div>
+        <h1>Internal<span class="accent">Tools Hub</span></h1>
+      </div>
+      <div class="status-pill">
+        <div class="dot"></div>
+        <span>4 of 4 live</span>
+      </div>
+    </div>
+    <div class="header-rule"></div>
+  </header>
 
-<div class="year-bar">
-  <button class="year-btn active" onclick="switchYear(2026,this)">2026</button>
-  <button class="year-btn" onclick="switchYear(2027,this)">2027</button>
+  <div class="section-label">All tools</div>
+
+  <div class="tools-grid">
+
+    <!-- 1. Event & Lead Tracker -->
+    <a class="tool-card" href="https://my-tracker-bice.vercel.app" target="_blank">
+      <div class="card-stripe"></div>
+      <div class="card-top">
+        <div class="card-icon">📋</div>
+        <span class="card-status status-live">Live</span>
+      </div>
+      <div class="card-body">
+        <div class="card-title">Event & Lead Tracker</div>
+        <div class="card-desc">Track events, leads, and team assignments across your FY pipeline. Kanban, table, and calendar views with holiday conflict detection.</div>
+      </div>
+      <div class="card-footer">
+        <div class="card-tags">
+          <span class="tag">React</span>
+          <span class="tag">Vercel</span>
+          <span class="tag">Google Sheets</span>
+        </div>
+        <div class="card-arrow">Open →</div>
+      </div>
+    </a>
+
+    <!-- 2. Social Media Scheduler -->
+    <a class="tool-card" href="https://connectin-scheduler.vercel.app" target="_blank">
+      <div class="card-stripe"></div>
+      <div class="card-top">
+        <div class="card-icon">📱</div>
+        <span class="card-status status-live">Live</span>
+      </div>
+      <div class="card-body">
+        <div class="card-title">Social Media Scheduler</div>
+        <div class="card-desc">Plan and schedule posts month-by-month with platform tagging, an AI caption writer, image studio, follower tracker, and competitor strategy tab.</div>
+      </div>
+      <div class="card-footer">
+        <div class="card-tags">
+          <span class="tag">HTML</span>
+          <span class="tag">Claude API</span>
+          <span class="tag">Chart.js</span>
+        </div>
+        <div class="card-arrow">Open →</div>
+      </div>
+    </a>
+
+    <!-- 3. Venue Portal -->
+    <a class="tool-card" href="https://connectin-venue-portal.vercel.app" target="_blank">
+      <div class="card-stripe"></div>
+      <div class="card-top">
+        <div class="card-icon">🏛️</div>
+        <span class="card-status status-live">Live</span>
+      </div>
+      <div class="card-body">
+        <div class="card-title">Venues Database</div>
+        <div class="card-desc">Browse, filter, and manage venue information across your event network. Search by capacity, location, and type.</div>
+      </div>
+      <div class="card-footer">
+        <div class="card-tags">
+          <span class="tag">HTML</span>
+          <span class="tag">Database</span>
+        </div>
+        <div class="card-arrow">Open →</div>
+      </div>
+    </a>
+
+    <!-- 4. Supplier & Event Build -->
+    <a class="tool-card" href="https://connectin-supplier-db.vercel.app" target="_blank">
+      <div class="card-stripe"></div>
+      <div class="card-top">
+        <div class="card-icon">🔧</div>
+        <span class="card-status status-live">Live</span>
+      </div>
+      <div class="card-body">
+        <div class="card-title">Supplier & Event Build</div>
+        <div class="card-desc">Manage suppliers, build event quotes, calculate margins, and generate PPTX and Excel exports. Includes invoice attachments and Google Sheets sync.</div>
+      </div>
+      <div class="card-footer">
+        <div class="card-tags">
+          <span class="tag">HTML</span>
+          <span class="tag">PPTX Export</span>
+          <span class="tag">Google Sheets</span>
+        </div>
+        <div class="card-arrow">Open →</div>
+      </div>
+    </a>
+
+  </div>
+
+  <footer>
+    <span>ConnectIn Events · Internal use only</span>
+    <span class="brand">connectinevents.co.uk</span>
+  </footer>
+
 </div>
-
-<div class="top-nav">
-  <button class="top-tab active" onclick="switchView('schedule',this)">📅 Schedule</button>
-  <button class="top-tab" onclick="switchView('calendar',this)">🗓 Calendar</button>
-  <button class="top-tab" onclick="switchView('writer',this)">✨ Caption Writer</button>
-  <button class="top-tab" onclick="switchView('imgex',this)">🖼 Image Studio</button>
-  <button class="top-tab" onclick="switchView('trends',this)">📈 Trends</button>
-  <button class="top-tab" onclick="switchView('tracker',this)">📊 Tracker</button>
-  <button class="top-tab" onclick="switchView('tips',this)">💡 Tips</button>
-  <button class="top-tab" onclick="switchView('financials',this)">💰 Financials</button>
-  <button class="top-tab" onclick="switchView('seo',this)">🔍 SEO</button>
-  <button class="top-tab" onclick="switchView('connectin-docs',this)">📄 Connectin Docs</button>
-  <button class="top-tab" onclick="switchView('connectin-assets',this)">🗂 Connectin Assets</button>
-</div>
-
-<div class="month-nav-wrap" id="month-nav-wrap">
-  <div class="month-nav" id="month-nav"></div>
-</div>
-
-<main>
-  <div class="view-panel active" id="view-schedule">
-    <div id="next-up-banner"></div>
-    <div id="month-content"></div>
-  </div>
-
-  <div class="view-panel" id="view-calendar">
-    <div id="cal-content"></div>
-  </div>
-
-  <div class="view-panel" id="view-writer">
-    <div class="writer-wrap">
-      <h2 class="writer-title">✨ Caption Writer</h2>
-      <p class="writer-sub">Dump your rough idea below — bullet points, notes, anything. AI rewrites it in ConnectIn's bold, punchy tone.</p>
-      <div class="writer-body">
-        <div>
-          <div class="form-group">
-            <label>Your rough idea / notes</label>
-            <textarea class="form-textarea writer-textarea" id="writer-input" placeholder="e.g. We pulled off a 200-person conference in Manchester last week. Last minute venue change 3 days before. Client was thrilled. Went perfectly."></textarea>
-          </div>
-          <div class="form-group">
-            <label>Content Pillar</label>
-            <div class="pillar-pills" id="writer-pillars">
-              <span class="pillar-pill selected" style="color:#c6f135" data-pillar="Value / Tips" onclick="selectWriterPillar(this)">Value / Tips</span>
-              <span class="pillar-pill" style="color:#4fc3f7" data-pillar="Behind the Scenes" onclick="selectWriterPillar(this)">Behind the Scenes</span>
-              <span class="pillar-pill" style="color:#ff6b35" data-pillar="Social Proof" onclick="selectWriterPillar(this)">Social Proof</span>
-              <span class="pillar-pill" style="color:#ce93d8" data-pillar="Storytelling" onclick="selectWriterPillar(this)">Storytelling</span>
-              <span class="pillar-pill" style="color:#ffd54f" data-pillar="Engagement / Poll" onclick="selectWriterPillar(this)">Engagement / Poll</span>
-            </div>
-          </div>
-          <div class="form-group">
-            <label>Platform</label>
-            <select class="form-select" id="writer-platform">
-              <option value="LinkedIn">💼 LinkedIn — professional but punchy</option>
-              <option value="Instagram">📸 Instagram — casual, visual, relatable</option>
-              <option value="TikTok">🎵 TikTok — short, punchy, hook-first</option>
-            </select>
-          </div>
-          <button class="btn-generate" onclick="generateCaption()" id="generate-btn">
-            <span id="generate-label">✨ Generate Caption</span>
-          </button>
-        </div>
-        <div>
-          <div class="writer-output-box">
-            <div class="writer-placeholder" id="writer-placeholder">
-              <div class="placeholder-icon">✍️</div>
-              <p>Your AI-generated caption will appear here.</p>
-              <p>Fill in your idea on the left and hit Generate.</p>
-            </div>
-            <div class="writer-result" id="writer-result" style="display:none">
-              <div class="result-label">Generated Caption</div>
-              <div class="result-hook" id="result-hook"></div>
-              <div class="result-caption" id="result-caption"></div>
-              <div class="result-hashtags" id="result-hashtags"></div>
-              <div class="writer-result-actions">
-                <button class="btn-wr btn-wr-primary" onclick="copyResult()">📋 Copy</button>
-                <button class="btn-wr btn-wr-sec" onclick="useInScheduler()">➕ Add to Scheduler</button>
-                <button class="btn-wr btn-wr-ghost" onclick="generateCaption()">↺ Regenerate</button>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
-  </div>
-
-  <div class="view-panel" id="view-imgex">
-    <div class="imgex-wrap">
-      <h2 class="imgex-title">🖼 Image Studio</h2>
-      <p class="imgex-sub">Upload a photo and apply ConnectIn's signature dark, high-contrast brand effects. Download ready-to-post images.</p>
-      <div class="imgex-body">
-        <div>
-          <div class="imgex-upload" id="imgex-upload-zone" ondragover="event.preventDefault();this.classList.add('dragover')" ondragleave="this.classList.remove('dragover')" ondrop="handleImgDrop(event)">
-            <input type="file" accept="image/*" onchange="handleImgUpload(event)">
-            <div class="imgex-upload-icon">📷</div>
-            <h3>Upload Your Photo</h3>
-            <p>Click or drag & drop — JPG, PNG, GIF</p>
-          </div>
-          <div id="imgex-controls" style="display:none">
-            <div class="form-group" style="margin-top:14px">
-              <label>Choose Effect</label>
-              <div class="effect-grid">
-                <div class="effect-btn active" onclick="selectEffect(this,'connectin')"><div class="ef-icon">🟢</div><div class="ef-name">ConnectIn</div></div>
-                <div class="effect-btn" onclick="selectEffect(this,'noir')"><div class="ef-icon">⬛</div><div class="ef-name">Noir</div></div>
-                <div class="effect-btn" onclick="selectEffect(this,'electric')"><div class="ef-icon">⚡</div><div class="ef-name">Electric</div></div>
-                <div class="effect-btn" onclick="selectEffect(this,'fire')"><div class="ef-icon">🔥</div><div class="ef-name">Fire</div></div>
-                <div class="effect-btn" onclick="selectEffect(this,'frost')"><div class="ef-icon">❄️</div><div class="ef-name">Frost</div></div>
-                <div class="effect-btn" onclick="selectEffect(this,'raw')"><div class="ef-icon">📸</div><div class="ef-name">Original</div></div>
-              </div>
-            </div>
-            <div class="imgex-slider-row"><label>Brightness</label><input type="range" min="0" max="200" value="100" id="sl-brightness" oninput="applyEffect();document.getElementById('v-brightness').textContent=this.value"><span id="v-brightness">100</span></div>
-            <div class="imgex-slider-row"><label>Contrast</label><input type="range" min="0" max="300" value="100" id="sl-contrast" oninput="applyEffect();document.getElementById('v-contrast').textContent=this.value"><span id="v-contrast">100</span></div>
-            <div class="imgex-slider-row"><label>Saturation</label><input type="range" min="0" max="200" value="100" id="sl-saturation" oninput="applyEffect();document.getElementById('v-saturation').textContent=this.value"><span id="v-saturation">100</span></div>
-            <div class="imgex-actions">
-              <button class="btn-submit" onclick="downloadEditedImage()">⬇ Download</button>
-              <button class="btn-cancel" onclick="resetImage()">↺ Reset</button>
-            </div>
-          </div>
-        </div>
-        <div>
-          <div class="canvas-wrap">
-            <div class="canvas-placeholder" id="canvas-placeholder"><div class="cp-icon">🖼️</div><p>Upload an image to preview the effect here</p></div>
-            <canvas id="effect-canvas" style="display:none"></canvas>
-          </div>
-        </div>
-      </div>
-    </div>
-  </div>
-
-  <div class="view-panel" id="view-trends">
-    <div class="trends-wrap">
-      <h2 class="trends-title">📈 Content & Social Media Strategy</h2>
-      <p class="trends-sub">What's working right now — general social trends plus what's hot in the events world, powered by AI.</p>
-      <div class="trends-refresh">
-        <button class="btn-refresh" onclick="loadTrends()" id="trends-btn">🔄 Refresh Trends</button>
-        <span class="trends-updated" id="trends-updated"></span>
-      </div>
-      <div id="trends-content"><div class="trends-loading"><span class="tl-spinner">⟳</span>Loading trends…</div></div>
-    </div>
-  </div>
-
-  <div class="view-panel" id="view-tracker">
-    <div class="tracker-wrap">
-      <div class="tracker-top">
-        <div>
-          <h2 class="tracker-title">📊 Followers & Performance</h2>
-          <p class="tracker-sub">Log your follower counts and track growth across LinkedIn, TikTok and Instagram over time.</p>
-        </div>
-        <button class="btn-log-entry" onclick="openLogModal()">+ Log Today's Numbers</button>
-      </div>
-
-      <!-- Platform Summary Cards -->
-      <div class="platform-summary-grid" id="platform-summary"></div>
-
-      <!-- Chart -->
-      <div class="chart-section">
-        <div class="chart-header">
-          <div class="chart-title-row">
-            <span class="section-label">Follower Growth</span>
-            <div class="chart-toggles" id="chart-toggles"></div>
-          </div>
-          <div class="chart-period-tabs">
-            <button class="period-tab active" onclick="setChartPeriod('all',this)">All Time</button>
-            <button class="period-tab" onclick="setChartPeriod('90',this)">90 Days</button>
-            <button class="period-tab" onclick="setChartPeriod('30',this)">30 Days</button>
-          </div>
-        </div>
-        <div class="chart-container">
-          <canvas id="followers-chart"></canvas>
-          <div class="chart-empty" id="chart-empty">Log at least 2 entries to see your growth chart</div>
-        </div>
-      </div>
-
-      <!-- Performance Metrics -->
-      <div class="perf-section">
-        <div class="section-label" style="margin-bottom:14px">Performance Metrics</div>
-        <div class="perf-grid" id="perf-grid"></div>
-      </div>
-
-      <!-- Log History Table -->
-      <div class="log-section">
-        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;flex-wrap:wrap;gap:8px">
-          <span class="section-label">Entry History</span>
-          <button class="btn-export" onclick="exportCSV()">⬇ Export CSV</button>
-        </div>
-        <div class="log-table-wrap">
-          <table class="log-table" id="log-table">
-            <thead><tr><th>Date</th><th>LinkedIn</th><th>TikTok</th><th>Instagram</th><th>Notes</th><th></th></tr></thead>
-            <tbody id="log-tbody"></tbody>
-          </table>
-          <div class="log-empty" id="log-empty">No entries yet — hit "Log Today's Numbers" to get started.</div>
-        </div>
-      </div>
-    </div>
-  </div>
-
-  <!-- LOG MODAL -->
-  <div class="modal-overlay" id="log-modal" onclick="if(event.target===this)closeLogModal()">
-    <div class="modal-box">
-      <div class="modal-header">
-        <h3>Log Follower Numbers</h3>
-        <button class="modal-close" onclick="closeLogModal()">✕</button>
-      </div>
-      <div class="form-group">
-        <label>Date</label>
-        <input class="form-input" id="log-date" type="date">
-      </div>
-      <div class="modal-platforms">
-        <div class="form-group">
-          <label>💼 LinkedIn Followers</label>
-          <input class="form-input" id="log-li" type="number" min="0" placeholder="e.g. 1240">
-        </div>
-        <div class="form-group">
-          <label>🎵 TikTok Followers</label>
-          <input class="form-input" id="log-tt" type="number" min="0" placeholder="e.g. 850">
-        </div>
-        <div class="form-group">
-          <label>📸 Instagram Followers</label>
-          <input class="form-input" id="log-ig" type="number" min="0" placeholder="e.g. 2100">
-        </div>
-      </div>
-      <div class="form-group">
-        <label>Notes (optional)</label>
-        <input class="form-input" id="log-notes" type="text" placeholder="e.g. Posted behind the scenes reel">
-      </div>
-      <div class="modal-actions">
-        <button class="btn-submit" onclick="saveLogEntry()">Save Entry</button>
-        <button class="btn-cancel" onclick="closeLogModal()">Cancel</button>
-      </div>
-    </div>
-  </div>
-
-  <div class="view-panel" id="view-tips">
-    <div class="tips-grid">
-      <div class="tip-card"><h3>The Hook Rule</h3><p>LinkedIn shows only the first 2–3 lines before "See more." Your opening has to stop the scroll. Bold statement or a challenge — never bury the lead.</p></div>
-      <div class="tip-card"><h3>Best Times to Post</h3><ul><li><strong>Monday:</strong> 8–10am — people planning their week</li><li><strong>Wednesday:</strong> 9–11am — peak mid-week</li><li><strong>Friday:</strong> 8–10am — before the weekend drop</li></ul></div>
-      <div class="tip-card"><h3>Hashtag Strategy</h3><ul><li>5–8 hashtags per post</li><li>Always: #ConnectinEvents #EventManagement #CorporateEvents</li><li>Rotate supporting hashtags</li><li>Hashtags at the END only</li></ul></div>
-      <div class="tip-card"><h3>Visuals = More Reach</h3><p>Images and video get significantly more reach. Use real ConnectIn event photos — your work is visual gold. Behind-the-scenes shots beat stock every time.</p></div>
-      <div class="tip-card"><h3>Engage Fast</h3><p>Reply to every comment in the first 60–90 mins. LinkedIn's algorithm rewards early engagement and pushes posts to more people.</p></div>
-      <div class="tip-card"><h3>Consistency Wins</h3><p>3x per week, every week. Each month has its own 4-week cycle — stay on track and the results compound.</p></div>
-    </div>
-  </div>
-
-  <div class="view-panel" id="view-financials">
-    <div class="tips-grid">
-      <div class="tip-card"><h3>💰 Financials</h3><p>Financial content and reports will appear here.</p></div>
-    </div>
-  </div>
-
-  <div class="view-panel" id="view-seo">
-    <div class="tips-grid">
-      <div class="tip-card"><h3>🔍 SEO</h3><p>SEO resources and tools will appear here.</p></div>
-    </div>
-  </div>
-
-  <div class="view-panel" id="view-connectin-docs">
-    <div class="tips-grid">
-      <div class="tip-card"><h3>📄 Connectin Docs</h3><p>Connectin documentation will appear here.</p></div>
-    </div>
-  </div>
-
-  <div class="view-panel" id="view-connectin-assets">
-    <div class="tips-grid">
-      <div class="tip-card"><h3>🗂 Connectin Assets</h3><p>Connectin brand assets will appear here.</p></div>
-    </div>
-  </div>
-</main>
-
-<div id="toast"></div>
-
-<script>
-const MONTHS=['January','February','March','April','May','June','July','August','September','October','November','December'];
-const PLATFORM_MAP={LinkedIn:{icon:'💼',cls:'active-li'},Instagram:{icon:'📸',cls:'active-ig'},TikTok:{icon:'🎵',cls:'active-tt'},Other:{icon:'🌐',cls:'active-ot'}};
-const ALL_PLATFORMS=['LinkedIn','Instagram','TikTok','Other'];
-const PILLAR_DEFAULTS=[{label:'Value / Tips',color:'#c6f135'},{label:'Behind the Scenes',color:'#4fc3f7'},{label:'Social Proof',color:'#ff6b35'},{label:'Storytelling',color:'#ce93d8'},{label:'Engagement / Poll',color:'#ffd54f'},{label:'Custom',color:'#888'}];
-const PILLAR_COLORS={'Value / Tips':'#c6f135','Behind the Scenes':'#4fc3f7','Social Proof':'#ff6b35','Storytelling':'#ce93d8','Engagement / Poll':'#ffd54f','Custom':'#888'};
-
-const DEFAULT_POSTS=[
-  {year:2026,month:2,week:1,day:'Monday',date:'10 Mar',pillar:'Value / Tips',pillarColor:'#c6f135',platforms:['LinkedIn'],hook:"Most corporate events fail before anyone's even stepped through the door. Not because of the venue. Because nobody nailed the brief.",caption:"Most corporate events fail before anyone's even stepped through the door.\n\nNot because of the venue.\nNot because of the food.\nBecause nobody nailed the brief.\n\nHere's what every solid event brief actually needs:\n\n1. A real objective — not 'team building.' What does winning look like?\n2. Your non-negotiables — budget ceiling, accessibility, vibe.\n3. The feeling you're after — electric? Intimate? Ridiculously memorable?\n\nGet those three right and the rest? We've got it.\n\nAt ConnectIn, we don't just take a brief. We interrogate it.\n\nWhat's the one thing you wish you'd locked down before your last event? 👇",hashtags:'#EventManagement #CorporateEvents #ConnectinEvents #EventPlanning #EventProfs',visual:'Flat lay of a planning doc or brief'},
-  {year:2026,month:2,week:1,day:'Wednesday',date:'12 Mar',pillar:'Behind the Scenes',pillarColor:'#4fc3f7',platforms:['LinkedIn','Instagram'],hook:"72 hours out from a major corporate event. Here's what's actually happening behind the scenes.",caption:"72 hours out from a major corporate event. Here's what's actually happening behind the scenes.\n\n72 hrs: Final headcount in. Dietary requirements triple-checked. Every supplier briefed.\n48 hrs: Site walk. AV tested. Contingency plan locked.\n24 hrs: Run sheet sealed. Team primed. Client reassured.\nDay of: We're there first. We leave last.\n\nThe events that look effortless? Those are the ones with the most chaos backstage.\n\nThat's ConnectIn.",hashtags:'#BehindTheScenes #EventManagement #ConnectinEvents #CorporateEvents',visual:'Backstage/setup shot'},
-  {year:2026,month:2,week:1,day:'Friday',date:'14 Mar',pillar:'Social Proof',pillarColor:'#ff6b35',platforms:['LinkedIn'],hook:"A client came to us with 6 weeks to pull off a 180-person leadership summit. No venue. No theme. No run sheet.",caption:"A client came to us with 6 weeks to pull off a 180-person leadership summit.\n\nNo venue. No theme. No run sheet.\nJust a date, a budget, and an awful lot of pressure.\n\nSix weeks later?\n\nFull-day summit. Keynote speaker. Breakout sessions. Seated dinner. Zero hiccups.\n\nTheir words: \"I genuinely don't know how you pulled that off.\"\n\nWe do. It's what we're built for.\n\nThat's ConnectIn Events. 📩",hashtags:'#ConnectinEvents #EventManagement #CorporateEvents #ClientWin #EventPlanning',visual:'Event highlight or crowd shot'},
-  {year:2026,month:2,week:2,day:'Monday',date:'17 Mar',pillar:'Storytelling',pillarColor:'#ce93d8',platforms:['LinkedIn','Instagram'],hook:"A client once handed us a brief that said: 'Something memorable. 150 people. Black tie optional.' That was it.",caption:"A client once handed us a brief that said:\n\"Something memorable. 150 people. Black tie optional.\"\n\nThat was it.\n\nNo theme. No vision. No clue what 'memorable' meant to them.\n\nSo we asked better questions.\n\nWe built a rooftop conference by day. Private dining experience by night.\nThe kind of thing people talked about for months.\n\nThe best events don't come from big budgets. They come from the right questions at the right time.\n\nThat's how ConnectIn turns vague ideas into something that refuses to blend in. 🎯",hashtags:'#EventManagement #ConnectinEvents #CorporateEvents #EventDesign',visual:'Rooftop or evening dining event photo'},
-  {year:2026,month:2,week:2,day:'Wednesday',date:'19 Mar',pillar:'Value / Tips',pillarColor:'#c6f135',platforms:['LinkedIn','TikTok'],hook:"We planned a full corporate conference in under 4 weeks. Here's exactly how we did it.",caption:"We planned a full corporate conference in under 4 weeks.\nHere's exactly how — no fluff, no filler.\n\nWeek 1: Venue secured. AV confirmed. Run sheet skeleton locked.\nWeek 2: Speaker confirmed. Catering done. Delegate comms sent.\nWeek 3: Full rehearsal. Collateral printed. Logistics mapped.\nWeek 4: Showtime. It ran like we'd had six months.\n\nTight timelines aren't a crisis. They're just a different kind of planning.\n\nConnectIn Events. Built for the brief nobody else wants. 💪",hashtags:'#EventPlanning #ConnectinEvents #CorporateEvents #EventManagement #ConferencePlanning',visual:'Conference in action or timeline graphic'},
-  {year:2026,month:2,week:2,day:'Friday',date:'21 Mar',pillar:'Engagement / Poll',pillarColor:'#ffd54f',platforms:['LinkedIn','Instagram','TikTok'],hook:"Right. We need to know. What's the actual hardest part of organising a work event?",caption:"Right. We need to know.\n\nWhat's the actual hardest part of organising a work event?\n\n🔵  Getting leadership to sign off on anything\n🟢  Keeping the budget from going rogue\n🟡  Herding suppliers and venues into line\n🔴  Getting people to actually show up\n\nDrop your answer below. The room is safe.\n\nWe hear all four of these every single week. That's ConnectIn. 🎉",hashtags:'#ConnectinEvents #EventManagement #CorporateEvents #EventPlanning #BusinessEvents',visual:'Fun team photo or branded graphic'}
-];
-
-let POSTS=[],doneState={},openCaptions={},photoState={};
-let activeYear=2026,activeMonth=new Date().getMonth(),calViewMonth=new Date().getMonth();
-let selectedPillar={label:'Value / Tips',color:'#c6f135'},addFormOpen=false;
-
-function save(){try{localStorage.setItem('ci_v4_posts',JSON.stringify(POSTS));localStorage.setItem('ci_v4_done',JSON.stringify(doneState));localStorage.setItem('ci_v4_photos',JSON.stringify(photoState));localStorage.setItem('ci_v4_month',activeMonth);localStorage.setItem('ci_v4_year',activeYear);}catch(e){}}
-function load(){try{const p=localStorage.getItem('ci_v4_posts');POSTS=p?JSON.parse(p):JSON.parse(JSON.stringify(DEFAULT_POSTS));const d=localStorage.getItem('ci_v4_done');doneState=d?JSON.parse(d):{};const ph=localStorage.getItem('ci_v4_photos');photoState=ph?JSON.parse(ph):{};const m=localStorage.getItem('ci_v4_month');if(m!==null)activeMonth=parseInt(m);const y=localStorage.getItem('ci_v4_year');if(y!==null)activeYear=parseInt(y);}catch(e){POSTS=JSON.parse(JSON.stringify(DEFAULT_POSTS));doneState={};photoState={};}}
-
-function updateStats(){const done=Object.values(doneState).filter(Boolean).length;document.getElementById('stat-total').textContent=POSTS.length;document.getElementById('stat-done').textContent=done;document.getElementById('stat-remaining').textContent=POSTS.length-done;}
-
-function buildMonthNav(){
-  const nav=document.getElementById('month-nav');const now=new Date();
-  nav.innerHTML=MONTHS.map((m,i)=>{
-    const posts=POSTS.filter(p=>p.month===i&&p.year===activeYear);
-    const isCurrent=i===now.getMonth()&&activeYear===now.getFullYear();
-    return `<button class="month-tab ${i===activeMonth?'active':''} ${posts.length?'has-posts':''} ${isCurrent?'current-month':''}" onclick="switchMonth(${i})" id="mtab-${i}">${m}<span class="month-dot"></span></button>`;
-  }).join('');
-  setTimeout(()=>{const a=document.getElementById('mtab-'+activeMonth);if(a)a.scrollIntoView({behavior:'smooth',block:'nearest',inline:'center'});},50);
-}
-
-function switchMonth(idx){activeMonth=idx;calViewMonth=idx;save();buildMonthNav();renderMonth();renderNextUp();renderCalendar();}
-function switchYear(y,btn){activeYear=y;document.querySelectorAll('.year-btn').forEach(b=>b.classList.remove('active'));btn.classList.add('active');save();buildMonthNav();renderMonth();renderNextUp();renderCalendar();}
-function switchView(view,btn){
-  document.querySelectorAll('.top-tab').forEach(t=>t.classList.remove('active'));
-  document.querySelectorAll('.view-panel').forEach(p=>p.classList.remove('active'));
-  btn.classList.add('active');document.getElementById('view-'+view).classList.add('active');
-  const showMnav=view==='schedule'||view==='calendar';
-  document.getElementById('month-nav-wrap').style.display=showMnav?'':'none';
-  if(view==='calendar')renderCalendar();
-  if(view==='trends'&&!trendsLoaded)loadTrends();
-}
-
-function renderNextUp(){
-  const el=document.getElementById('next-up-banner');
-  const allIdx=POSTS.map((p,i)=>({p,i})).filter(({p})=>p.month===activeMonth&&p.year===activeYear);
-  const nextItem=allIdx.find(({i})=>!doneState[i]);
-  if(!nextItem){el.innerHTML='';return;}
-  const{p:nx}=nextItem;
-  el.innerHTML=`<div class="next-up"><div class="next-up-icon">🚀</div><div class="next-up-text"><strong>Next in ${MONTHS[activeMonth]} ${activeYear}</strong><span>${esc(nx.hook.substring(0,68))}…</span></div><div class="next-up-date"><div class="date-big">${esc(nx.date)}</div><div class="date-sub">${esc(nx.day)}</div></div></div>`;
-}
-
-function renderMonth(){
-  const container=document.getElementById('month-content');
-  const mi=POSTS.map((p,i)=>({p,i})).filter(({p})=>p.month===activeMonth&&p.year===activeYear);
-  const total=mi.length,done=mi.filter(({i})=>doneState[i]).length,pct=total?Math.round(done/total*100):0;
-  let html=`<div class="month-banner"><div class="month-banner-left"><h2>${MONTHS[activeMonth]} ${activeYear}</h2><p>${total} post${total!==1?'s':''} scheduled · ${done} posted</p><div class="month-progress-bar"><div class="month-progress-fill" style="width:${pct}%"></div></div></div><div class="month-stats"><div class="month-stat"><div class="month-stat-num">${total}</div><div class="month-stat-label">Scheduled</div></div><div class="month-stat"><div class="month-stat-num">${done}</div><div class="month-stat-label">Posted</div></div><div class="month-stat"><div class="month-stat-num">${total-done}</div><div class="month-stat-label">Remaining</div></div></div></div>`;
-  if(!total){html+=`<div class="empty-month"><h3>No posts for ${MONTHS[activeMonth]} yet</h3><p>Use the button below to add posts to this month.</p></div>`;}
-  else{for(let w=1;w<=4;w++){const wi=mi.filter(({p})=>p.week===w);const wd=wi.filter(({i})=>doneState[i]).length;html+=`<div class="week-section"><div class="week-header"><div class="week-label">Week ${w}</div><div class="week-line"></div><div class="week-progress">${wd}/${wi.length} posted</div></div>`;if(!wi.length)html+=`<div class="week-empty">No posts for Week ${w} — add one below</div>`;else{html+=`<div class="posts-grid">`;wi.forEach(({p,i})=>{html+=buildCard(p,i);});html+=`</div>`;}html+=`</div>`;}}
-  html+=`<div class="add-post-wrap"><button class="add-post-toggle" onclick="toggleAddForm()"><div class="plus">+</div><div><div class="add-label">Add a Post to ${MONTHS[activeMonth]} ${activeYear}</div><div class="add-sub">Slot a new post into any week</div></div></button><div class="add-post-form ${addFormOpen?'open':''}" id="add-post-form"><h3>New Post — ${MONTHS[activeMonth]} ${activeYear}</h3><div class="form-grid"><div class="form-group"><label>Week</label><select class="form-select" id="new-week"><option value="1">Week 1</option><option value="2">Week 2</option><option value="3">Week 3</option><option value="4">Week 4</option></select></div><div class="form-group"><label>Day</label><select class="form-select" id="new-day"><option>Monday</option><option>Tuesday</option><option>Wednesday</option><option>Thursday</option><option>Friday</option><option>Saturday</option><option>Sunday</option></select></div><div class="form-group"><label>Date (e.g. 24 Mar)</label><input class="form-input" id="new-date" type="text" placeholder="24 Mar"></div><div class="form-group"><label>Pillar</label><div class="pillar-pills">${PILLAR_DEFAULTS.map(pl=>`<span class="pillar-pill ${pl.label===selectedPillar.label?'selected':''}" style="color:${pl.color}" data-pillar="${pl.label}" data-color="${pl.color}" onclick="selectPillar(this)">${pl.label}</span>`).join('')}</div></div><div class="form-group full"><label>Post To</label><div class="platform-row" id="form-platforms">${ALL_PLATFORMS.map(p=>`<span class="platform-chip ${p==='LinkedIn'?'active-li':''}" data-platform="${p}" onclick="toggleFormPlatform(this)"><span class="chip-icon">${PLATFORM_MAP[p].icon}</span> ${p}</span>`).join('')}</div></div><div class="form-group full"><label>Opening Hook</label><input class="form-input" id="new-hook" type="text" placeholder="Scroll-stopping opener…"></div><div class="form-group full"><label>Full Caption</label><textarea class="form-textarea" id="new-caption" placeholder="Full post body…"></textarea></div><div class="form-group full"><label>Hashtags</label><input class="form-input" id="new-hashtags" type="text" placeholder="#ConnectinEvents #EventManagement …"></div><div class="form-group full"><label>Visual Tip (optional)</label><input class="form-input" id="new-visual" type="text" placeholder="e.g. Behind the scenes setup shot"></div></div><div class="form-actions"><button class="btn-submit" onclick="addPost()">Add to ${MONTHS[activeMonth]} ✓</button><button class="btn-cancel" onclick="toggleAddForm()">Cancel</button></div></div></div>`;
-  container.innerHTML=html;
-}
-
-function buildCard(post,idx){
-  const isDone=doneState[idx],isOpen=openCaptions[idx],photo=photoState[idx];
-  const dayClass=post.day.toLowerCase();
-  const lines=post.caption.split('\n').map(l=>l.trim()===''?'<br>':'<p>'+esc(l)+'</p>').join('');
-  const platforms=post.platforms||['LinkedIn'];
-  const chips=ALL_PLATFORMS.map(p=>`<span class="platform-chip ${platforms.includes(p)?PLATFORM_MAP[p].cls:''}" data-platform="${p}" onclick="toggleCardPlatform(${idx},'${p}',this)"><span class="chip-icon">${PLATFORM_MAP[p].icon}</span> ${p}</span>`).join('');
-  return `<div class="post-card ${isDone?'done':''}" style="--pillar-color:${post.pillarColor}"><div class="card-meta"><span class="day-badge ${dayClass}">${post.day}</span><span class="date-label">${esc(post.date)}</span><span class="pillar-tag" style="color:${post.pillarColor};border-color:${post.pillarColor}30;background:${post.pillarColor}12">${esc(post.pillar)}</span></div><div class="card-hook">"${esc(post.hook)}"</div><div class="platform-label">Post to</div><div class="platform-row">${chips}</div><div class="caption-preview ${isOpen?'open':''}">${lines}</div><div class="hashtags ${isOpen?'open':''}">${esc(post.hashtags||'')}</div>${post.visual?`<div class="visual-tip ${isOpen?'open':''}">${esc(post.visual)}</div>`:''}<div class="photo-section">${photo?`<div class="photo-preview has-image"><span class="photo-uploaded-badge">✓ Photo</span><img src="${photo.dataUrl}" alt="Post photo"><div class="photo-preview-bar"><span class="photo-preview-name">📎 ${esc(photo.name)}</span><div class="photo-preview-actions"><button class="btn-pa btn-dl" onclick="downloadPhoto(${idx})">⬇</button><button class="btn-pa btn-ch">Change<input type="file" accept="image/*" onchange="handlePhotoUpload(event,${idx})"></button><button class="btn-pa btn-rm" onclick="removePhoto(${idx})">Remove</button></div></div></div>`:`<div class="photo-drop-zone" ondragover="event.preventDefault();this.classList.add('dragover')" ondragleave="this.classList.remove('dragover')" ondrop="handlePhotoDrop(event,${idx})"><input type="file" accept="image/*" onchange="handlePhotoUpload(event,${idx})"><div class="drop-icon">🖼️</div><div class="drop-label">Upload photo</div><div class="drop-sub">Click or drag & drop</div></div>`}</div><div class="card-actions"><button class="btn btn-copy" onclick="copyCaption(${idx},this)">Copy Caption</button><button class="btn" onclick="toggleCaption(${idx})">${isOpen?'Hide':'Preview'}</button><button class="btn btn-done ${isDone?'active':''}" onclick="toggleDone(${idx})">${isDone?'✓ Posted':'Mark Posted'}</button><button class="btn btn-del" onclick="deletePost(${idx})">🗑</button></div></div>`;
-}
-
-function renderCalendar(){
-  const container=document.getElementById('cal-content');
-  const year=activeYear,month=calViewMonth;
-  const firstDay=new Date(year,month,1).getDay();
-  const daysInMonth=new Date(year,month+1,0).getDate();
-  const startOffset=(firstDay+6)%7;
-  const today=new Date();
-  const dayMap={};
-  POSTS.filter(p=>p.year===year&&p.month===month).forEach(post=>{
-    const m=(post.date||'').match(/(\d+)/);
-    if(m){const d=parseInt(m[1]);if(!dayMap[d])dayMap[d]=[];dayMap[d].push(post);}
-  });
-  let html=`<div class="cal-header"><h2>${MONTHS[month]} ${year}</h2><div style="display:flex;gap:7px"><button class="btn" onclick="calViewMonth=(calViewMonth-1+12)%12;if(calViewMonth===11&&activeYear===2026){}renderCalendar()">← Prev</button><button class="btn" onclick="calViewMonth=(calViewMonth+1)%12;renderCalendar()">Next →</button></div></div>`;
-  html+=`<div class="cal-legend">${Object.entries(PILLAR_COLORS).map(([k,v])=>`<div class="cal-legend-item"><div class="cal-legend-dot" style="background:${v}20;border:1px solid ${v}50"></div>${k}</div>`).join('')}</div>`;
-  html+=`<div class="cal-grid">${['Mon','Tue','Wed','Thu','Fri','Sat','Sun'].map(d=>`<div class="cal-head">${d}</div>`).join('')}`;
-  for(let i=0;i<startOffset;i++)html+=`<div class="cal-day other-month"></div>`;
-  for(let d=1;d<=daysInMonth;d++){
-    const isToday=d===today.getDate()&&month===today.getMonth()&&year===today.getFullYear();
-    const posts=dayMap[d]||[];
-    html+=`<div class="cal-day ${isToday?'today':''}"><div class="cal-day-num">${d}</div>${posts.map(p=>{const col=PILLAR_COLORS[p.pillar]||'#888';const pi=(p.platforms||['LinkedIn']).map(pl=>PLATFORM_MAP[pl]?.icon||'').join('');return `<div class="cal-post-dot" style="background:${col}15;border-left:2px solid ${col};color:${col};padding-left:3px" title="${esc(p.hook)}">${pi} ${esc(p.pillar.split(' ')[0])}</div>`;}).join('')}</div>`;
-  }
-  const remaining=(7-(startOffset+daysInMonth)%7)%7;
-  for(let i=0;i<remaining;i++)html+=`<div class="cal-day other-month"></div>`;
-  html+=`</div>`;
-  const monthPosts=POSTS.map((p,i)=>({p,i})).filter(({p})=>p.year===year&&p.month===month);
-  if(monthPosts.length){html+=`<div style="margin-top:18px"><div style="font-family:'Bebas Neue',sans-serif;font-size:16px;letter-spacing:3px;color:var(--text-muted);margin-bottom:10px">POSTS THIS MONTH</div><div class="posts-grid">`;monthPosts.forEach(({p,i})=>{html+=buildCard(p,i);});html+=`</div></div>`;}
-  container.innerHTML=html;
-}
-
-function toggleCaption(idx){openCaptions[idx]=!openCaptions[idx];renderMonth();}
-function copyCaption(idx,btn){navigator.clipboard.writeText(POSTS[idx].caption).then(()=>{btn.textContent='✓ Copied!';btn.classList.add('copied');showToast('Caption copied!');setTimeout(()=>{btn.textContent='Copy Caption';btn.classList.remove('copied');},2500);});}
-function toggleDone(idx){doneState[idx]=!doneState[idx];save();updateStats();buildMonthNav();renderNextUp();renderMonth();}
-function deletePost(idx){
-  if(!confirm('Delete this post?'))return;
-  POSTS.splice(idx,1);const nd={},np={};
-  Object.keys(doneState).forEach(k=>{const n=parseInt(k);if(n<idx)nd[n]=doneState[n];else if(n>idx)nd[n-1]=doneState[n];});
-  Object.keys(photoState).forEach(k=>{const n=parseInt(k);if(n<idx)np[n]=photoState[n];else if(n>idx)np[n-1]=photoState[n];});
-  doneState=nd;photoState=np;save();updateStats();buildMonthNav();renderNextUp();renderMonth();renderCalendar();showToast('Post deleted.');
-}
-function handlePhotoUpload(event,idx){const file=event.target.files[0];if(!file)return;const r=new FileReader();r.onload=e=>{photoState[idx]={dataUrl:e.target.result,name:file.name};save();renderMonth();showToast('📸 Photo uploaded!');};r.readAsDataURL(file);}
-function handlePhotoDrop(event,idx){event.preventDefault();const file=event.dataTransfer.files[0];if(!file||!file.type.startsWith('image/'))return;const r=new FileReader();r.onload=e=>{photoState[idx]={dataUrl:e.target.result,name:file.name};save();renderMonth();showToast('📸 Photo uploaded!');};r.readAsDataURL(file);}
-function removePhoto(idx){delete photoState[idx];save();renderMonth();}
-function downloadPhoto(idx){const p=photoState[idx];if(!p)return;const a=document.createElement('a');a.href=p.dataUrl;a.download=p.name||'photo.jpg';document.body.appendChild(a);a.click();document.body.removeChild(a);}
-function toggleCardPlatform(idx,platform,el){const post=POSTS[idx];if(!post.platforms)post.platforms=['LinkedIn'];const i=post.platforms.indexOf(platform);if(i>-1){if(post.platforms.length===1){showToast('⚠️ Need at least one platform.');return;}post.platforms.splice(i,1);el.classList.remove(PLATFORM_MAP[platform].cls);}else{post.platforms.push(platform);el.classList.add(PLATFORM_MAP[platform].cls);}save();}
-function toggleFormPlatform(el){const platform=el.dataset.platform,cls=PLATFORM_MAP[platform].cls;const active=el.classList.contains(cls);const allActive=document.querySelectorAll('#form-platforms .platform-chip[class*="active-"]');if(active&&allActive.length===1){showToast('⚠️ Select at least one platform.');return;}el.classList.toggle(cls);}
-function getFormPlatforms(){return ALL_PLATFORMS.filter(p=>{const chip=document.querySelector(`#form-platforms [data-platform="${p}"]`);return chip&&chip.classList.contains(PLATFORM_MAP[p].cls);});}
-function toggleAddForm(){addFormOpen=!addFormOpen;renderMonth();if(addFormOpen)setTimeout(()=>document.getElementById('add-post-form')?.scrollIntoView({behavior:'smooth',block:'start'}),100);}
-function selectPillar(el){document.querySelectorAll('.pillar-pill').forEach(p=>p.classList.remove('selected'));el.classList.add('selected');selectedPillar={label:el.dataset.pillar,color:el.dataset.color};}
-function addPost(){
-  const week=parseInt(document.getElementById('new-week').value);
-  const day=document.getElementById('new-day').value;
-  const date=document.getElementById('new-date').value.trim();
-  const hook=document.getElementById('new-hook').value.trim();
-  const caption=document.getElementById('new-caption').value.trim();
-  const hashtags=document.getElementById('new-hashtags').value.trim();
-  const visual=document.getElementById('new-visual').value.trim();
-  if(!hook||!caption){showToast('⚠️ Please fill in hook and caption.');return;}
-  const newPost={year:activeYear,month:activeMonth,week,day,date:date||day,pillar:selectedPillar.label,pillarColor:selectedPillar.color,platforms:getFormPlatforms(),hook,caption,hashtags,visual};
-  let insertIdx=POSTS.length;
-  for(let i=POSTS.length-1;i>=0;i--){if(POSTS[i].year<activeYear||(POSTS[i].year===activeYear&&(POSTS[i].month<activeMonth||(POSTS[i].month===activeMonth&&POSTS[i].week<=week)))){insertIdx=i+1;break;}}
-  POSTS.splice(insertIdx,0,newPost);
-  const nd={},np={};Object.keys(doneState).forEach(k=>{const n=parseInt(k);nd[n>=insertIdx?n+1:n]=doneState[n];});Object.keys(photoState).forEach(k=>{const n=parseInt(k);np[n>=insertIdx?n+1:n]=photoState[n];});
-  doneState=nd;photoState=np;addFormOpen=false;selectedPillar={label:'Value / Tips',color:'#c6f135'};
-  save();updateStats();buildMonthNav();renderNextUp();renderMonth();renderCalendar();showToast('✅ Post added to '+MONTHS[activeMonth]+' Week '+week+'!');
-}
-
-// CAPTION WRITER
-let writerPillar='Value / Tips',lastHook='',lastCaption='',lastHashtags='';
-function selectWriterPillar(el){document.querySelectorAll('#writer-pillars .pillar-pill').forEach(p=>p.classList.remove('selected'));el.classList.add('selected');writerPillar=el.dataset.pillar;}
-
-async function generateCaption(){
-  const input=document.getElementById('writer-input').value.trim();
-  if(!input){showToast('⚠️ Write your rough idea first.');return;}
-  const platform=document.getElementById('writer-platform').value;
-  const btn=document.getElementById('generate-btn');
-  const label=document.getElementById('generate-label');
-  btn.disabled=true;label.innerHTML='<span class="spinner">⟳</span> Writing…';
-  document.getElementById('writer-placeholder').style.display='none';
-  const resultEl=document.getElementById('writer-result');resultEl.style.display='flex';
-  const hookEl=document.getElementById('result-hook'),captionEl=document.getElementById('result-caption'),hashEl=document.getElementById('result-hashtags');
-  hookEl.textContent='';captionEl.textContent='Generating…';captionEl.classList.add('streaming');hashEl.textContent='';
-  const toneMap={LinkedIn:'LinkedIn — confident, professional, short punchy sentences, ends with a question or CTA',Instagram:'Instagram — casual, visual, conversational, warm and relatable, uses emojis naturally',TikTok:'TikTok — ultra short, bold hook in first 3 words, punchy bullet points'};
-  try{
-    const response=await fetch('https://api.anthropic.com/v1/messages',{
-      method:'POST',
-      headers:{'Content-Type':'application/json','anthropic-dangerous-direct-browser-access':'true'},
-      body:JSON.stringify({model:'claude-sonnet-4-20250514',max_tokens:1000,system:`You are the social media copywriter for ConnectIn Events — bold, disruptive UK event management from Manchester. Short punchy sentences. No corporate fluff. Confident and direct. Strong scroll-stopping hook. Line breaks for readability. End with CTA or question. Hashtags at very end only. Respond with ONLY valid JSON, no markdown: {"hook":"under 20 words","caption":"full post body without hashtags","hashtags":"#ConnectinEvents #EventManagement plus 3-5 more"}`,messages:[{role:'user',content:`Rewrite as ${platform} post for ConnectIn Events. Tone: ${toneMap[platform]}. Pillar: ${writerPillar}. Idea: ${input}. Return only valid JSON.`}]})
-    });
-    const data=await response.json();
-    const text=data.content?.map(c=>c.text||'').join('')||'';
-    const clean=text.replace(/```json|```/g,'').trim();
-    const parsed=JSON.parse(clean);
-    lastHook=parsed.hook||'';lastCaption=parsed.caption||'';lastHashtags=parsed.hashtags||'';
-    captionEl.classList.remove('streaming');hookEl.textContent='"'+lastHook+'"';captionEl.textContent=lastCaption;hashEl.textContent=lastHashtags;
-    showToast('✨ Caption ready!');
-  }catch(e){captionEl.classList.remove('streaming');captionEl.textContent='Something went wrong — please try again.';console.error(e);}
-  btn.disabled=false;label.innerHTML='✨ Generate Caption';
-}
-
-function copyResult(){const full=lastCaption+'\n\n'+lastHashtags;navigator.clipboard.writeText(full).then(()=>showToast('📋 Caption copied!'));}
-function useInScheduler(){
-  if(!lastCaption){showToast('⚠️ Generate a caption first.');return;}
-  document.querySelectorAll('.top-tab').forEach(t=>t.classList.remove('active'));document.querySelectorAll('.view-panel').forEach(p=>p.classList.remove('active'));
-  document.querySelector('.top-tab').classList.add('active');document.getElementById('view-schedule').classList.add('active');document.getElementById('month-nav-wrap').style.display='';
-  addFormOpen=true;renderMonth();
-  setTimeout(()=>{const h=document.getElementById('new-hook');const c=document.getElementById('new-caption');const ha=document.getElementById('new-hashtags');if(h)h.value=lastHook;if(c)c.value=lastCaption;if(ha)ha.value=lastHashtags;document.getElementById('add-post-form')?.scrollIntoView({behavior:'smooth',block:'start'});showToast('✅ Caption loaded — fill in the details!');},200);
-}
-
-// IMAGE STUDIO
-let imgSource=null,currentEffect='connectin';
-const EFFECTS={
-  connectin:(ctx,w,h,img)=>{ctx.filter='contrast(140%) brightness(78%) saturate(75%)';ctx.drawImage(img,0,0,w,h);ctx.filter='none';const g=ctx.createLinearGradient(0,0,w,h);g.addColorStop(0,'rgba(198,241,53,0.18)');g.addColorStop(1,'rgba(0,0,0,0.58)');ctx.fillStyle=g;ctx.fillRect(0,0,w,h);const v=ctx.createRadialGradient(w/2,h/2,h*0.25,w/2,h/2,h*0.85);v.addColorStop(0,'rgba(0,0,0,0)');v.addColorStop(1,'rgba(0,0,0,0.65)');ctx.fillStyle=v;ctx.fillRect(0,0,w,h);},
-  noir:(ctx,w,h,img)=>{ctx.filter='grayscale(100%) contrast(165%) brightness(72%)';ctx.drawImage(img,0,0,w,h);ctx.filter='none';const v=ctx.createRadialGradient(w/2,h/2,h*0.2,w/2,h/2,h*0.9);v.addColorStop(0,'rgba(0,0,0,0)');v.addColorStop(1,'rgba(0,0,0,0.78)');ctx.fillStyle=v;ctx.fillRect(0,0,w,h);},
-  electric:(ctx,w,h,img)=>{ctx.filter='contrast(150%) brightness(68%) saturate(0%)';ctx.drawImage(img,0,0,w,h);ctx.filter='none';const g=ctx.createLinearGradient(0,0,w,h);g.addColorStop(0,'rgba(0,100,255,0.32)');g.addColorStop(1,'rgba(198,241,53,0.22)');ctx.fillStyle=g;ctx.fillRect(0,0,w,h);},
-  fire:(ctx,w,h,img)=>{ctx.filter='contrast(128%) brightness(78%) saturate(130%)';ctx.drawImage(img,0,0,w,h);ctx.filter='none';const g=ctx.createLinearGradient(0,h,0,0);g.addColorStop(0,'rgba(255,50,0,0.58)');g.addColorStop(0.5,'rgba(255,130,0,0.22)');g.addColorStop(1,'rgba(0,0,0,0.42)');ctx.fillStyle=g;ctx.fillRect(0,0,w,h);},
-  frost:(ctx,w,h,img)=>{ctx.filter='contrast(118%) brightness(88%) saturate(55%) hue-rotate(185deg)';ctx.drawImage(img,0,0,w,h);ctx.filter='none';const g=ctx.createLinearGradient(0,0,w,h);g.addColorStop(0,'rgba(90,190,255,0.28)');g.addColorStop(1,'rgba(0,0,50,0.48)');ctx.fillStyle=g;ctx.fillRect(0,0,w,h);},
-  raw:(ctx,w,h,img)=>{ctx.drawImage(img,0,0,w,h);}
-};
-function selectEffect(btn,effect){document.querySelectorAll('.effect-btn').forEach(b=>b.classList.remove('active'));btn.classList.add('active');currentEffect=effect;applyEffect();}
-function applyEffect(){
-  if(!imgSource)return;
-  const canvas=document.getElementById('effect-canvas');const ctx=canvas.getContext('2d');
-  const br=document.getElementById('sl-brightness')?.value||100;
-  const co=document.getElementById('sl-contrast')?.value||100;
-  const sa=document.getElementById('sl-saturation')?.value||100;
-  const tmp=document.createElement('canvas');tmp.width=canvas.width;tmp.height=canvas.height;
-  const tctx=tmp.getContext('2d');tctx.filter=`brightness(${br}%) contrast(${co}%) saturate(${sa}%)`;tctx.drawImage(imgSource,0,0,canvas.width,canvas.height);tctx.filter='none';
-  ctx.clearRect(0,0,canvas.width,canvas.height);
-  EFFECTS[currentEffect](ctx,canvas.width,canvas.height,tmp);
-}
-function handleImgUpload(event){const file=event.target.files[0];if(!file)return;loadImgFile(file);}
-function handleImgDrop(event){event.preventDefault();document.getElementById('imgex-upload-zone').classList.remove('dragover');const file=event.dataTransfer.files[0];if(!file||!file.type.startsWith('image/'))return;loadImgFile(file);}
-function loadImgFile(file){
-  const reader=new FileReader();
-  reader.onload=e=>{
-    const img=new Image();
-    img.onload=()=>{
-      imgSource=img;const canvas=document.getElementById('effect-canvas');
-      const maxW=800;const scale=img.width>maxW?maxW/img.width:1;
-      canvas.width=Math.round(img.width*scale);canvas.height=Math.round(img.height*scale);
-      canvas.style.display='block';document.getElementById('canvas-placeholder').style.display='none';
-      document.getElementById('imgex-controls').style.display='block';document.getElementById('imgex-upload-zone').style.display='none';
-      applyEffect();showToast('📸 Image loaded!');
-    };img.src=e.target.result;
-  };reader.readAsDataURL(file);
-}
-function resetImage(){imgSource=null;currentEffect='connectin';const canvas=document.getElementById('effect-canvas');canvas.style.display='none';document.getElementById('canvas-placeholder').style.display='flex';document.getElementById('imgex-controls').style.display='none';document.getElementById('imgex-upload-zone').style.display='block';document.querySelectorAll('.effect-btn').forEach((b,i)=>b.classList.toggle('active',i===0));['brightness','contrast','saturation'].forEach(id=>{document.getElementById('sl-'+id).value=100;document.getElementById('v-'+id).textContent=100;});}
-function downloadEditedImage(){const canvas=document.getElementById('effect-canvas');const a=document.createElement('a');a.href=canvas.toDataURL('image/jpeg',0.92);a.download='connectin-post-image.jpg';document.body.appendChild(a);a.click();document.body.removeChild(a);showToast('⬇ Image downloaded!');}
-
-// TRENDS
-let trendsLoaded=false;
-async function loadTrends(){
-  trendsLoaded=true;
-  const btn=document.getElementById('trends-btn');const container=document.getElementById('trends-content');
-  btn.disabled=true;btn.textContent='Loading…';
-  container.innerHTML=`<div class="trends-loading"><span class="tl-spinner">⟳</span>Fetching trends…</div>`;
-  try{
-    const response=await fetch('https://api.anthropic.com/v1/messages',{
-      method:'POST',
-      headers:{'Content-Type':'application/json','anthropic-dangerous-direct-browser-access':'true'},
-      body:JSON.stringify({model:'claude-sonnet-4-20250514',max_tokens:2000,messages:[{role:'user',content:`You are a social media and content strategy expert for the UK corporate events industry. Provide a practical content briefing for ConnectIn Events (Manchester-based corporate event management). Return ONLY valid JSON, no markdown:\n{"sections":[{"title":"Section","items":[{"icon":"emoji","title":"Trend","description":"2-3 practical sentences","tag":"hot|rising|steady"}]}]}\n\nInclude these 5 sections with 3-4 items each:\n1. LinkedIn Trends Right Now\n2. Instagram & TikTok What's Working\n3. Events Industry Hot Topics\n4. Content Formats Performing Best\n5. ConnectIn-Specific Content Ideas\n\nBe specific and actionable for a Manchester event management company.`}]})
-    });
-    const data=await response.json();const text=data.content?.map(c=>c.text||'').join('')||'';
-    const clean=text.replace(/```json|```/g,'').trim();const parsed=JSON.parse(clean);
-    let html=`<div class="trends-grid">`;
-    (parsed.sections||[]).forEach(section=>{
-      html+=`<div class="trend-card"><h3>${esc(section.title)}</h3>`;
-      (section.items||[]).forEach(item=>{html+=`<div class="trend-item"><div class="trend-icon">${item.icon||'📊'}</div><div class="trend-text"><strong>${esc(item.title)}</strong><p>${esc(item.description)}</p><span class="trend-tag ${item.tag||'steady'}">${(item.tag||'steady').toUpperCase()}</span></div></div>`;});
-      html+=`</div>`;
-    });
-    html+=`</div>`;container.innerHTML=html;
-    document.getElementById('trends-updated').textContent='Last updated: just now';
-    showToast('📈 Trends updated!');
-  }catch(e){container.innerHTML=`<div style="text-align:center;padding:36px;color:var(--text-muted)">Failed to load. Check connection and try again.</div>`;console.error(e);}
-  btn.disabled=false;btn.textContent='🔄 Refresh Trends';
-}
-
-
-// ═══════════════════════════════════════════════
-// FOLLOWER TRACKER
-// ═══════════════════════════════════════════════
-const TRACKER_PLATFORMS=[
-  {key:'li',name:'LinkedIn',icon:'💼',color:'#0a66c2',url:'https://www.linkedin.com/company/connectin-events/'},
-  {key:'tt',name:'TikTok',icon:'🎵',color:'#69c9d0',url:'https://www.tiktok.com/@connectinevents'},
-  {key:'ig',name:'Instagram',icon:'📸',color:'#e1306c',url:'https://www.instagram.com/connectinevents/'}
-];
-let followerLog=[];
-let chartInstance=null;
-let chartPeriod='all';
-let chartVisible={li:true,tt:true,ig:true};
-
-function loadTrackerData(){
-  try{const d=localStorage.getItem('ci_tracker_v1');if(d)followerLog=JSON.parse(d);}catch(e){followerLog=[];}
-}
-function saveTrackerData(){
-  try{localStorage.setItem('ci_tracker_v1',JSON.stringify(followerLog));}catch(e){}
-}
-
-function openLogModal(){
-  const today=new Date().toISOString().split('T')[0];
-  document.getElementById('log-date').value=today;
-  document.getElementById('log-li').value='';
-  document.getElementById('log-tt').value='';
-  document.getElementById('log-ig').value='';
-  document.getElementById('log-notes').value='';
-  // Pre-fill with last known values
-  if(followerLog.length){
-    const last=followerLog[followerLog.length-1];
-    if(last.li)document.getElementById('log-li').value=last.li;
-    if(last.tt)document.getElementById('log-tt').value=last.tt;
-    if(last.ig)document.getElementById('log-ig').value=last.ig;
-  }
-  document.getElementById('log-modal').classList.add('open');
-  setTimeout(()=>document.getElementById('log-li').focus(),100);
-}
-function closeLogModal(){document.getElementById('log-modal').classList.remove('open');}
-
-function saveLogEntry(){
-  const date=document.getElementById('log-date').value;
-  const li=document.getElementById('log-li').value;
-  const tt=document.getElementById('log-tt').value;
-  const ig=document.getElementById('log-ig').value;
-  const notes=document.getElementById('log-notes').value.trim();
-  if(!date){showToast('⚠️ Please select a date.');return;}
-  if(!li&&!tt&&!ig){showToast('⚠️ Enter at least one follower count.');return;}
-  // Check for duplicate date — update if exists
-  const existingIdx=followerLog.findIndex(e=>e.date===date);
-  const entry={date,li:li?parseInt(li):null,tt:tt?parseInt(tt):null,ig:ig?parseInt(ig):null,notes};
-  if(existingIdx>-1){followerLog[existingIdx]=entry;showToast('✅ Entry updated!');}
-  else{followerLog.push(entry);followerLog.sort((a,b)=>a.date.localeCompare(b.date));showToast('✅ Entry saved!');}
-  saveTrackerData();closeLogModal();renderTracker();
-}
-
-function deleteLogEntry(idx){
-  if(!confirm('Delete this entry?'))return;
-  followerLog.splice(idx,1);saveTrackerData();renderTracker();showToast('Entry deleted.');
-}
-
-function getFilteredLog(){
-  if(chartPeriod==='all')return followerLog;
-  const days=parseInt(chartPeriod);
-  const cutoff=new Date();cutoff.setDate(cutoff.getDate()-days);
-  const cutStr=cutoff.toISOString().split('T')[0];
-  return followerLog.filter(e=>e.date>=cutStr);
-}
-
-function setChartPeriod(period,btn){
-  chartPeriod=period;
-  document.querySelectorAll('.period-tab').forEach(b=>b.classList.remove('active'));
-  btn.classList.add('active');
-  renderChart();
-}
-
-function renderTracker(){
-  renderPlatformCards();
-  renderPerfGrid();
-  renderLogTable();
-  renderChart();
-  renderChartToggles();
-}
-
-function renderPlatformCards(){
-  const container=document.getElementById('platform-summary');
-  const sorted=[...followerLog].sort((a,b)=>a.date.localeCompare(b.date));
-  const latest=sorted[sorted.length-1];
-  const prev=sorted[sorted.length-2];
-  const monthAgo=sorted.filter(e=>e.date<=getDateNDaysAgo(30)).pop();
-
-  container.innerHTML=TRACKER_PLATFORMS.map(p=>{
-    const cur=latest?latest[p.key]:null;
-    const prevVal=prev?prev[p.key]:null;
-    const monthVal=monthAgo?monthAgo[p.key]:null;
-    const weekAgo=sorted.filter(e=>e.date<=getDateNDaysAgo(7)).pop();
-    const weekVal=weekAgo?weekAgo[p.key]:null;
-
-    const deltaEntry=cur&&prevVal?cur-prevVal:null;
-    const deltaWeek=cur&&weekVal?cur-weekVal:null;
-    const deltaMonth=cur&&monthVal?cur-monthVal:null;
-
-    const fmtDelta=(v)=>{if(v===null)return '<span class="growth-num neu">—</span>';const s=v>0?'+':'';return `<span class="growth-num ${v>0?'pos':v<0?'neg':'neu'}">${s}${v.toLocaleString()}</span>`;};
-
-    return `<div class="platform-card" style="--pcolor:${p.color}">
-      <div class="platform-card-header">
-        <span class="platform-card-icon">${p.icon}</span>
-        <span class="platform-card-name">${p.name}</span>
-        <a href="${p.url}" target="_blank" rel="noopener" class="platform-card-link" title="Open ${p.name} profile">↗</a>
-      </div>
-      <div class="platform-follower-count ${cur===null?'no-data':''}">${cur!==null?cur.toLocaleString():'No data yet'}</div>
-      <div class="platform-follower-label">Followers</div>
-      <div class="platform-growth-row">
-        <div class="growth-item">${fmtDelta(deltaEntry)}<div class="growth-label">Last entry</div></div>
-        <div class="growth-item">${fmtDelta(deltaWeek)}<div class="growth-label">7 days</div></div>
-        <div class="growth-item">${fmtDelta(deltaMonth)}<div class="growth-label">30 days</div></div>
-      </div>
-      ${latest?`<div class="platform-last-updated">Last logged: ${formatDate(latest.date)}</div>`:''}
-    </div>`;
-  }).join('');
-}
-
-function renderPerfGrid(){
-  const container=document.getElementById('perf-grid');
-  const sorted=[...followerLog].sort((a,b)=>a.date.localeCompare(b.date));
-  if(sorted.length<2){container.innerHTML='<p style="font-size:12px;color:var(--text-muted);grid-column:1/-1">Log at least 2 entries to see performance metrics.</p>';return;}
-
-  const latest=sorted[sorted.length-1];
-  const first=sorted[0];
-  const weekAgo=sorted.filter(e=>e.date<=getDateNDaysAgo(7)).pop();
-  const monthAgo=sorted.filter(e=>e.date<=getDateNDaysAgo(30)).pop();
-  const daysBetween=(a,b)=>Math.max(1,Math.round((new Date(b)-new Date(a))/(1000*60*60*24)));
-
-  container.innerHTML=TRACKER_PLATFORMS.map(p=>{
-    const cur=latest[p.key],firstVal=first[p.key];
-    const weekVal=weekAgo?weekAgo[p.key]:null;
-    const monthVal=monthAgo?monthAgo[p.key]:null;
-    if(cur===null&&firstVal===null)return '';
-
-    const totalGrowth=cur&&firstVal?cur-firstVal:null;
-    const totalDays=daysBetween(first.date,latest.date);
-    const avgPerDay=totalGrowth!==null?Math.round(totalGrowth/totalDays*7):null;// weekly avg
-    const pct=totalGrowth&&firstVal?((totalGrowth/firstVal)*100).toFixed(1):null;
-    const wGrowth=cur&&weekVal?cur-weekVal:null;
-    const mGrowth=cur&&monthVal?cur-monthVal:null;
-
-    const row=(label,val,isNum=true)=>{
-      if(val===null)return '';
-      const cls=isNum?(val>0?'pos':val<0?'neg':''):'' ;
-      const disp=isNum?(val>0?'+':'')+val.toLocaleString():val;
-      return `<div class="perf-metric"><span class="perf-metric-label">${label}</span><span class="perf-metric-value ${cls}">${disp}</span></div>`;
-    };
-
-    return `<div class="perf-card" style="border-top:3px solid ${p.color}20;border-color:${p.color}30">
-      <div class="perf-card-platform" style="color:${p.color}">${p.icon} ${p.name}</div>
-      ${row('Total growth',totalGrowth)}
-      ${row('All-time %',pct!==null?`${pct>0?'+':''}${pct}%`:null,false)}
-      ${row('Avg/week',avgPerDay)}
-      ${row('Last 7 days',wGrowth)}
-      ${row('Last 30 days',mGrowth)}
-    </div>`;
-  }).join('');
-}
-
-function renderLogTable(){
-  const tbody=document.getElementById('log-tbody');
-  const emptyEl=document.getElementById('log-empty');
-  const sorted=[...followerLog].sort((a,b)=>b.date.localeCompare(a.date));
-  if(!sorted.length){tbody.innerHTML='';emptyEl.style.display='block';return;}
-  emptyEl.style.display='none';
-  const allSorted=[...followerLog].sort((a,b)=>a.date.localeCompare(b.date));
-
-  tbody.innerHTML=sorted.map((entry)=>{
-    const realIdx=followerLog.indexOf(entry);
-    const sortedIdx=allSorted.indexOf(entry);
-    const prevEntry=sortedIdx>0?allSorted[sortedIdx-1]:null;
-
-    const cell=(key)=>{
-      const cur=entry[key];if(cur===null)return '<td>—</td>';
-      const prev=prevEntry?prevEntry[key]:null;
-      const delta=prev!==null?cur-prev:null;
-      const dHtml=delta!==null?`<span class="log-delta ${delta>0?'pos':delta<0?'neg':''}">${delta>0?'+':''}${delta.toLocaleString()}</span>`:'';
-      return `<td><span class="log-count">${cur.toLocaleString()}</span>${dHtml}</td>`;
-    };
-
-    return `<tr>
-      <td class="log-date-cell">${formatDate(entry.date)}</td>
-      ${cell('li')}${cell('tt')}${cell('ig')}
-      <td class="log-notes-cell">${esc(entry.notes||'')}</td>
-      <td><button class="btn-del-log" onclick="deleteLogEntry(${realIdx})" title="Delete">🗑</button></td>
-    </tr>`;
-  }).join('');
-}
-
-function renderChartToggles(){
-  const container=document.getElementById('chart-toggles');
-  container.innerHTML=TRACKER_PLATFORMS.map(p=>`
-    <span class="chart-toggle ${chartVisible[p.key]?'on':''}" style="--toggle-color:${p.color}" onclick="toggleChartLine('${p.key}',this)">
-      <span class="ct-dot"></span>${p.name}
-    </span>`).join('');
-}
-
-function toggleChartLine(key,el){
-  chartVisible[key]=!chartVisible[key];
-  el.classList.toggle('on',chartVisible[key]);
-  renderChart();
-}
-
-function renderChart(){
-  const filtered=getFilteredLog();
-  const chartEmptyEl=document.getElementById('chart-empty');
-  const canvas=document.getElementById('followers-chart');
-  if(filtered.length<2){
-    chartEmptyEl.style.display='flex';canvas.style.display='none';
-    if(chartInstance){chartInstance.destroy();chartInstance=null;}return;
-  }
-  chartEmptyEl.style.display='none';canvas.style.display='block';
-  const labels=filtered.map(e=>formatDate(e.date));
-  const datasets=TRACKER_PLATFORMS.filter(p=>chartVisible[p.key]).map(p=>({
-    label:p.name,
-    data:filtered.map(e=>e[p.key]),
-    borderColor:p.color,
-    backgroundColor:p.color+'22',
-    borderWidth:2,
-    pointBackgroundColor:p.color,
-    pointRadius:4,
-    pointHoverRadius:6,
-    tension:0.35,
-    fill:false,
-    spanGaps:true
-  }));
-  if(chartInstance){chartInstance.destroy();}
-  chartInstance=new Chart(canvas,{
-    type:'line',
-    data:{labels,datasets},
-    options:{
-      responsive:true,maintainAspectRatio:false,
-      interaction:{mode:'index',intersect:false},
-      plugins:{
-        legend:{display:false},
-        tooltip:{
-          backgroundColor:'#1a1a1a',borderColor:'#2e2e2e',borderWidth:1,
-          titleColor:'#f0f0f0',bodyColor:'#888',padding:10,
-          callbacks:{label:(ctx)=>`${ctx.dataset.label}: ${ctx.parsed.y!==null?ctx.parsed.y.toLocaleString():'—'}`}
-        }
-      },
-      scales:{
-        x:{grid:{color:'#1e1e1e'},ticks:{color:'#555',font:{size:10},maxTicksLimit:8}},
-        y:{grid:{color:'#1e1e1e'},ticks:{color:'#555',font:{size:10},callback:(v)=>v>=1000?Math.round(v/1000)+'k':v}}
-      }
-    }
-  });
-}
-
-function getDateNDaysAgo(n){const d=new Date();d.setDate(d.getDate()-n);return d.toISOString().split('T')[0];}
-function formatDate(dateStr){
-  const d=new Date(dateStr+'T12:00:00');
-  return d.toLocaleDateString('en-GB',{day:'numeric',month:'short',year:'numeric'});
-}
-
-function exportCSV(){
-  if(!followerLog.length){showToast('⚠️ No data to export.');return;}
-  const sorted=[...followerLog].sort((a,b)=>a.date.localeCompare(b.date));
-  const rows=[['Date','LinkedIn','TikTok','Instagram','Notes'],...sorted.map(e=>[e.date,e.li??'',e.tt??'',e.ig??'',e.notes||''])];
-  const csv=rows.map(r=>r.map(v=>`"${String(v).replace(/"/g,'""')}"`).join(',')).join('\n');
-  const a=document.createElement('a');a.href='data:text/csv;charset=utf-8,'+encodeURIComponent(csv);a.download='connectin-followers.csv';document.body.appendChild(a);a.click();document.body.removeChild(a);
-  showToast('⬇ CSV exported!');
-}
-
-function showToast(msg){const t=document.getElementById('toast');t.textContent=msg;t.classList.add('show');setTimeout(()=>t.classList.remove('show'),2800);}
-function esc(str){return String(str||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
-
-load();
-document.querySelectorAll('.year-btn').forEach(b=>b.classList.toggle('active',parseInt(b.textContent)===activeYear));
-buildMonthNav();updateStats();renderNextUp();renderMonth();
-loadTrackerData();renderTracker();
-setTimeout(loadTrends,1000);
-</script>
 </body>
 </html>
