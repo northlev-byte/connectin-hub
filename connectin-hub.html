@@ -361,6 +361,11 @@
 </style>
 </head>
 <body>
+<script>
+  if (localStorage.getItem('ci_auth') !== '1') {
+    window.location.replace('/password');
+  }
+</script>
 <div class="wrapper">
 
   <header>
