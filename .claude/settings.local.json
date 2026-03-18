@@ -8,7 +8,8 @@
       "Bash(git:*)",
       "WebFetch(domain:connectinevents.co.uk)",
       "Bash(curl -L -o /c/Users/north/connectin-hub/logo.png \"https://connectinevents.co.uk/wp-content/uploads/2025/04/connectin-logo-green-white.png\")",
-      "Bash(curl -L -k -o /c/Users/north/connectin-hub/logo.png \"https://connectinevents.co.uk/wp-content/uploads/2025/04/connectin-logo-green-white.png\")"
+      "Bash(curl -L -k -o /c/Users/north/connectin-hub/logo.png \"https://connectinevents.co.uk/wp-content/uploads/2025/04/connectin-logo-green-white.png\")",
+      "WebFetch(domain:connectin-hub.vercel.app)"
     ]
   }
 }

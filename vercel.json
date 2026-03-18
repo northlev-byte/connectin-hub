@@ -1,7 +1,7 @@
 {
   "rewrites": [
     { "source": "/", "destination": "/connectin-hub.html" },
-    { "source": "/scheduler", "destination": "/index.html" },
+    { "source": "/scheduler", "destination": "/scheduler.html" },
     { "source": "/password", "destination": "/password.html" }
   ],
   "headers": [
