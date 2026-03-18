@@ -343,52 +343,6 @@
     opacity: 0.7;
   }
 
-  /* Nav tabs */
-  .nav-tabs {
-    display: flex;
-    gap: 2px;
-    border-bottom: 1px solid var(--border);
-    margin-bottom: 40px;
-    overflow-x: auto;
-    scrollbar-width: none;
-  }
-  .nav-tabs::-webkit-scrollbar { display: none; }
-
-  .nav-tab {
-    flex-shrink: 0;
-    padding: 10px 20px;
-    font-family: var(--mono);
-    font-size: 11px;
-    letter-spacing: 0.15em;
-    text-transform: uppercase;
-    color: var(--muted);
-    background: none;
-    border: none;
-    border-bottom: 2px solid transparent;
-    cursor: pointer;
-    transition: color 0.2s, border-color 0.2s;
-    margin-bottom: -1px;
-  }
-  .nav-tab:hover { color: var(--text); }
-  .nav-tab.active { color: var(--lime); border-bottom-color: var(--lime); }
-
-  .tab-panel { display: none; }
-  .tab-panel.active { display: block; }
-
-  .coming-soon {
-    border: 1px dashed var(--border);
-    border-radius: 4px;
-    padding: 60px 40px;
-    text-align: center;
-    color: var(--muted);
-  }
-  .coming-soon .cs-icon { font-size: 32px; margin-bottom: 16px; }
-  .coming-soon p {
-    font-family: var(--mono);
-    font-size: 11px;
-    letter-spacing: 0.2em;
-    text-transform: uppercase;
-  }
 
   /* Animate in */
   @keyframes fadeUp {
@@ -418,18 +372,9 @@
         <span>Internal tools — Manchester</span>
       </div>
     </div>
-    <span class="tool-count" id="tool-count">3 tools active</span>
+    <span class="tool-count" id="tool-count">7 tools active</span>
   </header>
 
-  <nav class="nav-tabs">
-    <button class="nav-tab active" onclick="switchTab('tools', this)">Tools</button>
-    <button class="nav-tab" onclick="switchTab('financials', this)">Financials</button>
-    <button class="nav-tab" onclick="switchTab('seo', this)">SEO</button>
-    <button class="nav-tab" onclick="switchTab('docs', this)">Connectin Docs</button>
-    <button class="nav-tab" onclick="switchTab('assets', this)">Connectin Assets</button>
-  </nav>
-
-  <div class="tab-panel active" id="tab-tools">
   <div class="section-label">Active tools</div>
 
   <div class="tools-grid">
@@ -455,7 +400,7 @@
     </a>
 
     <!-- Social Media Scheduler -->
-    <a class="tool-card" href="#" target="_blank" id="social-link">
+    <a class="tool-card" href="/scheduler" id="social-link">
       <div class="card-header">
         <div class="card-icon">📅</div>
         <span class="card-badge new">Live</span>
@@ -475,7 +420,7 @@
     </a>
 
     <!-- Venues Sheet -->
-    <a class="tool-card" href="#" target="_blank" id="venues-link">
+    <a class="tool-card" href="#" id="venues-link">
       <div class="card-header">
         <div class="card-icon">🏛️</div>
         <span class="card-badge new">Live</span>
@@ -493,47 +438,82 @@
       </div>
     </a>
 
-    <!-- Placeholder -->
-    <div class="tool-card placeholder">
-      <div class="placeholder-inner">
-        <span class="plus">+</span>
-        <span>Next tool</span>
+    <!-- Financials -->
+    <a class="tool-card" href="#" id="financials-link">
+      <div class="card-header">
+        <div class="card-icon">💰</div>
+        <span class="card-badge">Soon</span>
       </div>
-    </div>
+      <div>
+        <div class="card-title">Financials</div>
+        <div class="card-desc">Financial reporting, budgets, and revenue tracking for ConnectIn events.</div>
+      </div>
+      <div class="card-footer">
+        <div class="card-tags">
+          <span class="tag">Finance</span>
+          <span class="tag">Sheets</span>
+        </div>
+        <span class="arrow">→</span>
+      </div>
+    </a>
 
-  </div>
-  </div><!-- /tab-tools -->
+    <!-- SEO -->
+    <a class="tool-card" href="#" id="seo-link">
+      <div class="card-header">
+        <div class="card-icon">🔍</div>
+        <span class="card-badge">Soon</span>
+      </div>
+      <div>
+        <div class="card-title">SEO</div>
+        <div class="card-desc">Search optimisation resources, keyword tracking, and content performance for ConnectIn.</div>
+      </div>
+      <div class="card-footer">
+        <div class="card-tags">
+          <span class="tag">SEO</span>
+          <span class="tag">Analytics</span>
+        </div>
+        <span class="arrow">→</span>
+      </div>
+    </a>
 
-  <div class="tab-panel" id="tab-financials">
-    <div class="section-label">Financials</div>
-    <div class="coming-soon">
-      <div class="cs-icon">💰</div>
-      <p>Financial content coming soon</p>
-    </div>
-  </div>
+    <!-- Connectin Docs -->
+    <a class="tool-card" href="#" id="docs-link">
+      <div class="card-header">
+        <div class="card-icon">📄</div>
+        <span class="card-badge">Soon</span>
+      </div>
+      <div>
+        <div class="card-title">Connectin Docs</div>
+        <div class="card-desc">Internal documentation, SOPs, and guides for the ConnectIn Events team.</div>
+      </div>
+      <div class="card-footer">
+        <div class="card-tags">
+          <span class="tag">Docs</span>
+          <span class="tag">Guides</span>
+        </div>
+        <span class="arrow">→</span>
+      </div>
+    </a>
 
-  <div class="tab-panel" id="tab-seo">
-    <div class="section-label">SEO</div>
-    <div class="coming-soon">
-      <div class="cs-icon">🔍</div>
-      <p>SEO resources coming soon</p>
-    </div>
-  </div>
+    <!-- Connectin Assets -->
+    <a class="tool-card" href="#" id="assets-link">
+      <div class="card-header">
+        <div class="card-icon">🗂️</div>
+        <span class="card-badge">Soon</span>
+      </div>
+      <div>
+        <div class="card-title">Connectin Assets</div>
+        <div class="card-desc">Brand assets, logos, templates, and design files for ConnectIn Events.</div>
+      </div>
+      <div class="card-footer">
+        <div class="card-tags">
+          <span class="tag">Brand</span>
+          <span class="tag">Design</span>
+        </div>
+        <span class="arrow">→</span>
+      </div>
+    </a>
 
-  <div class="tab-panel" id="tab-docs">
-    <div class="section-label">Connectin Docs</div>
-    <div class="coming-soon">
-      <div class="cs-icon">📄</div>
-      <p>Documentation coming soon</p>
-    </div>
-  </div>
-
-  <div class="tab-panel" id="tab-assets">
-    <div class="section-label">Connectin Assets</div>
-    <div class="coming-soon">
-      <div class="cs-icon">🗂</div>
-      <p>Brand assets coming soon</p>
-    </div>
   </div>
 
   <footer>
@@ -542,13 +522,5 @@
   </footer>
 
 </div>
-<script>
-function switchTab(id, btn) {
-  document.querySelectorAll('.nav-tab').forEach(t => t.classList.remove('active'));
-  document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
-  btn.classList.add('active');
-  document.getElementById('tab-' + id).classList.add('active');
-}
-</script>
 </body>
 </html>
