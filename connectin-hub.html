@@ -8,15 +8,16 @@
 <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Syne:wght@700;800&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
 <style>
   :root {
-    --lime: #c6f135;
-    --lime-dim: #9fbe2a;
-    --bg: #0e0f0c;
-    --surface: #161710;
-    --card: #1a1c14;
-    --card-hover: #1f2118;
-    --border: #2a2e1e;
-    --text: #e8ecda;
-    --muted: #6b7155;
+    --lime: #5bd639;
+    --lime-dim: #4ab82e;
+    --purple: #b828c3;
+    --bg: #141617;
+    --surface: #1a1c1e;
+    --card: #212326;
+    --card-hover: #2a2d31;
+    --border: #2e3135;
+    --text: #ffffff;
+    --muted: #8b909a;
     --mono: 'DM Mono', monospace;
     --head: 'Syne', sans-serif;
     --body: 'DM Sans', sans-serif;
@@ -38,8 +39,8 @@
     position: fixed;
     inset: 0;
     background-image:
-      linear-gradient(rgba(198,241,53,0.03) 1px, transparent 1px),
-      linear-gradient(90deg, rgba(198,241,53,0.03) 1px, transparent 1px);
+      linear-gradient(rgba(91,214,57,0.03) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(91,214,57,0.03) 1px, transparent 1px);
     background-size: 40px 40px;
     pointer-events: none;
     z-index: 0;
@@ -185,7 +186,7 @@
 
   .tool-card:hover {
     background: var(--card-hover);
-    border-color: rgba(198,241,53,0.2);
+    border-color: rgba(91,214,57,0.2);
     transform: translateY(-2px);
   }
 
@@ -210,8 +211,8 @@
   .card-icon {
     width: 40px;
     height: 40px;
-    background: rgba(198,241,53,0.08);
-    border: 1px solid rgba(198,241,53,0.15);
+    background: rgba(91,214,57,0.08);
+    border: 1px solid rgba(91,214,57,0.15);
     border-radius: 8px;
     display: flex;
     align-items: center;
@@ -222,7 +223,7 @@
   }
 
   .tool-card:hover .card-icon {
-    background: rgba(198,241,53,0.14);
+    background: rgba(91,214,57,0.14);
   }
 
   .card-badge {
@@ -232,15 +233,15 @@
     text-transform: uppercase;
     padding: 3px 8px;
     border-radius: 2px;
-    background: rgba(198,241,53,0.08);
+    background: rgba(91,214,57,0.08);
     color: var(--lime-dim);
-    border: 1px solid rgba(198,241,53,0.12);
+    border: 1px solid rgba(91,214,57,0.12);
   }
 
   .card-badge.new {
-    background: rgba(198,241,53,0.15);
+    background: rgba(91,214,57,0.15);
     color: var(--lime);
-    border-color: rgba(198,241,53,0.3);
+    border-color: rgba(91,214,57,0.3);
   }
 
   .card-title {
@@ -365,7 +366,7 @@
 
   <header>
     <div class="logo-block">
-      <img src="https://connectinevents.co.uk/wp-content/uploads/2025/04/connectin-logo-green-white.png" alt="ConnectIn Events" style="height:40px; width:auto; margin-bottom:10px; display:block;">
+      <img src="/logo.png" alt="ConnectIn Events" style="height:40px; width:auto; margin-bottom:10px; display:block;">
       <h1>Tools <span>Hub</span></h1>
       <div class="header-meta">
         <div class="dot"></div>
