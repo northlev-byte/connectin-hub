@@ -366,6 +366,8 @@
 <script>
   if (localStorage.getItem('ci_auth') !== '1') {
     window.location.replace('/password');
+  } else if (!localStorage.getItem('ci_user')) {
+    window.location.replace('/profile');
   }
 </script>
 <div class="wrapper">

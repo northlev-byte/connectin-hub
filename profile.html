@@ -1,0 +1,538 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ConnectIn Events — Who's Here?</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Syne:wght@700;800&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --lime: #5bd639;
+    --lime-dim: #4ab82e;
+    --bg: #141617;
+    --card: #212326;
+    --border: #2e3135;
+    --text: #ffffff;
+    --muted: #8b909a;
+    --mono: 'DM Mono', monospace;
+    --head: 'Syne', sans-serif;
+    --body: 'DM Sans', sans-serif;
+  }
+
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--body);
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 48px 24px;
+    overflow-x: hidden;
+  }
+
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background-image:
+      linear-gradient(rgba(91,214,57,0.03) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(91,214,57,0.03) 1px, transparent 1px);
+    background-size: 40px 40px;
+    pointer-events: none;
+  }
+
+  .container {
+    position: relative;
+    z-index: 1;
+    width: 100%;
+    max-width: 700px;
+    animation: fadeUp 0.5s ease both;
+  }
+
+  @keyframes fadeUp {
+    from { opacity: 0; transform: translateY(16px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+
+  @keyframes avatarPop {
+    from { transform: scale(0.5) rotate(-8deg); opacity: 0; }
+    to   { transform: scale(1) rotate(0deg); opacity: 1; }
+  }
+
+  @keyframes shimmer {
+    0%   { box-shadow: 0 0 0 0 var(--glow-color, rgba(91,214,57,0.4)); }
+    70%  { box-shadow: 0 0 0 10px transparent; }
+    100% { box-shadow: 0 0 0 0 transparent; }
+  }
+
+  .logo {
+    display: block;
+    height: 32px;
+    width: auto;
+    object-fit: contain;
+    margin-bottom: 36px;
+  }
+
+  .eyebrow {
+    font-family: var(--mono);
+    font-size: 10px;
+    letter-spacing: 0.25em;
+    text-transform: uppercase;
+    color: var(--lime);
+    opacity: 0.8;
+    margin-bottom: 10px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .eyebrow::before {
+    content: '';
+    display: inline-block;
+    width: 16px;
+    height: 1px;
+    background: var(--lime);
+    opacity: 0.6;
+  }
+
+  h1 {
+    font-family: var(--head);
+    font-size: clamp(26px, 5vw, 38px);
+    font-weight: 800;
+    letter-spacing: -0.02em;
+    margin-bottom: 8px;
+    line-height: 1.1;
+  }
+
+  h1 span { color: var(--lime); }
+
+  .sub {
+    font-size: 13px;
+    color: var(--muted);
+    margin-bottom: 40px;
+  }
+
+  /* Team grid */
+  .grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 14px;
+  }
+
+  @media (max-width: 520px) {
+    .grid { grid-template-columns: repeat(2, 1fr); gap: 10px; }
+  }
+
+  .member-card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    padding: 28px 16px 22px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 14px;
+    cursor: pointer;
+    transition: border-color 0.25s, background 0.25s, transform 0.2s;
+    position: relative;
+    overflow: hidden;
+    animation: fadeUp 0.4s ease both;
+  }
+
+  .member-card::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 2px;
+    background: transparent;
+    transition: background 0.25s;
+  }
+
+  .member-card:hover {
+    border-color: rgba(255,255,255,0.12);
+    background: #252830;
+    transform: translateY(-3px);
+  }
+
+  .member-card.selected {
+    border-color: var(--member-color);
+    background: #252830;
+  }
+
+  .member-card.selected::before {
+    background: var(--member-color);
+  }
+
+  .avatar {
+    width: 72px;
+    height: 72px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-family: var(--head);
+    font-size: 20px;
+    font-weight: 800;
+    color: #fff;
+    position: relative;
+    transition: transform 0.25s cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 0.25s;
+    flex-shrink: 0;
+    letter-spacing: -0.01em;
+  }
+
+  .member-card:hover .avatar {
+    transform: scale(1.08);
+  }
+
+  .member-card.selected .avatar {
+    box-shadow: 0 0 0 3px var(--bg), 0 0 0 5px var(--member-color);
+    animation: shimmer 1.2s ease-out;
+  }
+
+  .member-name {
+    font-family: var(--head);
+    font-size: 14px;
+    font-weight: 700;
+    letter-spacing: -0.01em;
+  }
+
+  .check-badge {
+    position: absolute;
+    top: 10px; right: 10px;
+    width: 18px;
+    height: 18px;
+    border-radius: 50%;
+    background: var(--member-color);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 10px;
+    opacity: 0;
+    transform: scale(0);
+    transition: opacity 0.2s, transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+  }
+
+  .member-card.selected .check-badge {
+    opacity: 1;
+    transform: scale(1);
+  }
+
+  /* Modal */
+  .modal-backdrop {
+    position: fixed;
+    inset: 0;
+    background: rgba(10, 11, 12, 0.75);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 24px;
+    z-index: 100;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.3s ease;
+  }
+
+  .modal-backdrop.open {
+    opacity: 1;
+    pointer-events: all;
+  }
+
+  .modal {
+    background: var(--card);
+    border: 1px solid var(--border);
+    padding: 48px 40px 40px;
+    width: 100%;
+    max-width: 400px;
+    text-align: center;
+    position: relative;
+    transform: scale(0.9) translateY(16px);
+    transition: transform 0.4s cubic-bezier(0.34, 1.4, 0.64, 1);
+  }
+
+  @media (max-width: 480px) {
+    .modal { padding: 40px 28px 32px; }
+  }
+
+  .modal-backdrop.open .modal {
+    transform: scale(1) translateY(0);
+  }
+
+  .modal::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 2px;
+    background: var(--modal-color, var(--lime));
+  }
+
+  .modal-close {
+    position: absolute;
+    top: 14px; right: 14px;
+    background: none !important;
+    border: none;
+    color: var(--muted);
+    cursor: pointer;
+    font-size: 14px;
+    width: auto !important;
+    padding: 6px 8px;
+    transition: color 0.2s;
+    line-height: 1;
+    border-radius: 4px;
+  }
+
+  .modal-close:hover {
+    color: var(--text);
+    background: rgba(255,255,255,0.06) !important;
+  }
+
+  .modal-avatar-wrap {
+    margin: 0 auto 28px;
+    width: 104px;
+    height: 104px;
+    position: relative;
+  }
+
+  .modal-avatar-ring {
+    position: absolute;
+    inset: -6px;
+    border-radius: 50%;
+    border: 2px solid var(--modal-color, var(--lime));
+    opacity: 0.3;
+    animation: spin 8s linear infinite;
+  }
+
+  @keyframes spin {
+    from { transform: rotate(0deg); }
+    to   { transform: rotate(360deg); }
+  }
+
+  .modal-avatar {
+    width: 104px;
+    height: 104px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-family: var(--head);
+    font-size: 32px;
+    font-weight: 800;
+    color: #fff;
+    animation: avatarPop 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) 0.05s both;
+    letter-spacing: -0.01em;
+  }
+
+  .modal-greeting {
+    font-family: var(--head);
+    font-size: 22px;
+    font-weight: 800;
+    letter-spacing: -0.02em;
+    margin-bottom: 12px;
+    animation: fadeUp 0.4s ease 0.15s both;
+    line-height: 1.2;
+  }
+
+  .modal-greeting span {
+    color: var(--modal-color, var(--lime));
+  }
+
+  .modal-quote {
+    font-size: 13.5px;
+    color: var(--muted);
+    line-height: 1.75;
+    font-style: italic;
+    margin-bottom: 36px;
+    padding: 0 4px;
+    animation: fadeUp 0.4s ease 0.25s both;
+  }
+
+  .modal-btn {
+    width: 100%;
+    background: var(--modal-color, var(--lime));
+    border: none;
+    font-family: var(--head);
+    font-size: 14px;
+    font-weight: 700;
+    letter-spacing: 0.05em;
+    padding: 14px;
+    cursor: pointer;
+    transition: opacity 0.2s, transform 0.15s;
+    animation: fadeUp 0.4s ease 0.35s both;
+  }
+
+  .modal-btn:hover {
+    opacity: 0.85;
+    transform: translateY(-1px);
+    background: var(--modal-color, var(--lime));
+  }
+</style>
+</head>
+<body>
+
+<div class="container">
+  <img src="/logo.png" alt="ConnectIn Events" class="logo">
+  <p class="eyebrow">Who's here today?</p>
+  <h1>Choose your <span>profile</span></h1>
+  <p class="sub">Select your name to personalise your experience.</p>
+
+  <div class="grid" id="grid"></div>
+</div>
+
+<!-- Modal -->
+<div class="modal-backdrop" id="backdrop" role="dialog" aria-modal="true" aria-labelledby="modal-greeting">
+  <div class="modal" id="modal">
+    <button class="modal-close" onclick="closeModal()" aria-label="Close">✕</button>
+
+    <div class="modal-avatar-wrap">
+      <div class="modal-avatar-ring" id="modal-ring"></div>
+      <div class="modal-avatar" id="modal-avatar"></div>
+    </div>
+
+    <h2 class="modal-greeting" id="modal-greeting"></h2>
+    <p class="modal-quote" id="modal-quote"></p>
+    <button class="modal-btn" id="modal-btn" onclick="continueToHub()">Continue to Hub →</button>
+  </div>
+</div>
+
+<script>
+  if (localStorage.getItem('ci_auth') !== '1') {
+    window.location.replace('/password');
+  }
+  if (localStorage.getItem('ci_user')) {
+    window.location.replace('/');
+  }
+
+  const TEAM = [
+    {
+      name: 'Jordan',
+      initials: 'Jo',
+      color: '#4f8ef7',
+      gradient: 'linear-gradient(135deg, #6ba3f9 0%, #2563eb 100%)',
+    },
+    {
+      name: 'Jess',
+      initials: 'Je',
+      color: '#a855f7',
+      gradient: 'linear-gradient(135deg, #c084fc 0%, #7c3aed 100%)',
+    },
+    {
+      name: 'Penni',
+      initials: 'Pe',
+      color: '#f97316',
+      gradient: 'linear-gradient(135deg, #fb923c 0%, #ea580c 100%)',
+    },
+    {
+      name: 'David',
+      initials: 'Da',
+      color: '#10b981',
+      gradient: 'linear-gradient(135deg, #34d399 0%, #059669 100%)',
+    },
+    {
+      name: 'Debbie',
+      initials: 'De',
+      color: '#ec4899',
+      gradient: 'linear-gradient(135deg, #f472b6 0%, #db2777 100%)',
+    },
+    {
+      name: 'Georgie',
+      initials: 'Ge',
+      color: '#f59e0b',
+      gradient: 'linear-gradient(135deg, #fbbf24 0%, #d97706 100%)',
+    },
+  ];
+
+  const QUOTES = {
+    Jordan: "Every great event starts with someone deciding it matters. That's you.",
+    Jess:   "Your energy sets the room before the doors even open.",
+    Penni:  "The details everyone else misses? That's your superpower.",
+    David:  "Steady, sharp, reliable — the team is always better with you in it.",
+    Debbie: "You don't just plan events — you create memories that last.",
+    Georgie:"Bring that spark today — the best moments haven't happened yet.",
+  };
+
+  let selectedMember = null;
+
+  function buildGrid() {
+    const grid = document.getElementById('grid');
+    TEAM.forEach((member, i) => {
+      const card = document.createElement('div');
+      card.className = 'member-card';
+      card.style.setProperty('--member-color', member.color);
+      card.style.setProperty('--glow-color', member.color + '66');
+      card.style.animationDelay = `${i * 0.06}s`;
+      card.innerHTML = `
+        <div class="check-badge">✓</div>
+        <div class="avatar" style="background:${member.gradient}">${member.initials}</div>
+        <div class="member-name">${member.name}</div>
+      `;
+      card.addEventListener('click', () => selectMember(member, card));
+      grid.appendChild(card);
+    });
+  }
+
+  function selectMember(member, cardEl) {
+    document.querySelectorAll('.member-card').forEach(c => c.classList.remove('selected'));
+    cardEl.classList.add('selected');
+    selectedMember = member;
+    openModal(member);
+  }
+
+  function openModal(member) {
+    const modal = document.getElementById('modal');
+    const backdrop = document.getElementById('backdrop');
+
+    // Reset avatar animation
+    const avatarEl = document.getElementById('modal-avatar');
+    avatarEl.style.animation = 'none';
+    void avatarEl.offsetWidth;
+    avatarEl.style.animation = '';
+
+    avatarEl.style.background = member.gradient;
+    avatarEl.textContent = member.initials;
+
+    document.getElementById('modal-ring').style.borderColor = member.color;
+
+    document.getElementById('modal-greeting').innerHTML =
+      `Good to see you, <span>${member.name}.</span>`;
+
+    document.getElementById('modal-quote').textContent =
+      `"${QUOTES[member.name]}"`;
+
+    const btn = document.getElementById('modal-btn');
+    btn.style.background = member.color;
+    btn.style.color = member.name === 'Georgie' ? '#0e0f0c' : '#ffffff';
+
+    modal.style.setProperty('--modal-color', member.color);
+
+    backdrop.classList.add('open');
+    document.body.style.overflow = 'hidden';
+  }
+
+  function closeModal() {
+    document.getElementById('backdrop').classList.remove('open');
+    document.body.style.overflow = '';
+  }
+
+  function continueToHub() {
+    if (!selectedMember) return;
+    localStorage.setItem('ci_user', selectedMember.name);
+    window.location.replace('/');
+  }
+
+  document.getElementById('backdrop').addEventListener('click', function(e) {
+    if (e.target === this) closeModal();
+  });
+
+  document.addEventListener('keydown', function(e) {
+    if (e.key === 'Escape') closeModal();
+  });
+
+  buildGrid();
+</script>
+</body>
+</html>
