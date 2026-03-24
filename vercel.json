@@ -3,7 +3,8 @@
     { "source": "/", "destination": "/connectin-hub.html" },
     { "source": "/scheduler", "destination": "/scheduler.html" },
     { "source": "/password", "destination": "/password.html" },
-    { "source": "/profile", "destination": "/profile.html" }
+    { "source": "/profile", "destination": "/profile.html" },
+    { "source": "/logout", "destination": "/logout.html" }
   ],
   "headers": [
     {

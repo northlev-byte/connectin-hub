@@ -1,0 +1,14 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<title>Signing out…</title>
+</head>
+<body>
+<script>
+  localStorage.removeItem('ci_auth');
+  localStorage.removeItem('ci_user');
+  window.location.replace('/password');
+</script>
+</body>
+</html>
