@@ -9,7 +9,6 @@
 <style>
   :root {
     --lime: #5bd639;
-    --lime-dim: #4ab82e;
     --bg: #141617;
     --card: #212326;
     --border: #2e3135;
@@ -46,6 +45,7 @@
     pointer-events: none;
   }
 
+  /* ── Page container ─────────────────────────────── */
   .container {
     position: relative;
     z-index: 1;
@@ -57,17 +57,6 @@
   @keyframes fadeUp {
     from { opacity: 0; transform: translateY(16px); }
     to   { opacity: 1; transform: translateY(0); }
-  }
-
-  @keyframes avatarPop {
-    from { transform: scale(0.5) rotate(-8deg); opacity: 0; }
-    to   { transform: scale(1) rotate(0deg); opacity: 1; }
-  }
-
-  @keyframes shimmer {
-    0%   { box-shadow: 0 0 0 0 var(--glow-color, rgba(91,214,57,0.4)); }
-    70%  { box-shadow: 0 0 0 10px transparent; }
-    100% { box-shadow: 0 0 0 0 transparent; }
   }
 
   .logo {
@@ -117,7 +106,7 @@
     margin-bottom: 40px;
   }
 
-  /* Team grid */
+  /* ── Team grid ──────────────────────────────────── */
   .grid {
     display: grid;
     grid-template-columns: repeat(3, 1fr);
@@ -190,7 +179,6 @@
 
   .member-card.selected .avatar {
     box-shadow: 0 0 0 3px var(--bg), 0 0 0 5px var(--member-color);
-    animation: shimmer 1.2s ease-out;
   }
 
   .member-name {
@@ -221,7 +209,7 @@
     transform: scale(1);
   }
 
-  /* Modal */
+  /* ── Modal ──────────────────────────────────────── */
   .modal-backdrop {
     position: fixed;
     inset: 0;
@@ -281,7 +269,7 @@
     font-size: 14px;
     width: auto !important;
     padding: 6px 8px;
-    transition: color 0.2s;
+    transition: color 0.2s, background 0.2s;
     line-height: 1;
     border-radius: 4px;
   }
@@ -308,8 +296,7 @@
   }
 
   @keyframes spin {
-    from { transform: rotate(0deg); }
-    to   { transform: rotate(360deg); }
+    to { transform: rotate(360deg); }
   }
 
   .modal-avatar {
@@ -323,8 +310,13 @@
     font-size: 32px;
     font-weight: 800;
     color: #fff;
-    animation: avatarPop 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) 0.05s both;
     letter-spacing: -0.01em;
+    animation: avatarPop 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) 0.05s both;
+  }
+
+  @keyframes avatarPop {
+    from { transform: scale(0.5) rotate(-8deg); opacity: 0; }
+    to   { transform: scale(1) rotate(0deg); opacity: 1; }
   }
 
   .modal-greeting {
@@ -337,9 +329,7 @@
     line-height: 1.2;
   }
 
-  .modal-greeting span {
-    color: var(--modal-color, var(--lime));
-  }
+  .modal-greeting span { color: var(--modal-color, var(--lime)); }
 
   .modal-quote {
     font-size: 13.5px;
@@ -353,7 +343,6 @@
 
   .modal-btn {
     width: 100%;
-    background: var(--modal-color, var(--lime));
     border: none;
     font-family: var(--head);
     font-size: 14px;
@@ -368,7 +357,201 @@
   .modal-btn:hover {
     opacity: 0.85;
     transform: translateY(-1px);
-    background: var(--modal-color, var(--lime));
+  }
+
+  /* ── Cinematic transition overlay ───────────────── */
+  .ci-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 9999;
+    background: #06080a;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.3s ease;
+  }
+
+  .ci-overlay.active {
+    opacity: 1;
+    pointer-events: all;
+  }
+
+  /* Cinematic letterbox bars */
+  .ci-bar {
+    position: absolute;
+    left: 0; right: 0;
+    height: 14vh;
+    background: #000;
+    z-index: 1;
+    transition: transform 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+
+  .ci-bar--top {
+    top: 0;
+    transform: translateY(-100%);
+  }
+
+  .ci-bar--bottom {
+    bottom: 0;
+    transform: translateY(100%);
+  }
+
+  .ci-overlay.active .ci-bar {
+    transform: translateY(0);
+  }
+
+  /* Sweep light */
+  .ci-sweep {
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(
+      105deg,
+      transparent 30%,
+      rgba(255, 255, 255, 0.045) 50%,
+      transparent 70%
+    );
+    transform: translateX(-120%);
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  .ci-overlay.sweep-active .ci-sweep {
+    animation: ciSweep 0.9s ease forwards;
+  }
+
+  @keyframes ciSweep {
+    from { transform: translateX(-120%); }
+    to   { transform: translateX(120%); }
+  }
+
+  /* Ambient glow */
+  .ci-glow {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 700px;
+    height: 360px;
+    transform: translate(-50%, -50%);
+    background: radial-gradient(ellipse, rgba(91,214,57,0.1) 0%, transparent 70%);
+    opacity: 0;
+    transition: opacity 0.9s ease;
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  .ci-overlay.glow-active .ci-glow {
+    opacity: 1;
+  }
+
+  /* Stage: all text sits here, centered on screen */
+  .ci-stage {
+    position: absolute;
+    inset: 0;
+    z-index: 2;
+  }
+
+  /* Words: Lights, Camera, Action */
+  .ci-word {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, calc(-50% + 14px));
+    opacity: 0;
+    white-space: nowrap;
+    font-family: var(--head);
+    font-weight: 800;
+    color: #fff;
+    letter-spacing: -0.02em;
+    pointer-events: none;
+    transition: opacity 0.22s ease, transform 0.25s ease;
+  }
+
+  .ci-word.visible {
+    opacity: 1;
+    transform: translate(-50%, -50%);
+  }
+
+  .ci-word.gone {
+    opacity: 0;
+    transform: translate(-50%, calc(-50% - 10px));
+    transition: opacity 0.18s ease, transform 0.18s ease;
+  }
+
+  #ci-lights  { font-size: clamp(22px, 4vw, 40px); color: rgba(255,255,255,0.75); }
+  #ci-camera  { font-size: clamp(28px, 5vw, 50px); }
+  #ci-action  {
+    font-size: clamp(36px, 6.5vw, 64px);
+    color: var(--lime);
+    letter-spacing: -0.025em;
+  }
+
+  /* Hero: Infinite Possibilities */
+  .ci-hero {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%) scale(0.88);
+    opacity: 0;
+    text-align: center;
+    pointer-events: none;
+    transition: opacity 0.55s ease, transform 0.65s cubic-bezier(0.34, 1.15, 0.64, 1);
+    width: 90%;
+    max-width: 800px;
+  }
+
+  .ci-hero.visible {
+    opacity: 1;
+    transform: translate(-50%, -50%) scale(1);
+  }
+
+  .ci-hero-text {
+    font-family: var(--head);
+    font-weight: 800;
+    font-size: clamp(44px, 10vw, 96px);
+    letter-spacing: -0.035em;
+    line-height: 0.92;
+    background: linear-gradient(
+      135deg,
+      #ffffff  0%,
+      #a4f67a 25%,
+      #5bd639 50%,
+      #a4f67a 75%,
+      #ffffff 100%
+    );
+    background-size: 300% auto;
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+
+  .ci-hero.visible .ci-hero-text {
+    animation: heroShimmer 3s linear infinite;
+  }
+
+  @keyframes heroShimmer {
+    0%   { background-position: 0%   center; }
+    50%  { background-position: 150% center; }
+    100% { background-position: 300% center; }
+  }
+
+  .ci-hero-eyebrow {
+    margin-top: 20px;
+    font-family: var(--mono);
+    font-size: 11px;
+    letter-spacing: 0.3em;
+    text-transform: uppercase;
+    color: rgba(91, 214, 57, 0.65);
+    opacity: 0;
+    transform: translateY(6px);
+    transition: opacity 0.5s ease 0.3s, transform 0.5s ease 0.3s;
+  }
+
+  .ci-hero.visible .ci-hero-eyebrow {
+    opacity: 1;
+    transform: translateY(0);
   }
 </style>
 </head>
@@ -379,91 +562,152 @@
   <p class="eyebrow">Who's here today?</p>
   <h1>Choose your <span>profile</span></h1>
   <p class="sub">Select your name to personalise your experience.</p>
-
   <div class="grid" id="grid"></div>
 </div>
 
-<!-- Modal -->
+<!-- Profile modal -->
 <div class="modal-backdrop" id="backdrop" role="dialog" aria-modal="true" aria-labelledby="modal-greeting">
   <div class="modal" id="modal">
     <button class="modal-close" onclick="closeModal()" aria-label="Close">✕</button>
-
     <div class="modal-avatar-wrap">
       <div class="modal-avatar-ring" id="modal-ring"></div>
       <div class="modal-avatar" id="modal-avatar"></div>
     </div>
-
     <h2 class="modal-greeting" id="modal-greeting"></h2>
     <p class="modal-quote" id="modal-quote"></p>
     <button class="modal-btn" id="modal-btn" onclick="continueToHub()">Continue to Hub →</button>
   </div>
 </div>
 
+<!-- Cinematic transition overlay -->
+<div class="ci-overlay" id="ci-overlay" aria-hidden="true">
+  <div class="ci-bar ci-bar--top"></div>
+  <div class="ci-bar ci-bar--bottom"></div>
+  <div class="ci-sweep"></div>
+  <div class="ci-glow"></div>
+  <div class="ci-stage">
+    <span class="ci-word" id="ci-lights">Lights.</span>
+    <span class="ci-word" id="ci-camera">Camera.</span>
+    <span class="ci-word" id="ci-action">Action.</span>
+    <div class="ci-hero" id="ci-hero">
+      <div class="ci-hero-text">Infinite<br>Possibilities</div>
+      <div class="ci-hero-eyebrow">ConnectIn Events</div>
+    </div>
+  </div>
+</div>
+
 <script>
-  if (localStorage.getItem('ci_auth') !== '1') {
+  /* ── State ──────────────────────────────────────── */
+  const state = {
+    isAuthenticated: localStorage.getItem('ci_auth') === '1',
+    selectedProfile: null,
+    currentQuote: null,
+    hasEnteredApp: false,
+  };
+
+  if (!state.isAuthenticated) {
     window.location.replace('/password');
   }
-  if (localStorage.getItem('ci_user')) {
-    window.location.replace('/');
-  }
 
+  /* ── Team data ──────────────────────────────────── */
   const TEAM = [
     {
       name: 'Jordan',
       initials: 'Jo',
       color: '#4f8ef7',
       gradient: 'linear-gradient(135deg, #6ba3f9 0%, #2563eb 100%)',
+      quotes: [
+        "Every great event starts with someone deciding it matters. That's you.",
+        "You don't just manage events — you craft experiences people remember.",
+        "The energy you bring today becomes the memory they carry tomorrow.",
+        "Excellence isn't an accident. Neither are you.",
+      ],
     },
     {
       name: 'Jess',
       initials: 'Je',
       color: '#a855f7',
       gradient: 'linear-gradient(135deg, #c084fc 0%, #7c3aed 100%)',
+      quotes: [
+        "Your energy sets the room before the doors even open.",
+        "Creativity is your currency — and you're very, very rich.",
+        "The best ideas in this team have your fingerprints all over them.",
+        "You make the complex feel effortless. That's a rare and powerful gift.",
+      ],
     },
     {
       name: 'Penni',
       initials: 'Pe',
       color: '#f97316',
       gradient: 'linear-gradient(135deg, #fb923c 0%, #ea580c 100%)',
+      quotes: [
+        "The details everyone else misses? That's your superpower.",
+        "Precision and passion in the same person. That combination is unstoppable.",
+        "You see what others overlook. That's what makes great events great.",
+        "Every perfect moment has someone meticulous behind it. Today, that's you.",
+      ],
     },
     {
       name: 'David',
       initials: 'Da',
       color: '#10b981',
       gradient: 'linear-gradient(135deg, #34d399 0%, #059669 100%)',
+      quotes: [
+        "Steady, sharp, reliable — the team is always better with you in it.",
+        "The foundation every great event needs. That's what you bring.",
+        "Quiet strength and big results. Your signature move.",
+        "When the pressure's on, everyone looks for you. And you always deliver.",
+      ],
     },
     {
       name: 'Debbie',
       initials: 'De',
       color: '#ec4899',
       gradient: 'linear-gradient(135deg, #f472b6 0%, #db2777 100%)',
+      quotes: [
+        "You don't just plan events — you create memories that last.",
+        "Behind every unforgettable evening is someone who genuinely cared. That's you.",
+        "Your warmth turns venues into destinations and guests into fans.",
+        "Experience and heart — a combination nobody else can match.",
+      ],
     },
     {
       name: 'Georgie',
       initials: 'Ge',
       color: '#f59e0b',
       gradient: 'linear-gradient(135deg, #fbbf24 0%, #d97706 100%)',
+      quotes: [
+        "Bring that spark today — the best moments haven't happened yet.",
+        "You're the reason the room buzzes before anything even starts.",
+        "Fresh eyes, bold moves, incredible results. The Georgie effect.",
+        "Your best work always feels like it's just around the corner. Today is that corner.",
+      ],
     },
   ];
 
-  const QUOTES = {
-    Jordan: "Every great event starts with someone deciding it matters. That's you.",
-    Jess:   "Your energy sets the room before the doors even open.",
-    Penni:  "The details everyone else misses? That's your superpower.",
-    David:  "Steady, sharp, reliable — the team is always better with you in it.",
-    Debbie: "You don't just plan events — you create memories that last.",
-    Georgie:"Bring that spark today — the best moments haven't happened yet.",
-  };
+  /* ── Quote selection (no-repeat) ────────────────── */
+  function getRandomQuote(member) {
+    const quotes = member.quotes;
+    const key = `ci_lq_${member.name}`;
+    const lastIdx = parseInt(sessionStorage.getItem(key) ?? '-1', 10);
+    let idx;
+    if (quotes.length <= 1) {
+      idx = 0;
+    } else {
+      do { idx = Math.floor(Math.random() * quotes.length); }
+      while (idx === lastIdx);
+    }
+    sessionStorage.setItem(key, String(idx));
+    return quotes[idx];
+  }
 
-  let selectedMember = null;
-
+  /* ── Build grid ─────────────────────────────────── */
   function buildGrid() {
     const grid = document.getElementById('grid');
     TEAM.forEach((member, i) => {
       const card = document.createElement('div');
       card.className = 'member-card';
       card.style.setProperty('--member-color', member.color);
-      card.style.setProperty('--glow-color', member.color + '66');
       card.style.animationDelay = `${i * 0.06}s`;
       card.innerHTML = `
         <div class="check-badge">✓</div>
@@ -475,18 +719,21 @@
     });
   }
 
+  /* ── Profile selection ──────────────────────────── */
   function selectMember(member, cardEl) {
     document.querySelectorAll('.member-card').forEach(c => c.classList.remove('selected'));
     cardEl.classList.add('selected');
-    selectedMember = member;
+    state.selectedProfile = member;
+    state.currentQuote = getRandomQuote(member);
     openModal(member);
   }
 
+  /* ── Modal ──────────────────────────────────────── */
   function openModal(member) {
     const modal = document.getElementById('modal');
     const backdrop = document.getElementById('backdrop');
 
-    // Reset avatar animation
+    // Re-trigger avatar animation
     const avatarEl = document.getElementById('modal-avatar');
     avatarEl.style.animation = 'none';
     void avatarEl.offsetWidth;
@@ -496,12 +743,10 @@
     avatarEl.textContent = member.initials;
 
     document.getElementById('modal-ring').style.borderColor = member.color;
-
     document.getElementById('modal-greeting').innerHTML =
       `Good to see you, <span>${member.name}.</span>`;
-
     document.getElementById('modal-quote').textContent =
-      `"${QUOTES[member.name]}"`;
+      `"${state.currentQuote}"`;
 
     const btn = document.getElementById('modal-btn');
     btn.style.background = member.color;
@@ -518,17 +763,59 @@
     document.body.style.overflow = '';
   }
 
-  function continueToHub() {
-    if (!selectedMember) return;
-    localStorage.setItem('ci_user', selectedMember.name);
-    window.location.replace('/');
+  /* ── Cinematic transition ───────────────────────── */
+  function playTransition(onComplete) {
+    const overlay = document.getElementById('ci-overlay');
+
+    const show = id => document.getElementById(id).classList.add('visible');
+    const hide = id => {
+      const el = document.getElementById(id);
+      el.classList.remove('visible');
+      el.classList.add('gone');
+    };
+
+    overlay.classList.add('active');
+
+    // Word sequence
+    setTimeout(() => show('ci-lights'),  300);
+    setTimeout(() => hide('ci-lights'),  620);
+    setTimeout(() => show('ci-camera'),  700);
+    setTimeout(() => hide('ci-camera'), 1020);
+    setTimeout(() => show('ci-action'), 1100);
+    setTimeout(() => hide('ci-action'), 1460);
+
+    // Hero moment
+    setTimeout(() => overlay.classList.add('glow-active'), 1550);
+    setTimeout(() => {
+      overlay.classList.add('sweep-active');
+      show('ci-hero');
+    }, 1650);
+
+    // Fade out and navigate
+    setTimeout(() => {
+      overlay.style.transition = 'opacity 0.45s ease';
+      overlay.style.opacity = '0';
+    }, 2700);
+    setTimeout(onComplete, 3100);
   }
 
+  /* ── Continue to hub ────────────────────────────── */
+  function continueToHub() {
+    if (!state.selectedProfile || state.hasEnteredApp) return;
+    state.hasEnteredApp = true;
+    closeModal();
+    playTransition(() => {
+      sessionStorage.setItem('ci_entry_token', '1');
+      window.location.replace('/');
+    });
+  }
+
+  /* ── Event listeners ────────────────────────────── */
   document.getElementById('backdrop').addEventListener('click', function(e) {
     if (e.target === this) closeModal();
   });
 
-  document.addEventListener('keydown', function(e) {
+  document.addEventListener('keydown', e => {
     if (e.key === 'Escape') closeModal();
   });
 

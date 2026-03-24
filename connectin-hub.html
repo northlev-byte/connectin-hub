@@ -364,9 +364,11 @@
 </head>
 <body>
 <script>
+  const _token = sessionStorage.getItem('ci_entry_token');
+  sessionStorage.removeItem('ci_entry_token');
   if (localStorage.getItem('ci_auth') !== '1') {
     window.location.replace('/password');
-  } else if (!localStorage.getItem('ci_user')) {
+  } else if (!_token) {
     window.location.replace('/profile');
   }
 </script>
