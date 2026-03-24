@@ -360,13 +360,119 @@
   .tool-card:nth-child(4) { animation: fadeUp 0.4s ease 0.36s both; }
   .tool-card:nth-child(5) { animation: fadeUp 0.4s ease 0.43s both; }
   .tool-card:nth-child(6) { animation: fadeUp 0.4s ease 0.50s both; }
+
+  /* ── Profile chip ────────────────────────── */
+  .header-right {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 10px;
+    flex-shrink: 0;
+  }
+
+  .profile-chip {
+    display: flex;
+    align-items: center;
+    gap: 9px;
+    border: 1px solid var(--border);
+    background: var(--card);
+    padding: 5px 11px 5px 5px;
+    cursor: pointer;
+    position: relative;
+    transition: border-color 0.2s, background 0.2s;
+    user-select: none;
+  }
+
+  .profile-chip:hover {
+    border-color: rgba(255,255,255,0.12);
+    background: var(--card-hover);
+  }
+
+  .chip-avatar {
+    width: 26px;
+    height: 26px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-family: var(--head);
+    font-size: 10px;
+    font-weight: 800;
+    color: #fff;
+    flex-shrink: 0;
+  }
+
+  .chip-name {
+    font-family: var(--mono);
+    font-size: 11px;
+    letter-spacing: 0.08em;
+    color: var(--muted);
+  }
+
+  .chip-caret {
+    font-size: 9px;
+    color: var(--muted);
+    margin-left: 1px;
+  }
+
+  .chip-dropdown {
+    position: absolute;
+    top: calc(100% + 5px);
+    right: 0;
+    background: var(--card);
+    border: 1px solid var(--border);
+    min-width: 158px;
+    display: none;
+    z-index: 50;
+    box-shadow: 0 8px 32px rgba(0,0,0,0.45);
+  }
+
+  .chip-dropdown.open { display: block; }
+
+  .chip-dropdown button {
+    display: block;
+    width: 100%;
+    padding: 11px 16px;
+    font-family: var(--mono);
+    font-size: 11px;
+    letter-spacing: 0.08em;
+    color: var(--muted);
+    background: none;
+    border: none;
+    text-align: left;
+    cursor: pointer;
+    transition: background 0.15s, color 0.15s;
+  }
+
+  .chip-dropdown button:hover {
+    background: var(--card-hover);
+    color: var(--text);
+  }
+
+  .chip-dropdown .danger {
+    color: #e05c5c;
+    border-top: 1px solid var(--border);
+  }
+
+  .chip-dropdown .danger:hover {
+    background: rgba(224,92,92,0.08);
+    color: #ef8585;
+  }
 </style>
 </head>
 <body>
 <script>
   const _token = sessionStorage.getItem('ci_entry_token');
   sessionStorage.removeItem('ci_entry_token');
-  if (localStorage.getItem('ci_auth') !== '1') {
+  const _auth = localStorage.getItem('ci_auth') === '1';
+  if (!localStorage.getItem('ci_auth_exp') && _auth) {
+    localStorage.setItem('ci_auth_exp', (Date.now() + 7 * 24 * 60 * 60 * 1000).toString());
+  }
+  const _exp = parseInt(localStorage.getItem('ci_auth_exp') || '0', 10);
+  const _valid = _auth && Date.now() < _exp;
+  if (!_valid) {
+    localStorage.removeItem('ci_auth');
+    localStorage.removeItem('ci_auth_exp');
     window.location.replace('/password');
   } else if (!_token) {
     window.location.replace('/profile');
@@ -383,7 +489,18 @@
         <span>Internal tools — Manchester</span>
       </div>
     </div>
-    <span class="tool-count" id="tool-count">8 tools active</span>
+    <div class="header-right">
+      <div class="profile-chip" id="profile-chip" style="display:none" aria-label="Profile menu">
+        <div class="chip-avatar" id="chip-avatar"></div>
+        <span class="chip-name" id="chip-name"></span>
+        <span class="chip-caret">▾</span>
+        <div class="chip-dropdown" id="chip-dropdown">
+          <button onclick="switchProfile()">Switch Profile</button>
+          <button class="danger" onclick="signOut()">Sign Out</button>
+        </div>
+      </div>
+      <span class="tool-count" id="tool-count">8 tools active</span>
+    </div>
   </header>
 
   <div class="section-label">Active tools</div>
@@ -451,7 +568,7 @@
     </a>
 
     <!-- Venues Sheet -->
-    <a class="tool-card" href="#" id="venues-link">
+    <a class="tool-card" href="https://connectin-venue-portal.vercel.app" target="_blank" id="venues-link">
       <div class="card-header">
         <div class="card-icon">🏛️</div>
         <span class="card-badge new">Live</span>
@@ -553,5 +670,45 @@
   </footer>
 
 </div>
+
+<script>
+  // Profile chip
+  (function() {
+    const raw = sessionStorage.getItem('ci_profile');
+    if (!raw) return;
+    try {
+      const p = JSON.parse(raw);
+      const chip = document.getElementById('profile-chip');
+      document.getElementById('chip-avatar').style.background = p.gradient;
+      document.getElementById('chip-avatar').textContent = p.initials;
+      document.getElementById('chip-name').textContent = p.name;
+      chip.style.display = 'flex';
+    } catch {}
+  })();
+
+  document.getElementById('profile-chip').addEventListener('click', function(e) {
+    e.stopPropagation();
+    document.getElementById('chip-dropdown').classList.toggle('open');
+  });
+
+  document.addEventListener('click', function() {
+    document.getElementById('chip-dropdown').classList.remove('open');
+  });
+
+  document.addEventListener('keydown', function(e) {
+    if (e.key === 'Escape') document.getElementById('chip-dropdown').classList.remove('open');
+  });
+
+  function switchProfile() {
+    window.location.replace('/profile');
+  }
+
+  function signOut() {
+    localStorage.removeItem('ci_auth');
+    localStorage.removeItem('ci_auth_exp');
+    sessionStorage.clear();
+    window.location.replace('/password');
+  }
+</script>
 </body>
 </html>

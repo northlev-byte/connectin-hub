@@ -147,6 +147,14 @@
     transform: translateY(-3px);
   }
 
+  @media (hover: none) {
+    .member-card:active {
+      background: #252830;
+      transform: scale(0.97);
+      transition: transform 0.1s;
+    }
+  }
+
   .member-card.selected {
     border-color: var(--member-color);
     background: #252830;
@@ -597,17 +605,27 @@
 </div>
 
 <script>
-  /* ── State ──────────────────────────────────────── */
+  /* ── State + session validity ───────────────────── */
+  (function() {
+    const auth = localStorage.getItem('ci_auth') === '1';
+    if (!auth) { window.location.replace('/password'); return; }
+    if (!localStorage.getItem('ci_auth_exp')) {
+      localStorage.setItem('ci_auth_exp', (Date.now() + 7 * 24 * 60 * 60 * 1000).toString());
+    }
+    const exp = parseInt(localStorage.getItem('ci_auth_exp'), 10);
+    if (Date.now() > exp) {
+      localStorage.removeItem('ci_auth');
+      localStorage.removeItem('ci_auth_exp');
+      window.location.replace('/password');
+    }
+  })();
+
   const state = {
-    isAuthenticated: localStorage.getItem('ci_auth') === '1',
+    isAuthenticated: true,
     selectedProfile: null,
     currentQuote: null,
     hasEnteredApp: false,
   };
-
-  if (!state.isAuthenticated) {
-    window.location.replace('/password');
-  }
 
   /* ── Team data ──────────────────────────────────── */
   const TEAM = [
@@ -714,7 +732,13 @@
         <div class="avatar" style="background:${member.gradient}">${member.initials}</div>
         <div class="member-name">${member.name}</div>
       `;
+      card.setAttribute('tabindex', '0');
+      card.setAttribute('role', 'button');
+      card.setAttribute('aria-label', `Select ${member.name}`);
       card.addEventListener('click', () => selectMember(member, card));
+      card.addEventListener('keydown', e => {
+        if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); selectMember(member, card); }
+      });
       grid.appendChild(card);
     });
   }
@@ -756,11 +780,25 @@
 
     backdrop.classList.add('open');
     document.body.style.overflow = 'hidden';
+    document.getElementById('modal').addEventListener('keydown', _trapFocus);
+    setTimeout(() => document.getElementById('modal-btn').focus(), 60);
   }
 
   function closeModal() {
     document.getElementById('backdrop').classList.remove('open');
     document.body.style.overflow = '';
+    document.getElementById('modal').removeEventListener('keydown', _trapFocus);
+  }
+
+  function _trapFocus(e) {
+    if (e.key !== 'Tab') return;
+    const modal = document.getElementById('modal');
+    const els = modal.querySelectorAll('button:not([disabled]), [tabindex]:not([tabindex="-1"])');
+    const first = els[0], last = els[els.length - 1];
+    if (e.shiftKey ? document.activeElement === first : document.activeElement === last) {
+      e.preventDefault();
+      (e.shiftKey ? last : first).focus();
+    }
   }
 
   /* ── Cinematic transition ───────────────────────── */
@@ -806,6 +844,12 @@
     closeModal();
     playTransition(() => {
       sessionStorage.setItem('ci_entry_token', '1');
+      sessionStorage.setItem('ci_profile', JSON.stringify({
+        name:     state.selectedProfile.name,
+        initials: state.selectedProfile.initials,
+        gradient: state.selectedProfile.gradient,
+        color:    state.selectedProfile.color,
+      }));
       window.location.replace('/');
     });
   }
