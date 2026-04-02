@@ -1,0 +1,585 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ConnectIn Events — Financial Dashboard</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg:#0b0f1a; --surface:#111827; --surface2:#1a2235; --surface3:#202d42;
+  --border:#1f2d42; --accent:#00d4aa; --accent2:#3b82f6; --accent3:#f59e0b;
+  --danger:#ef4444; --green:#10b981; --purple:#8b5cf6;
+  --text:#e8edf5; --muted:#6b7a99;
+  --serif:'DM Serif Display',serif; --sans:'DM Sans',sans-serif;
+}
+*{margin:0;padding:0;box-sizing:border-box;}
+body{background:var(--bg);color:var(--text);font-family:var(--sans);font-size:14px;line-height:1.6;min-height:100vh;}
+
+/* TOP NAV */
+nav{background:var(--surface);border-bottom:1px solid var(--border);padding:0 2rem;display:flex;align-items:center;justify-content:space-between;height:60px;position:sticky;top:0;z-index:200;}
+.nav-brand{display:flex;align-items:center;gap:.75rem;text-decoration:none;}
+.nav-logo{height:36px;width:auto;display:block;}
+.nav-brand-text{font-family:var(--serif);font-size:1.15rem;color:var(--text);line-height:1.1;}
+.nav-brand-text span{color:var(--accent);}
+.nav-brand-sub{font-size:.65rem;color:var(--muted);font-family:var(--sans);letter-spacing:.06em;text-transform:uppercase;margin-top:1px;}
+.nav-meta{font-size:.73rem;color:var(--muted);}
+.top-tabs{display:flex;gap:4px;}
+.top-tab{padding:.35rem 1rem;border-radius:6px;border:none;background:transparent;color:var(--muted);font-family:var(--sans);font-size:.82rem;font-weight:500;cursor:pointer;transition:all .2s;}
+.top-tab:hover{color:var(--text);background:var(--surface2);}
+.top-tab.active{background:var(--accent);color:#000;font-weight:600;}
+
+/* MONTH STRIP */
+.month-strip{background:var(--surface);border-bottom:1px solid var(--border);padding:0 2rem;display:flex;align-items:center;overflow-x:auto;position:sticky;top:60px;z-index:190;}
+.month-strip::-webkit-scrollbar{height:3px;}
+.month-strip::-webkit-scrollbar-thumb{background:var(--border);}
+.mbtn{padding:.5rem .85rem;border:none;background:transparent;color:var(--muted);font-family:var(--sans);font-size:.77rem;font-weight:500;cursor:pointer;white-space:nowrap;border-bottom:2px solid transparent;transition:all .15s;display:flex;align-items:center;gap:4px;}
+.mbtn:hover{color:var(--text);}
+.mbtn.active{color:var(--accent);border-bottom-color:var(--accent);}
+.dot{width:6px;height:6px;border-radius:50%;background:var(--accent);flex-shrink:0;}
+.dot.est{background:var(--muted);}
+
+/* VIEWS */
+.view{display:none;padding:1.75rem 2rem;max-width:1380px;margin:0 auto;animation:fadeUp .25s ease;}
+.view.active{display:block;}
+@keyframes fadeUp{from{opacity:0;transform:translateY(6px);}to{opacity:1;transform:translateY(0);}}
+
+/* PAGE HEADER */
+.page-header{margin-bottom:1.75rem;}
+.page-header h1{font-family:var(--serif);font-size:1.9rem;font-weight:400;margin-bottom:.2rem;}
+.page-header p{color:var(--muted);font-size:.82rem;}
+.hrow{display:flex;align-items:flex-start;justify-content:space-between;flex-wrap:wrap;gap:1rem;margin-bottom:1.75rem;}
+
+/* KPI */
+.kpi-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:.9rem;margin-bottom:1.75rem;}
+.kpi{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:1.1rem 1.3rem;position:relative;overflow:hidden;transition:border-color .2s;}
+.kpi:hover{border-color:var(--accent);}
+.kpi::before{content:'';position:absolute;top:0;left:0;right:0;height:3px;background:var(--kpi-color,var(--accent));}
+.kpi-label{font-size:.68rem;font-weight:600;text-transform:uppercase;letter-spacing:.09em;color:var(--muted);margin-bottom:.4rem;}
+.kpi-value{font-family:var(--serif);font-size:1.65rem;color:var(--text);line-height:1.1;}
+.kpi-sub{font-size:.73rem;color:var(--muted);margin-top:.35rem;}
+.badge{display:inline-block;padding:.12rem .45rem;border-radius:20px;font-size:.67rem;font-weight:600;}
+.bg{background:rgba(16,185,129,.15);color:var(--green);}
+.ba{background:rgba(245,158,11,.15);color:var(--accent3);}
+.br{background:rgba(239,68,68,.15);color:var(--danger);}
+.bb{background:rgba(59,130,246,.15);color:var(--accent2);}
+
+/* GRID */
+.g2{display:grid;grid-template-columns:1fr 1fr;gap:1.25rem;margin-bottom:1.25rem;}
+.g3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:1.25rem;margin-bottom:1.25rem;}
+.s2{grid-column:span 2;}
+.mb{margin-bottom:1.25rem;}
+
+/* CARD */
+.card{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:1.35rem;}
+.card-hd{display:flex;align-items:center;justify-content:space-between;margin-bottom:1.1rem;}
+.card-title{font-family:var(--serif);font-size:1.05rem;font-weight:400;}
+.card-tag{font-size:.68rem;padding:.18rem .55rem;border-radius:20px;background:var(--surface2);color:var(--muted);font-weight:500;}
+
+/* CHARTS */
+.ch200{position:relative;height:200px;}
+.ch240{position:relative;height:240px;}
+.ch300{position:relative;height:300px;}
+
+/* FIN TABLE */
+.ft{width:100%;border-collapse:collapse;}
+.ft th{text-align:left;font-size:.67rem;font-weight:600;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);padding:.38rem .65rem;border-bottom:1px solid var(--border);}
+.ft th:last-child,.ft td:last-child{text-align:right;}
+.ft td{padding:.48rem .65rem;font-size:.81rem;border-bottom:1px solid rgba(31,45,66,.4);}
+.ft tr:last-child td{border-bottom:none;}
+.ft tr:hover td{background:var(--surface2);}
+.rs td{font-size:.67rem;text-transform:uppercase;letter-spacing:.08em;color:var(--accent);padding-top:.9rem;font-weight:600;}
+.rb td{color:var(--muted);padding-left:1.4rem;font-size:.79rem;}
+.rt td{font-weight:600;background:var(--surface2);}
+.rh td{font-weight:600;background:rgba(0,212,170,.05);}
+.tg{color:var(--green)!important;}
+.tr2{color:var(--danger)!important;}
+.ta{color:var(--accent)!important;}
+.tm{color:var(--muted)!important;}
+
+/* MONTH TABLE */
+.mtwrap{overflow-x:auto;}
+.mt{width:100%;border-collapse:collapse;min-width:780px;}
+.mt th{font-size:.67rem;font-weight:600;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);padding:.45rem .6rem;border-bottom:1px solid var(--border);text-align:right;}
+.mt th:first-child{text-align:left;}
+.mt td{padding:.45rem .6rem;font-size:.79rem;border-bottom:1px solid rgba(31,45,66,.35);text-align:right;font-variant-numeric:tabular-nums;}
+.mt td:first-child{text-align:left;color:var(--muted);font-size:.74rem;}
+.mt .rt td{background:var(--surface2);font-weight:600;}
+.mt .rt td:first-child{color:var(--text);}
+.pos{color:var(--green);}
+.neg{color:var(--danger);}
+
+/* LEGEND */
+.leg{list-style:none;}
+.leg li{display:flex;align-items:center;gap:.55rem;padding:.3rem 0;font-size:.78rem;border-bottom:1px solid rgba(31,45,66,.45);}
+.leg li:last-child{border-bottom:none;}
+.ldot{width:8px;height:8px;border-radius:50%;flex-shrink:0;}
+.llbl{flex:1;color:var(--muted);}
+.lval{font-variant-numeric:tabular-nums;font-weight:500;}
+.lpct{color:var(--muted);font-size:.7rem;min-width:36px;text-align:right;}
+
+/* UPLOAD ZONE */
+.uzone{border:2px dashed var(--border);border-radius:10px;padding:1.75rem 2rem;text-align:center;cursor:pointer;transition:all .2s;background:var(--surface);min-width:260px;}
+.uzone:hover,.uzone.drag-over{border-color:var(--accent);background:rgba(0,212,170,.04);}
+.uzone input{display:none;}
+.uzone-icon{font-size:1.8rem;margin-bottom:.5rem;}
+.uzone-title{font-family:var(--serif);font-size:1rem;margin-bottom:.25rem;}
+.uzone-sub{color:var(--muted);font-size:.75rem;line-height:1.5;}
+.uzone-sub strong{color:var(--accent);}
+
+/* NOTICES */
+.notice{background:rgba(245,158,11,.08);border:1px solid rgba(245,158,11,.22);border-radius:8px;padding:.7rem 1rem;font-size:.79rem;color:var(--accent3);margin-bottom:1.25rem;display:flex;gap:.5rem;align-items:flex-start;}
+.notice-blue{background:rgba(59,130,246,.07);border-color:rgba(59,130,246,.2);color:var(--accent2);}
+.notice-green{background:rgba(16,185,129,.07);border-color:rgba(16,185,129,.2);color:var(--green);}
+
+/* FORECAST */
+.fc-banner{background:linear-gradient(135deg,rgba(0,212,170,.07),rgba(59,130,246,.07));border:1px solid rgba(0,212,170,.18);border-radius:10px;padding:1.35rem 1.75rem;margin-bottom:1.75rem;display:flex;align-items:center;gap:1.25rem;}
+.fc-icon{font-size:2.2rem;}
+.fc-banner h2{font-family:var(--serif);font-size:1.3rem;font-weight:400;margin-bottom:.2rem;}
+.fc-banner p{color:var(--muted);font-size:.8rem;}
+.atags{display:flex;flex-wrap:wrap;gap:.45rem;margin-bottom:1.75rem;}
+.atag{background:var(--surface2);border:1px solid var(--border);border-radius:5px;padding:.25rem .65rem;font-size:.72rem;color:var(--muted);}
+.atag strong{color:var(--accent);}
+.vgrid{display:grid;grid-template-columns:repeat(3,1fr);gap:.9rem;margin-bottom:1.25rem;}
+.vcard{background:var(--surface2);border-radius:8px;padding:.9rem 1.1rem;border-left:3px solid var(--accent);}
+.vcard.amber{border-left-color:var(--accent3);}
+.vlbl{font-size:.68rem;text-transform:uppercase;letter-spacing:.07em;color:var(--muted);margin-bottom:.35rem;}
+.vval{font-family:var(--serif);font-size:1.4rem;}
+.vnote{font-size:.69rem;color:var(--muted);margin-top:.2rem;}
+
+@media(max-width:900px){
+  .g2,.g3{grid-template-columns:1fr;}
+  .s2{grid-column:span 1;}
+  .vgrid{grid-template-columns:1fr;}
+  nav{flex-wrap:wrap;height:auto;padding:.65rem 1rem;gap:.5rem;}
+  .view{padding:1rem;}
+  .hrow{flex-direction:column;}
+}
+</style>
+</head>
+<body>
+
+<nav>
+  <a class="nav-brand" href="https://connectin-hub.vercel.app" target="_blank">
+    <img src="https://connectin-hub.vercel.app/logo.png" alt="ConnectIn Events" class="nav-logo" onerror="this.style.display='none'">
+    <div>
+      <div class="nav-brand-text">Connect In <span>Events</span></div>
+      <div class="nav-brand-sub">Financial Dashboard</div>
+    </div>
+  </a>
+  <div class="top-tabs">
+    <button class="top-tab active" onclick="switchTop('fy-overview',this)">Current FY</button>
+    <button class="top-tab" onclick="switchTop('fy-monthly',this)">Current FY Monthly</button>
+    <button class="top-tab" onclick="switchTop('nfy-overview',this)">Next FY Forecast</button>
+    <button class="top-tab" onclick="switchTop('nfy-monthly',this)">Next FY Monthly</button>
+  </div>
+  <div class="nav-meta">Apr 2025 – Mar 2026 &nbsp;·&nbsp; 18 Mar 2026</div>
+  <a href="https://connectin-hub.vercel.app" style="font-size:.72rem;color:var(--muted);text-decoration:none;display:flex;align-items:center;gap:.35rem;transition:color .2s;" onmouseover="this.style.color='var(--accent)'" onmouseout="this.style.color='var(--muted)'">← Tools Hub</a>
+</nav>
+
+<!-- CURRENT FY MONTH STRIP -->
+<div class="month-strip" id="strip-fy" style="display:none" id="strip-fy"></div>
+
+<!-- NEXT FY MONTH STRIP -->
+<div class="month-strip" id="strip-nfy" style="display:none"></div>
+
+<!-- ═══════ VIEW: CURRENT FY OVERVIEW ═══════ -->
+<div id="view-fy-overview" class="view active">
+  <div class="page-header"><h1>Financial Overview</h1><p>1 April 2025 – 18 March 2026 &nbsp;·&nbsp; QuickBooks Accrual Basis</p></div>
+  <div class="kpi-grid">
+    <div class="kpi" style="--kpi-color:#00d4aa"><div class="kpi-label">Total Revenue</div><div class="kpi-value">£1.72M</div><div class="kpi-sub">£1,721,780</div></div>
+    <div class="kpi" style="--kpi-color:#3b82f6"><div class="kpi-label">Gross Profit</div><div class="kpi-value">£621K</div><div class="kpi-sub"><span class="badge bg">36.1% margin</span></div></div>
+    <div class="kpi" style="--kpi-color:#f59e0b"><div class="kpi-label">Total Expenses</div><div class="kpi-value">£409K</div><div class="kpi-sub">Operating only</div></div>
+    <div class="kpi" style="--kpi-color:#10b981"><div class="kpi-label">Net Operating Income</div><div class="kpi-value">£212K</div><div class="kpi-sub"><span class="badge bg">12.3% margin</span></div></div>
+    <div class="kpi" style="--kpi-color:#00d4aa"><div class="kpi-label">Net Income</div><div class="kpi-value">£118K</div><div class="kpi-sub">After corp tax & dep.</div></div>
+    <div class="kpi" style="--kpi-color:#ef4444"><div class="kpi-label">Cost of Sales</div><div class="kpi-value">£1.10M</div><div class="kpi-sub"><span class="badge ba">63.9% of revenue</span></div></div>
+  </div>
+  <div class="g2">
+    <div class="card"><div class="card-hd"><div class="card-title">Revenue Breakdown</div><div class="card-tag">FY 25–26</div></div><div class="ch240"><canvas id="c-revD"></canvas></div>
+      <ul class="leg" style="margin-top:.9rem">
+        <li><span class="ldot" style="background:#00d4aa"></span><span class="llbl">Event Sales</span><span class="lval">£1,717,937</span><span class="lpct">99.8%</span></li>
+        <li><span class="ldot" style="background:#3b82f6"></span><span class="llbl">Bank Interest</span><span class="lval">£3,843</span><span class="lpct">0.2%</span></li>
+      </ul>
+    </div>
+    <div class="card"><div class="card-hd"><div class="card-title">Expense Categories</div><div class="card-tag">£408,952</div></div><div class="ch240"><canvas id="c-expD"></canvas></div>
+      <ul class="leg" style="margin-top:.9rem">
+        <li><span class="ldot" style="background:#8b5cf6"></span><span class="llbl">Payroll – Directors</span><span class="lval">£252,155</span><span class="lpct">61.7%</span></li>
+        <li><span class="ldot" style="background:#3b82f6"></span><span class="llbl">Payroll – Employees</span><span class="lval">£56,970</span><span class="lpct">13.9%</span></li>
+        <li><span class="ldot" style="background:#f59e0b"></span><span class="llbl">Office Expenses</span><span class="lval">£25,470</span><span class="lpct">6.2%</span></li>
+        <li><span class="ldot" style="background:#00d4aa"></span><span class="llbl">Professional Fees</span><span class="lval">£23,022</span><span class="lpct">5.6%</span></li>
+        <li><span class="ldot" style="background:#ef4444"></span><span class="llbl">IT & Equipment</span><span class="lval">£12,324</span><span class="lpct">3.0%</span></li>
+        <li><span class="ldot" style="background:#10b981"></span><span class="llbl">Travel & Entertainment</span><span class="lval">£12,359</span><span class="lpct">3.0%</span></li>
+        <li><span class="ldot" style="background:#6b7a99"></span><span class="llbl">Other</span><span class="lval">£26,653</span><span class="lpct">6.5%</span></li>
+      </ul>
+    </div>
+  </div>
+  <div class="g2">
+    <div class="card"><div class="card-hd"><div class="card-title">Revenue → Net Income Bridge</div></div><div class="ch300"><canvas id="c-wfall"></canvas></div></div>
+    <div class="card"><div class="card-hd"><div class="card-title">Cost of Sales Breakdown</div><div class="card-tag">£1,100,332</div></div><div class="ch300"><canvas id="c-cos"></canvas></div></div>
+  </div>
+  <div class="card mb">
+    <div class="card-hd"><div class="card-title">Profit & Loss Statement</div><div class="card-tag">1 Apr 2025 – 18 Mar 2026</div></div>
+    <table class="ft"><thead><tr><th>Category</th><th>Amount (£)</th></tr></thead><tbody>
+      <tr class="rs"><td colspan="2">Income</td></tr>
+      <tr class="rb"><td>Event Sales</td><td>1,717,937</td></tr>
+      <tr class="rb"><td>Bank Interest Received</td><td>3,843</td></tr>
+      <tr class="rt"><td>Total Income</td><td class="ta">1,721,780</td></tr>
+      <tr class="rs"><td colspan="2">Cost of Sales</td></tr>
+      <tr class="rb"><td>Cost of Sales</td><td>1,010,850</td></tr>
+      <tr class="rb"><td>Freelancers</td><td>19,055</td></tr>
+      <tr class="rb"><td>Travel & Subsistence</td><td>70,427</td></tr>
+      <tr class="rt"><td>Total Cost of Sales</td><td class="tr2">(1,100,332)</td></tr>
+      <tr class="rh"><td>Gross Profit</td><td class="tg">621,448</td></tr>
+      <tr class="rs"><td colspan="2">Operating Expenses</td></tr>
+      <tr class="rb"><td>Payroll – Directors</td><td>252,155</td></tr>
+      <tr class="rb"><td>Payroll – Employees</td><td>56,970</td></tr>
+      <tr class="rb"><td>Office Expenses</td><td>25,470</td></tr>
+      <tr class="rb"><td>Professional Fees</td><td>23,022</td></tr>
+      <tr class="rb"><td>IT & Equipment</td><td>12,324</td></tr>
+      <tr class="rb"><td>Travel & Entertainment</td><td>12,359</td></tr>
+      <tr class="rb"><td>Direct Costs & Marketing</td><td>24,606</td></tr>
+      <tr class="rb"><td>Finance Costs</td><td>2,047</td></tr>
+      <tr class="rt"><td>Total Expenses</td><td class="tr2">(408,952)</td></tr>
+      <tr class="rh"><td>Net Operating Income</td><td class="tg">212,497</td></tr>
+      <tr class="rs"><td colspan="2">Other</td></tr>
+      <tr class="rb"><td>Corporation Tax</td><td>87,302</td></tr>
+      <tr class="rb"><td>Depreciation</td><td>6,721</td></tr>
+      <tr class="rt"><td>Total Other</td><td class="tr2">(94,023)</td></tr>
+      <tr class="rh"><td style="font-size:.95rem">Net Income</td><td class="ta" style="font-size:.95rem">118,474</td></tr>
+    </tbody></table>
+  </div>
+  <div class="notice">⚠️ <span>Balance Sheet exported with all zeros — re-run in QuickBooks (Reports → Balance Sheet → Run Report → Export) then upload here.</span></div>
+</div>
+
+<!-- ═══════ VIEW: CURRENT FY MONTHLY ═══════ -->
+<div id="view-fy-monthly" class="view">
+  <div id="fy-month-content"></div>
+</div>
+
+<!-- ═══════ VIEW: NEXT FY FORECAST OVERVIEW ═══════ -->
+<div id="view-nfy-overview" class="view">
+  <div class="page-header"><h1>Next FY Forecast</h1><p>1 April 2026 – 31 March 2027 &nbsp;·&nbsp; Based on current FY actuals + event projections</p></div>
+  <div class="fc-banner"><div class="fc-icon">📈</div><div><h2>Projected Net Income: £170K</h2><p>Revenue +10% on current FY &nbsp;·&nbsp; Expenses held at monthly average &nbsp;·&nbsp; Upload event sheet to sharpen revenue forecast</p></div></div>
+  <div class="atags">
+    <div class="atag">Revenue: <strong>+10% on current FY</strong></div>
+    <div class="atag">Expense basis: <strong>Current FY monthly averages</strong></div>
+    <div class="atag">COS rate: <strong>63.9% of revenue</strong></div>
+    <div class="atag">Corp Tax: <strong>~35.2% of op. income</strong></div>
+    <div class="atag">Depreciation: <strong>£6,721 p.a.</strong></div>
+    <div class="atag">Payroll: <strong>Flat from current FY</strong></div>
+  </div>
+  <div class="kpi-grid">
+    <div class="kpi" style="--kpi-color:#00d4aa"><div class="kpi-label">Projected Revenue</div><div class="kpi-value">£1.90M</div><div class="kpi-sub"><span class="badge bg">+10% vs current FY</span></div></div>
+    <div class="kpi" style="--kpi-color:#3b82f6"><div class="kpi-label">Projected Gross Profit</div><div class="kpi-value">£685K</div><div class="kpi-sub">36.1% margin</div></div>
+    <div class="kpi" style="--kpi-color:#f59e0b"><div class="kpi-label">Projected Expenses</div><div class="kpi-value">£412K</div><div class="kpi-sub">Monthly avg × 12</div></div>
+    <div class="kpi" style="--kpi-color:#10b981"><div class="kpi-label">Net Operating Income</div><div class="kpi-value">£273K</div><div class="kpi-sub">14.4% margin</div></div>
+    <div class="kpi" style="--kpi-color:#00d4aa"><div class="kpi-label">Projected Net Income</div><div class="kpi-value">£170K</div><div class="kpi-sub">After corp tax & dep.</div></div>
+    <div class="kpi" style="--kpi-color:#8b5cf6"><div class="kpi-label">YoY Net Income Growth</div><div class="kpi-value">+43.9%</div><div class="kpi-sub"><span class="badge bg">+£51,853</span></div></div>
+  </div>
+  <div class="g2 mb">
+    <div class="card s2"><div class="card-hd"><div class="card-title">Current FY Actuals vs Next FY Forecast</div></div><div class="ch300"><canvas id="c-fcBar"></canvas></div></div>
+  </div>
+  <div class="card mb">
+    <div class="card-hd"><div class="card-title">Monthly Forecast — Apr 2026 to Mar 2027</div><div class="card-tag">Estimated · upload monthly files to update</div></div>
+    <div class="mtwrap"><table class="mt" id="fc-month-tbl"></table></div>
+  </div>
+  <div class="vgrid">
+    <div class="vcard"><div class="vlbl">Revenue Growth Target</div><div class="vval">+£176K</div><div class="vnote">vs current FY to reach £1.9M</div></div>
+    <div class="vcard amber"><div class="vlbl">Corp Tax Provision</div><div class="vval">£96,205</div><div class="vnote">~35.2% of projected op. income</div></div>
+    <div class="vcard"><div class="vlbl">Monthly Avg Expense</div><div class="vval">£34,246</div><div class="vnote">Current FY ÷ 11.5 months</div></div>
+  </div>
+  <div class="card mb">
+    <div class="card-hd"><div class="card-title">Projected P&L — Next FY</div><div class="card-tag">Apr 2026 – Mar 2027</div></div>
+    <table class="ft"><thead><tr><th>Category</th><th>Projected (£)</th><th>Current FY (£)</th><th>Variance (£)</th></tr></thead><tbody>
+      <tr class="rs"><td colspan="4">Income</td></tr>
+      <tr class="rb"><td>Event Sales</td><td>1,894,000</td><td>1,717,937</td><td class="tg">+176,063</td></tr>
+      <tr class="rb"><td>Bank Interest</td><td>4,000</td><td>3,843</td><td class="tg">+157</td></tr>
+      <tr class="rt"><td>Total Revenue</td><td class="ta">1,898,000</td><td>1,721,780</td><td class="tg">+176,220</td></tr>
+      <tr class="rb"><td>Cost of Sales (63.9%)</td><td>(1,213,122)</td><td>(1,100,332)</td><td class="tr2">-112,790</td></tr>
+      <tr class="rh"><td>Gross Profit</td><td class="tg">684,878</td><td class="tg">621,448</td><td class="tg">+63,430</td></tr>
+      <tr class="rs"><td colspan="4">Expenses</td></tr>
+      <tr class="rb"><td>Payroll – Directors</td><td>252,155</td><td>252,155</td><td class="tm">—</td></tr>
+      <tr class="rb"><td>Payroll – Employees</td><td>56,970</td><td>56,970</td><td class="tm">—</td></tr>
+      <tr class="rb"><td>Office Expenses</td><td>26,000</td><td>25,470</td><td class="tr2">-530</td></tr>
+      <tr class="rb"><td>Professional Fees</td><td>23,500</td><td>23,022</td><td class="tr2">-478</td></tr>
+      <tr class="rb"><td>IT & Equipment</td><td>13,000</td><td>12,324</td><td class="tr2">-676</td></tr>
+      <tr class="rb"><td>Travel & Entertainment</td><td>13,000</td><td>12,359</td><td class="tr2">-641</td></tr>
+      <tr class="rb"><td>Direct & Finance Costs</td><td>27,000</td><td>26,653</td><td class="tr2">-347</td></tr>
+      <tr class="rt"><td>Total Expenses</td><td class="tr2">(411,625)</td><td>(408,952)</td><td class="tr2">-2,673</td></tr>
+      <tr class="rh"><td>Net Operating Income</td><td class="tg">273,253</td><td class="tg">212,496</td><td class="tg">+60,757</td></tr>
+      <tr class="rb"><td>Corporation Tax</td><td>96,205</td><td>87,302</td><td class="tr2">-8,903</td></tr>
+      <tr class="rb"><td>Depreciation</td><td>6,721</td><td>6,721</td><td class="tm">—</td></tr>
+      <tr class="rh"><td style="font-size:.95rem">Projected Net Income</td><td class="ta" style="font-size:.95rem">170,327</td><td>118,474</td><td class="tg">+51,853</td></tr>
+    </tbody></table>
+  </div>
+</div>
+
+<!-- ═══════ VIEW: NEXT FY MONTHLY ═══════ -->
+<div id="view-nfy-monthly" class="view">
+  <div id="nfy-month-content"></div>
+</div>
+
+<footer style="border-top:1px solid var(--border);margin-top:3rem;padding:1.5rem 2rem;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:1rem;max-width:1380px;margin-left:auto;margin-right:auto;">
+  <div style="display:flex;align-items:center;gap:.65rem;">
+    <img src="https://connectin-hub.vercel.app/logo.png" alt="ConnectIn Events" style="height:28px;width:auto;" onerror="this.style.display='none'">
+    <span style="font-family:var(--serif);font-size:.95rem;color:var(--text);">Connect In <span style="color:var(--accent)">Events</span></span>
+  </div>
+  <div style="font-size:.72rem;color:var(--muted);text-align:center;">Financial Dashboard &nbsp;·&nbsp; Internal use only &nbsp;·&nbsp; connectinevents.co.uk</div>
+  <a href="https://connectin-hub.vercel.app" style="font-size:.75rem;color:var(--muted);text-decoration:none;transition:color .2s;" onmouseover="this.style.color='var(--accent)'" onmouseout="this.style.color='var(--muted)'">← Back to Tools Hub</a>
+</footer>
+
+<script>
+// ─── DATA ───
+const FY_MONTHS  = ['Apr 25','May 25','Jun 25','Jul 25','Aug 25','Sep 25','Oct 25','Nov 25','Dec 25','Jan 26','Feb 26','Mar 26'];
+const NFY_MONTHS = ['Apr 26','May 26','Jun 26','Jul 26','Aug 26','Sep 26','Oct 26','Nov 26','Dec 26','Jan 27','Feb 27','Mar 27'];
+const FY_LABELS  = ['April 2025','May 2025','June 2025','July 2025','August 2025','September 2025','October 2025','November 2025','December 2025','January 2026','February 2026','March 2026'];
+const NFY_LABELS = ['April 2026','May 2026','June 2026','July 2026','August 2026','September 2026','October 2026','November 2026','December 2026','January 2027','February 2027','March 2027'];
+const WEIGHTS    = [0.09,0.08,0.07,0.06,0.07,0.09,0.10,0.11,0.10,0.09,0.08,0.06];
+const TOTAL_REV  = 1721780, TOTAL_COS = 1100332, MONTHLY_EXP = 35560;
+const NEXT_REV   = 1898000, COS_RATE = 0.6391, NEXT_EXP = 34302;
+
+function mkFy() {
+  return FY_MONTHS.map((m,i)=>{
+    const rev=Math.round(TOTAL_REV*WEIGHTS[i]),cos=Math.round(TOTAL_COS*WEIGHTS[i]),gp=rev-cos,exp=MONTHLY_EXP,noi=gp-exp;
+    return {m,rev,cos,gp,exp,noi,src:'est'};
+  });
+}
+function mkNfy() {
+  return NFY_MONTHS.map((m,i)=>{
+    const rev=Math.round(NEXT_REV*WEIGHTS[i]),cos=Math.round(rev*COS_RATE),gp=rev-cos,exp=NEXT_EXP,noi=gp-exp;
+    return {m,rev,cos,gp,exp,noi,src:'fc'};
+  });
+}
+
+const fyD  = mkFy();
+const nfyD = mkNfy();
+let curFy=0, curNfy=0;
+const chartCache = {};
+
+// ─── TOP NAV ───
+function switchTop(name, btn) {
+  document.querySelectorAll('.view').forEach(v=>v.classList.remove('active'));
+  document.querySelectorAll('.top-tab').forEach(t=>t.classList.remove('active'));
+  document.getElementById('view-'+name).classList.add('active');
+  btn.classList.add('active');
+  document.getElementById('strip-fy').style.display  = name==='fy-monthly'  ? 'flex' : 'none';
+  document.getElementById('strip-nfy').style.display = name==='nfy-monthly' ? 'flex' : 'none';
+  if(name==='fy-monthly')  renderFyMonth(curFy);
+  if(name==='nfy-monthly') renderNfyMonth(curNfy);
+}
+
+// ─── BUILD STRIPS ───
+(function(){
+  const sf=document.getElementById('strip-fy');
+  FY_MONTHS.forEach((m,i)=>{
+    const b=document.createElement('button');
+    b.className='mbtn'+(i===0?' active':'');
+    b.id='fb-'+i;
+    b.innerHTML=m+'<span class="dot est" id="fd-'+i+'"></span>';
+    b.onclick=()=>{document.querySelectorAll('#strip-fy .mbtn').forEach(x=>x.classList.remove('active'));b.classList.add('active');curFy=i;renderFyMonth(i);};
+    sf.appendChild(b);
+  });
+  const sn=document.getElementById('strip-nfy');
+  NFY_MONTHS.forEach((m,i)=>{
+    const b=document.createElement('button');
+    b.className='mbtn'+(i===0?' active':'');
+    b.id='nb-'+i;
+    b.innerHTML=m+'<span class="dot est" id="nd-'+i+'"></span>';
+    b.onclick=()=>{document.querySelectorAll('#strip-nfy .mbtn').forEach(x=>x.classList.remove('active'));b.classList.add('active');curNfy=i;renderNfyMonth(i);};
+    sn.appendChild(b);
+  });
+})();
+
+// ─── RENDER FY MONTH ───
+function renderFyMonth(idx){
+  const d=fyD[idx], lbl=FY_LABELS[idx], est=d.src==='est';
+  const gm=d.rev>0?((d.gp/d.rev)*100).toFixed(1):'0.0';
+  const nm=d.rev>0?((d.noi/d.rev)*100).toFixed(1):'0.0';
+  document.getElementById('fy-month-content').innerHTML=`
+    <div class="hrow">
+      <div class="page-header" style="margin-bottom:0">
+        <h1>${lbl}</h1>
+        <p>Current Financial Year &nbsp;·&nbsp; ${est?'⚡ Estimated — upload QuickBooks export to update':'✅ Actual data uploaded'}</p>
+      </div>
+      <div class="uzone" id="uz-fy-${idx}" onclick="document.getElementById('fi-fy-${idx}').click()" ondragover="dov(event,this)" ondragleave="dlv(this)" ondrop="dop(event,${idx},'fy')">
+        <input type="file" id="fi-fy-${idx}" accept=".xlsx,.xls,.csv" onchange="hf(this.files[0],${idx},'fy')">
+        <div class="uzone-icon">📂</div>
+        <div class="uzone-title">Drop ${lbl} P&L here</div>
+        <div class="uzone-sub">Drag & drop your QuickBooks export<br><strong>Month auto-detected from file</strong></div>
+      </div>
+    </div>
+    ${est?'<div class="notice">📊 Figures estimated from annual totals using seasonal weighting. Upload this month\'s QuickBooks P&L to replace with actuals.</div>':'<div class="notice notice-green">✅ Data loaded from uploaded QuickBooks export.</div>'}
+    <div class="kpi-grid">
+      <div class="kpi" style="--kpi-color:#00d4aa"><div class="kpi-label">Revenue</div><div class="kpi-value">£${f(d.rev)}</div><div class="kpi-sub">${est?'Estimated':'Actual'}</div></div>
+      <div class="kpi" style="--kpi-color:#3b82f6"><div class="kpi-label">Cost of Sales</div><div class="kpi-value">£${f(d.cos)}</div><div class="kpi-sub">${d.rev>0?(d.cos/d.rev*100).toFixed(1):0}% of revenue</div></div>
+      <div class="kpi" style="--kpi-color:#10b981"><div class="kpi-label">Gross Profit</div><div class="kpi-value">£${f(d.gp)}</div><div class="kpi-sub"><span class="badge bg">${gm}% margin</span></div></div>
+      <div class="kpi" style="--kpi-color:#f59e0b"><div class="kpi-label">Expenses</div><div class="kpi-value">£${f(d.exp)}</div><div class="kpi-sub">Operating</div></div>
+      <div class="kpi" style="--kpi-color:${d.noi>=0?'#00d4aa':'#ef4444'}"><div class="kpi-label">Net Op. Income</div><div class="kpi-value ${d.noi<0?'tr2':''}">£${f(d.noi)}</div><div class="kpi-sub"><span class="badge ${d.noi>=0?'bg':'br'}">${nm}% margin</span></div></div>
+    </div>
+    <div class="g2">
+      <div class="card"><div class="card-hd"><div class="card-title">Monthly P&L Breakdown</div><div class="card-tag">${lbl}</div></div><div class="ch300"><canvas id="fy-bc-${idx}"></canvas></div></div>
+      <div class="card"><div class="card-hd"><div class="card-title">Revenue Allocation</div></div><div class="ch300"><canvas id="fy-dc-${idx}"></canvas></div></div>
+    </div>
+    <div class="card mb"><div class="card-hd"><div class="card-title">Month Summary</div></div>
+      <table class="ft"><thead><tr><th>Line Item</th><th>Amount (£)</th><th>% of Revenue</th></tr></thead><tbody>
+        <tr class="rh"><td>Total Revenue</td><td class="ta">${f(d.rev)}</td><td>100.0%</td></tr>
+        <tr class="rb"><td>Cost of Sales</td><td class="tr2">(${f(d.cos)})</td><td class="tr2">${d.rev>0?(d.cos/d.rev*100).toFixed(1):0}%</td></tr>
+        <tr class="rh"><td>Gross Profit</td><td class="tg">${f(d.gp)}</td><td class="tg">${gm}%</td></tr>
+        <tr class="rb"><td>Operating Expenses</td><td class="tr2">(${f(d.exp)})</td><td class="tr2">${d.rev>0?(d.exp/d.rev*100).toFixed(1):0}%</td></tr>
+        <tr class="rh"><td>Net Operating Income</td><td class="${d.noi>=0?'tg':'tr2'}">${d.noi<0?'(':''}${f(Math.abs(d.noi))}${d.noi<0?')':''}</td><td class="${d.noi>=0?'tg':'tr2'}">${nm}%</td></tr>
+      </tbody></table>
+    </div>`;
+  destroyCharts('fy',idx);
+  const g='rgba(31,45,66,.6)';
+  chartCache['fy-bc-'+idx]=new Chart(document.getElementById('fy-bc-'+idx),{type:'bar',data:{labels:['Revenue','Cost of Sales','Gross Profit','Expenses','Net Op. Income'],datasets:[{data:[d.rev,d.cos,d.gp,d.exp,d.noi],backgroundColor:['#00d4aa','#ef4444','#3b82f6','#f59e0b',d.noi>=0?'#10b981':'#ef4444'],borderRadius:4,borderWidth:0}]},options:{plugins:{legend:{display:false}},scales:{y:{grid:{color:g},ticks:{callback:v=>'£'+Math.round(Math.abs(v)/1000)+'K'}},x:{grid:{display:false}}},maintainAspectRatio:false}});
+  chartCache['fy-dc-'+idx]=new Chart(document.getElementById('fy-dc-'+idx),{type:'doughnut',data:{labels:['Cost of Sales','Net Op. Income','Expenses'],datasets:[{data:[d.cos,Math.max(0,d.noi),d.exp],backgroundColor:['#ef4444','#00d4aa','#f59e0b'],borderWidth:0,hoverOffset:5}]},options:{cutout:'65%',plugins:{legend:{position:'bottom',labels:{padding:12,boxWidth:10}}},maintainAspectRatio:false}});
+}
+
+// ─── RENDER NFY MONTH ───
+function renderNfyMonth(idx){
+  const d=nfyD[idx], lbl=NFY_LABELS[idx], uploaded=d.src==='uploaded';
+  const gm=d.rev>0?((d.gp/d.rev)*100).toFixed(1):'0.0';
+  const nm=d.rev>0?((d.noi/d.rev)*100).toFixed(1):'0.0';
+  const cf=fyD[idx];
+  document.getElementById('nfy-month-content').innerHTML=`
+    <div class="hrow">
+      <div class="page-header" style="margin-bottom:0">
+        <h1>${lbl}</h1>
+        <p>Next Financial Year &nbsp;·&nbsp; ${uploaded?'✅ Actual data uploaded':'📅 Forecast — drop actuals when this month arrives'}</p>
+      </div>
+      <div class="uzone" id="uz-nfy-${idx}" onclick="document.getElementById('fi-nfy-${idx}').click()" ondragover="dov(event,this)" ondragleave="dlv(this)" ondrop="dop(event,${idx},'nfy')">
+        <input type="file" id="fi-nfy-${idx}" accept=".xlsx,.xls,.csv" onchange="hf(this.files[0],${idx},'nfy')">
+        <div class="uzone-icon">📂</div>
+        <div class="uzone-title">Drop ${lbl} P&L here</div>
+        <div class="uzone-sub">When the month arrives, drop your QuickBooks export<br><strong>Month auto-detected from file</strong></div>
+      </div>
+    </div>
+    <div class="notice notice-blue">📅 Forecast based on current FY averages. When the month arrives, drop your QuickBooks P&L export above to replace forecast with actuals.</div>
+    <div class="kpi-grid">
+      <div class="kpi" style="--kpi-color:#00d4aa"><div class="kpi-label">Projected Revenue</div><div class="kpi-value">£${f(d.rev)}</div><div class="kpi-sub">${uploaded?'Actual':'Forecast'}</div></div>
+      <div class="kpi" style="--kpi-color:#3b82f6"><div class="kpi-label">Cost of Sales</div><div class="kpi-value">£${f(d.cos)}</div><div class="kpi-sub">${d.rev>0?(d.cos/d.rev*100).toFixed(1):0}% of revenue</div></div>
+      <div class="kpi" style="--kpi-color:#10b981"><div class="kpi-label">Gross Profit</div><div class="kpi-value">£${f(d.gp)}</div><div class="kpi-sub"><span class="badge bg">${gm}% margin</span></div></div>
+      <div class="kpi" style="--kpi-color:#f59e0b"><div class="kpi-label">Expenses</div><div class="kpi-value">£${f(d.exp)}</div><div class="kpi-sub">Monthly average</div></div>
+      <div class="kpi" style="--kpi-color:#00d4aa"><div class="kpi-label">Net Op. Income</div><div class="kpi-value">£${f(d.noi)}</div><div class="kpi-sub"><span class="badge bg">${nm}% margin</span></div></div>
+    </div>
+    <div class="g2">
+      <div class="card"><div class="card-hd"><div class="card-title">Forecast P&L Breakdown</div><div class="card-tag">${lbl}</div></div><div class="ch300"><canvas id="nfy-bc-${idx}"></canvas></div></div>
+      <div class="card"><div class="card-hd"><div class="card-title">Forecast vs Current FY — Same Month</div></div><div class="ch300"><canvas id="nfy-cc-${idx}"></canvas></div></div>
+    </div>
+    <div class="card mb"><div class="card-hd"><div class="card-title">Month Forecast vs Current FY</div></div>
+      <table class="ft"><thead><tr><th>Line Item</th><th>Forecast (£)</th><th>Current FY Est. (£)</th><th>Variance</th></tr></thead><tbody>
+        <tr class="rh"><td>Revenue</td><td class="ta">${f(d.rev)}</td><td>${f(cf.rev)}</td><td class="tg">+${f(d.rev-cf.rev)}</td></tr>
+        <tr class="rb"><td>Cost of Sales</td><td class="tr2">(${f(d.cos)})</td><td class="tr2">(${f(cf.cos)})</td><td class="tr2">-${f(d.cos-cf.cos)}</td></tr>
+        <tr class="rh"><td>Gross Profit</td><td class="tg">${f(d.gp)}</td><td>${f(cf.gp)}</td><td class="tg">+${f(d.gp-cf.gp)}</td></tr>
+        <tr class="rb"><td>Expenses</td><td class="tr2">(${f(d.exp)})</td><td class="tr2">(${f(cf.exp)})</td><td class="tm">—</td></tr>
+        <tr class="rh"><td>Net Op. Income</td><td class="tg">${f(d.noi)}</td><td>${f(cf.noi)}</td><td class="tg">+${f(d.noi-cf.noi)}</td></tr>
+      </tbody></table>
+    </div>`;
+  destroyCharts('nfy',idx);
+  const g='rgba(31,45,66,.6)';
+  chartCache['nfy-bc-'+idx]=new Chart(document.getElementById('nfy-bc-'+idx),{type:'bar',data:{labels:['Revenue','Cost of Sales','Gross Profit','Expenses','Net Op. Income'],datasets:[{data:[d.rev,d.cos,d.gp,d.exp,d.noi],backgroundColor:['#00d4aa','#ef4444','#3b82f6','#f59e0b','#10b981'],borderRadius:4,borderWidth:0}]},options:{plugins:{legend:{display:false}},scales:{y:{grid:{color:g},ticks:{callback:v=>'£'+Math.round(v/1000)+'K'}},x:{grid:{display:false}}},maintainAspectRatio:false}});
+  chartCache['nfy-cc-'+idx]=new Chart(document.getElementById('nfy-cc-'+idx),{type:'bar',data:{labels:['Revenue','Gross Profit','Expenses','Net Op. Income'],datasets:[{label:'Current FY',data:[cf.rev,cf.gp,cf.exp,cf.noi],backgroundColor:'rgba(59,130,246,.7)',borderRadius:4,borderWidth:0},{label:'Next FY Forecast',data:[d.rev,d.gp,d.exp,d.noi],backgroundColor:'rgba(0,212,170,.7)',borderRadius:4,borderWidth:0}]},options:{plugins:{legend:{position:'top',labels:{padding:14,boxWidth:10}}},scales:{y:{grid:{color:g},ticks:{callback:v=>'£'+Math.round(v/1000)+'K'}},x:{grid:{display:false}}},maintainAspectRatio:false}});
+}
+
+function destroyCharts(type,idx){
+  ['bc','dc','cc'].forEach(t=>{const k=type+'-'+t+'-'+idx;if(chartCache[k]){chartCache[k].destroy();delete chartCache[k];}});
+}
+
+// ─── FILE UPLOAD ───
+function dov(e,el){e.preventDefault();el.classList.add('drag-over');}
+function dlv(el){el.classList.remove('drag-over');}
+function dop(e,idx,type){e.preventDefault();const el=document.getElementById('uz-'+type+'-'+idx);el.classList.remove('drag-over');const file=e.dataTransfer.files[0];if(file)hf(file,idx,type);}
+
+function hf(file,hintIdx,type){
+  if(!file)return;
+  const reader=new FileReader();
+  reader.onload=e=>{
+    try{
+      const wb=XLSX.read(e.target.result,{type:'array'});
+      const ws=wb.Sheets[wb.SheetNames[0]];
+      const rows=XLSX.utils.sheet_to_json(ws,{header:1,defval:''});
+      const detected=detectMonth(file.name,rows,type);
+      const idx=detected!==null?detected:hintIdx;
+      const parsed=parsePL(rows);
+      const months=type==='fy'?FY_MONTHS:NFY_MONTHS;
+      if(type==='fy'){
+        Object.assign(fyD[idx],{...parsed,m:months[idx],src:'uploaded'});
+        const dot=document.getElementById('fd-'+idx);
+        if(dot)dot.className='dot';
+        document.querySelectorAll('#strip-fy .mbtn').forEach((b,i)=>b.classList.toggle('active',i===idx));
+        curFy=idx; renderFyMonth(idx);
+      } else {
+        Object.assign(nfyD[idx],{...parsed,m:months[idx],src:'uploaded'});
+        const dot=document.getElementById('nd-'+idx);
+        if(dot)dot.className='dot';
+        document.querySelectorAll('#strip-nfy .mbtn').forEach((b,i)=>b.classList.toggle('active',i===idx));
+        curNfy=idx; renderNfyMonth(idx);
+      }
+    }catch(err){alert('Could not read file. Ensure it is a QuickBooks P&L export (.xlsx or .csv).\n\n'+err.message);}
+  };
+  reader.readAsArrayBuffer(file);
+}
+
+function detectMonth(fname,rows,type){
+  const mNames=['january','february','march','april','may','june','july','august','september','october','november','december'];
+  const fyYears={2025:[3,4,5,6,7,8,9,10,11,0],2026:[0,1,2]};
+  const nfyYears={2026:[3,4,5,6,7,8,9,10,11],2027:[0,1,2]};
+  const src=(fname+' '+rows.slice(0,6).map(r=>r.join(' ')).join(' ')).toLowerCase();
+  for(let mi=0;mi<12;mi++){
+    const mn=mNames[mi];
+    if(!src.includes(mn))continue;
+    if(type==='fy'){
+      if(src.includes('2025')&&[3,4,5,6,7,8,9,10,11].includes(mi))return mi-3;
+      if(src.includes('2026')&&[0,1,2].includes(mi))return mi+9;
+    } else {
+      if(src.includes('2026')&&[3,4,5,6,7,8,9,10,11].includes(mi))return mi-3;
+      if(src.includes('2027')&&[0,1,2].includes(mi))return mi+9;
+    }
+    // Fallback: just month name, guess from FY order
+    if(type==='fy'){if([3,4,5,6,7,8,9,10,11].includes(mi))return mi-3;if([0,1,2].includes(mi))return mi+9;}
+    else{if([3,4,5,6,7,8,9,10,11].includes(mi))return mi-3;if([0,1,2].includes(mi))return mi+9;}
+  }
+  return null;
+}
+
+function parsePL(rows){
+  const clean=s=>{if(typeof s==='number')return s;const str=String(s).replace(/[,£$\s]/g,'').replace(/\(([^)]+)\)/,'-$1');return parseFloat(str)||0;};
+  let rev=0,cos=0,exp=0;
+  rows.forEach(row=>{
+    const lbl=String(row[0]||'').toLowerCase().trim();
+    const val=Math.abs(clean(row[row.length-1]||row[1]));
+    if(!val)return;
+    if(lbl.includes('total for income')||lbl==='total income')rev=val;
+    else if(lbl.includes('total for total cost')||lbl.includes('total cost of sales'))cos=val;
+    else if(lbl.includes('total for expenses')||lbl==='total expenses')exp=val;
+  });
+  return{rev,cos,gp:rev-cos,exp,noi:(rev-cos)-exp};
+}
+
+// ─── OVERVIEW CHARTS ───
+Chart.defaults.color='#6b7a99';
+Chart.defaults.font.family="'DM Sans',sans-serif";
+Chart.defaults.font.size=11;
+const G='rgba(31,45,66,.6)';
+new Chart(document.getElementById('c-revD'),{type:'doughnut',data:{labels:['Event Sales','Bank Interest'],datasets:[{data:[1717937,3843],backgroundColor:['#00d4aa','#3b82f6'],borderWidth:0,hoverOffset:5}]},options:{cutout:'70%',plugins:{legend:{display:false}},maintainAspectRatio:false}});
+new Chart(document.getElementById('c-expD'),{type:'doughnut',data:{labels:['Directors','Employees','Office','Professional','IT','Travel','Other'],datasets:[{data:[252155,56970,25470,23022,12324,12359,26653],backgroundColor:['#8b5cf6','#3b82f6','#f59e0b','#00d4aa','#ef4444','#10b981','#6b7a99'],borderWidth:0,hoverOffset:5}]},options:{cutout:'65%',plugins:{legend:{display:false}},maintainAspectRatio:false}});
+new Chart(document.getElementById('c-wfall'),{type:'bar',data:{labels:['Revenue','COS','Gross Profit','Expenses','Net Op. Income','Tax & Dep.','Net Income'],datasets:[{data:[1721780,1100332,621448,408952,212496,94023,118473],backgroundColor:['#00d4aa','#ef4444','#3b82f6','#ef4444','#3b82f6','#f59e0b','#00d4aa'],borderRadius:4,borderWidth:0}]},options:{plugins:{legend:{display:false}},scales:{y:{grid:{color:G},ticks:{callback:v=>'£'+(v/1000).toFixed(0)+'K'}},x:{grid:{display:false}}},maintainAspectRatio:false}});
+new Chart(document.getElementById('c-cos'),{type:'bar',data:{labels:['Core COS','Travel & Sub.','Freelancers'],datasets:[{data:[1010850,70427,19055],backgroundColor:['#3b82f6','#f59e0b','#8b5cf6'],borderRadius:4,borderWidth:0,barThickness:50}]},options:{plugins:{legend:{display:false}},scales:{y:{grid:{color:G},ticks:{callback:v=>'£'+(v/1000).toFixed(0)+'K'}},x:{grid:{display:false}}},maintainAspectRatio:false}});
+new Chart(document.getElementById('c-fcBar'),{type:'bar',data:{labels:['Revenue','Cost of Sales','Gross Profit','Expenses','Net Op. Income','Net Income'],datasets:[{label:'Current FY Actual',data:[1721780,1100332,621448,408952,212496,118474],backgroundColor:'rgba(59,130,246,.7)',borderRadius:4,borderWidth:0},{label:'Next FY Forecast',data:[1898000,1213122,684878,411625,273253,170327],backgroundColor:'rgba(0,212,170,.7)',borderRadius:4,borderWidth:0}]},options:{plugins:{legend:{position:'top',labels:{padding:14,boxWidth:10}}},scales:{y:{grid:{color:G},ticks:{callback:v=>'£'+(v/1000).toFixed(0)+'K'}},x:{grid:{display:false}}},maintainAspectRatio:false}});
+
+// Forecast monthly table
+(()=>{
+  let h='<thead><tr><th>Month</th><th>Revenue</th><th>Cost of Sales</th><th>Gross Profit</th><th>Expenses</th><th>Net Op. Income</th></tr></thead><tbody>';
+  let tR=0,tC=0,tG=0,tE=0,tN=0;
+  nfyD.forEach((d,i)=>{tR+=d.rev;tC+=d.cos;tG+=d.gp;tE+=d.exp;tN+=d.noi;h+=`<tr><td>${NFY_MONTHS[i]}</td><td>£${f(d.rev)}</td><td>£${f(d.cos)}</td><td>£${f(d.gp)}</td><td>£${f(d.exp)}</td><td class="${d.noi>=0?'pos':'neg'}">£${f(d.noi)}</td></tr>`;});
+  h+=`</tbody><tfoot><tr class="rt"><td>Total</td><td>£${f(tR)}</td><td>£${f(tC)}</td><td>£${f(tG)}</td><td>£${f(tE)}</td><td class="pos">£${f(tN)}</td></tr></tfoot>`;
+  document.getElementById('fc-month-tbl').innerHTML=h;
+})();
+
+// ─── HELPERS ───
+function f(n){return Math.round(Math.abs(n)).toLocaleString('en-GB');}
+</script>
+</body>
+</html>

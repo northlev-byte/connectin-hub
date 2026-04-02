@@ -4,7 +4,8 @@
     { "source": "/scheduler", "destination": "/scheduler.html" },
     { "source": "/password", "destination": "/password.html" },
     { "source": "/profile", "destination": "/profile.html" },
-    { "source": "/logout", "destination": "/logout.html" }
+    { "source": "/logout", "destination": "/logout.html" },
+    { "source": "/financials", "destination": "/connectin-financials.html" }
   ],
   "headers": [
     {
