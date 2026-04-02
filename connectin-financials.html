@@ -187,19 +187,25 @@ nav{background:var(--surface);border-bottom:1px solid var(--border);padding:0 2r
   }
   document.body.style.overflow='hidden';
 })();
-function checkFinPw(e){
+async function checkFinPw(e){
   e.preventDefault();
   var pw=document.getElementById('fin-pw').value.trim();
-  if(pw==='connectin199$'){
-    localStorage.setItem('ci_fin_auth','1');
-    localStorage.setItem('ci_fin_auth_exp',(Date.now()+7*24*60*60*1000).toString());
-    document.getElementById('fin-gate').style.display='none';
-    document.body.style.overflow='';
-  } else {
-    document.getElementById('fin-gate-err').style.display='block';
-    document.getElementById('fin-pw').value='';
-    document.getElementById('fin-pw').focus();
-  }
+  var btn=document.querySelector('#fin-gate-form button[type="submit"]');
+  var errEl=document.getElementById('fin-gate-err');
+  btn.disabled=true;btn.textContent='Verifying…';errEl.style.display='none';
+  try{
+    var res=await fetch('/api/fin-login',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({password:pw})});
+    if(res.ok){
+      localStorage.setItem('ci_fin_auth','1');
+      localStorage.setItem('ci_fin_auth_exp',(Date.now()+7*24*60*60*1000).toString());
+      document.getElementById('fin-gate').style.display='none';
+      document.body.style.overflow='';
+      return false;
+    }
+    if(res.status===429){errEl.textContent='Too many attempts — please wait 15 minutes.';}
+    else{errEl.textContent='Incorrect password. Try again.';document.getElementById('fin-pw').value='';document.getElementById('fin-pw').focus();}
+  }catch(ex){errEl.textContent='Connection error — try again.';}
+  errEl.style.display='block';btn.disabled=false;btn.textContent='Open Dashboard →';
   return false;
 }
 </script>
