@@ -175,6 +175,14 @@ nav{background:var(--surface);border-bottom:1px solid var(--border);padding:0 2r
     <button class="top-tab" onclick="switchTop('nfy-overview',this)">Next FY Forecast</button>
     <button class="top-tab" onclick="switchTop('nfy-monthly',this)">Next FY Monthly</button>
     <button class="top-tab" onclick="switchTop('invoices',this)" id="tab-invoices">Invoices</button>
+    <button class="top-tab" onclick="switchTop('customers',this)" id="tab-customers">Customers</button>
+    <button class="top-tab" onclick="switchTop('payments',this)" id="tab-payments">Payments</button>
+    <button class="top-tab" onclick="switchTop('aged',this)" id="tab-aged">Aged Receivables</button>
+    <button class="top-tab" onclick="switchTop('expenses',this)" id="tab-expenses">Expenses</button>
+    <button class="top-tab" onclick="switchTop('estimates',this)" id="tab-estimates">Estimates</button>
+    <button class="top-tab" onclick="switchTop('creditnotes',this)" id="tab-creditnotes">Credit Notes</button>
+    <button class="top-tab" onclick="switchTop('pnl',this)" id="tab-pnl">P&amp;L</button>
+    <button class="top-tab" onclick="switchTop('balancesheet',this)" id="tab-balancesheet">Balance Sheet</button>
   </div>
   <div class="nav-meta">Apr 2025 – Mar 2026 &nbsp;·&nbsp; 18 Mar 2026</div>
   <a href="https://connectin-hub.vercel.app" style="font-size:.72rem;color:var(--muted);text-decoration:none;display:flex;align-items:center;gap:.35rem;transition:color .2s;" onmouseover="this.style.color='var(--accent)'" onmouseout="this.style.color='var(--muted)'">← Tools Hub</a>
@@ -413,6 +421,135 @@ nav{background:var(--surface);border-bottom:1px solid var(--border);padding:0 2r
         <button onclick="copyChaseEmail()" style="padding:.55rem 1.2rem;border:1px solid var(--accent);background:transparent;color:var(--accent);border-radius:6px;cursor:pointer;font-size:.82rem;font-weight:600;">Copy</button>
         <button onclick="openInOutlook()" style="padding:.55rem 1.2rem;border:none;background:var(--accent);color:#000;border-radius:6px;cursor:pointer;font-size:.82rem;font-weight:600;">Open in Outlook</button>
       </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════ VIEW: CUSTOMERS ═══════ -->
+<div id="view-customers" class="view">
+  <div class="page-header"><h1>Customers</h1><p>Live from QuickBooks &nbsp;·&nbsp; Client directory &amp; balances</p></div>
+  <div id="cust-not-connected" style="display:none;"><div class="notice notice-blue"><span>ℹ️</span><div>QuickBooks is not connected. <a href="/api/qb-auth" style="color:var(--accent);font-weight:600;">Connect now →</a></div></div></div>
+  <div id="cust-loading" style="display:none;text-align:center;padding:3rem;color:var(--muted);">Loading customers...</div>
+  <div id="cust-content" style="display:none;">
+    <div class="kpi-grid" id="cust-kpis"></div>
+    <div class="card">
+      <div class="card-hd"><div class="card-title">All Customers</div><div class="card-tag" id="cust-count">0</div></div>
+      <div class="mtwrap">
+        <table class="ft" id="cust-table"><thead><tr><th>Customer</th><th>Email</th><th>Phone</th><th>Balance</th><th>Status</th></tr></thead><tbody id="cust-tbody"></tbody></table>
+      </div>
+      <div id="cust-empty" style="display:none;text-align:center;padding:2rem;color:var(--muted);font-size:.85rem;">No customers found.</div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════ VIEW: PAYMENTS ═══════ -->
+<div id="view-payments" class="view">
+  <div class="page-header"><h1>Payments</h1><p>Live from QuickBooks &nbsp;·&nbsp; Recent payments received</p></div>
+  <div id="pay-not-connected" style="display:none;"><div class="notice notice-blue"><span>ℹ️</span><div>QuickBooks is not connected. <a href="/api/qb-auth" style="color:var(--accent);font-weight:600;">Connect now →</a></div></div></div>
+  <div id="pay-loading" style="display:none;text-align:center;padding:3rem;color:var(--muted);">Loading payments...</div>
+  <div id="pay-content" style="display:none;">
+    <div class="kpi-grid" id="pay-kpis"></div>
+    <div class="card">
+      <div class="card-hd"><div class="card-title">Recent Payments</div><div class="card-tag" id="pay-count">0</div></div>
+      <div class="mtwrap">
+        <table class="ft" id="pay-table"><thead><tr><th>Date</th><th>Customer</th><th>Amount</th><th>Method</th><th>Reference</th></tr></thead><tbody id="pay-tbody"></tbody></table>
+      </div>
+      <div id="pay-empty" style="display:none;text-align:center;padding:2rem;color:var(--muted);font-size:.85rem;">No payments found.</div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════ VIEW: AGED RECEIVABLES ═══════ -->
+<div id="view-aged" class="view">
+  <div class="page-header"><h1>Aged Receivables</h1><p>Live from QuickBooks &nbsp;·&nbsp; Outstanding balances by age</p></div>
+  <div id="aged-not-connected" style="display:none;"><div class="notice notice-blue"><span>ℹ️</span><div>QuickBooks is not connected. <a href="/api/qb-auth" style="color:var(--accent);font-weight:600;">Connect now →</a></div></div></div>
+  <div id="aged-loading" style="display:none;text-align:center;padding:3rem;color:var(--muted);">Loading aged receivables...</div>
+  <div id="aged-content" style="display:none;">
+    <div class="kpi-grid" id="aged-kpis"></div>
+    <div class="g2">
+      <div class="card"><div class="card-hd"><div class="card-title">Ageing Breakdown</div><div class="card-tag">By bucket</div></div><div class="ch240"><canvas id="c-aged"></canvas></div></div>
+      <div class="card"><div class="card-hd"><div class="card-title">By Customer</div><div class="card-tag" id="aged-cust-count">0 customers</div></div>
+        <div class="mtwrap"><table class="ft" id="aged-table"><thead><tr><th>Customer</th><th>Current</th><th>1–30 days</th><th>31–60 days</th><th>61–90 days</th><th>90+ days</th><th>Total</th></tr></thead><tbody id="aged-tbody"></tbody></table></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════ VIEW: EXPENSES ═══════ -->
+<div id="view-expenses" class="view">
+  <div class="page-header"><h1>Expenses</h1><p>Live from QuickBooks &nbsp;·&nbsp; Purchases &amp; bills</p></div>
+  <div id="exp-not-connected" style="display:none;"><div class="notice notice-blue"><span>ℹ️</span><div>QuickBooks is not connected. <a href="/api/qb-auth" style="color:var(--accent);font-weight:600;">Connect now →</a></div></div></div>
+  <div id="exp-loading" style="display:none;text-align:center;padding:3rem;color:var(--muted);">Loading expenses...</div>
+  <div id="exp-content" style="display:none;">
+    <div class="kpi-grid" id="exp-kpis"></div>
+    <div class="card">
+      <div class="card-hd"><div class="card-title">Recent Expenses</div><div class="card-tag" id="exp-count">0</div></div>
+      <div class="mtwrap">
+        <table class="ft" id="exp-table"><thead><tr><th>Date</th><th>Vendor</th><th>Category</th><th>Amount</th><th>Type</th></tr></thead><tbody id="exp-tbody"></tbody></table>
+      </div>
+      <div id="exp-empty" style="display:none;text-align:center;padding:2rem;color:var(--muted);font-size:.85rem;">No expenses found.</div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════ VIEW: ESTIMATES ═══════ -->
+<div id="view-estimates" class="view">
+  <div class="page-header"><h1>Estimates</h1><p>Live from QuickBooks &nbsp;·&nbsp; Quotes &amp; proposals</p></div>
+  <div id="est-not-connected" style="display:none;"><div class="notice notice-blue"><span>ℹ️</span><div>QuickBooks is not connected. <a href="/api/qb-auth" style="color:var(--accent);font-weight:600;">Connect now →</a></div></div></div>
+  <div id="est-loading" style="display:none;text-align:center;padding:3rem;color:var(--muted);">Loading estimates...</div>
+  <div id="est-content" style="display:none;">
+    <div class="kpi-grid" id="est-kpis"></div>
+    <div class="card">
+      <div class="card-hd"><div class="card-title">All Estimates</div><div class="card-tag" id="est-count">0</div></div>
+      <div class="mtwrap">
+        <table class="ft" id="est-table"><thead><tr><th>Estimate #</th><th>Customer</th><th>Date</th><th>Expiry</th><th>Amount</th><th>Status</th></tr></thead><tbody id="est-tbody"></tbody></table>
+      </div>
+      <div id="est-empty" style="display:none;text-align:center;padding:2rem;color:var(--muted);font-size:.85rem;">No estimates found.</div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════ VIEW: CREDIT NOTES ═══════ -->
+<div id="view-creditnotes" class="view">
+  <div class="page-header"><h1>Credit Notes</h1><p>Live from QuickBooks &nbsp;·&nbsp; Credits issued</p></div>
+  <div id="cn-not-connected" style="display:none;"><div class="notice notice-blue"><span>ℹ️</span><div>QuickBooks is not connected. <a href="/api/qb-auth" style="color:var(--accent);font-weight:600;">Connect now →</a></div></div></div>
+  <div id="cn-loading" style="display:none;text-align:center;padding:3rem;color:var(--muted);">Loading credit notes...</div>
+  <div id="cn-content" style="display:none;">
+    <div class="kpi-grid" id="cn-kpis"></div>
+    <div class="card">
+      <div class="card-hd"><div class="card-title">All Credit Notes</div><div class="card-tag" id="cn-count">0</div></div>
+      <div class="mtwrap">
+        <table class="ft" id="cn-table"><thead><tr><th>Credit #</th><th>Customer</th><th>Date</th><th>Amount</th><th>Balance</th></tr></thead><tbody id="cn-tbody"></tbody></table>
+      </div>
+      <div id="cn-empty" style="display:none;text-align:center;padding:2rem;color:var(--muted);font-size:.85rem;">No credit notes found.</div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════ VIEW: P&L REPORT ═══════ -->
+<div id="view-pnl" class="view">
+  <div class="page-header"><h1>Profit &amp; Loss</h1><p>Live from QuickBooks &nbsp;·&nbsp; Real-time P&amp;L statement</p></div>
+  <div id="pnl-not-connected" style="display:none;"><div class="notice notice-blue"><span>ℹ️</span><div>QuickBooks is not connected. <a href="/api/qb-auth" style="color:var(--accent);font-weight:600;">Connect now →</a></div></div></div>
+  <div id="pnl-loading" style="display:none;text-align:center;padding:3rem;color:var(--muted);">Loading P&amp;L report...</div>
+  <div id="pnl-content" style="display:none;">
+    <div class="kpi-grid" id="pnl-kpis"></div>
+    <div class="card">
+      <div class="card-hd"><div class="card-title">Profit &amp; Loss Statement</div><div class="card-tag" id="pnl-period"></div></div>
+      <div class="mtwrap"><table class="ft" id="pnl-table"><tbody id="pnl-tbody"></tbody></table></div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════ VIEW: BALANCE SHEET ═══════ -->
+<div id="view-balancesheet" class="view">
+  <div class="page-header"><h1>Balance Sheet</h1><p>Live from QuickBooks &nbsp;·&nbsp; Assets, liabilities &amp; equity</p></div>
+  <div id="bs-not-connected" style="display:none;"><div class="notice notice-blue"><span>ℹ️</span><div>QuickBooks is not connected. <a href="/api/qb-auth" style="color:var(--accent);font-weight:600;">Connect now →</a></div></div></div>
+  <div id="bs-loading" style="display:none;text-align:center;padding:3rem;color:var(--muted);">Loading balance sheet...</div>
+  <div id="bs-content" style="display:none;">
+    <div class="kpi-grid" id="bs-kpis"></div>
+    <div class="card">
+      <div class="card-hd"><div class="card-title">Balance Sheet</div><div class="card-tag" id="bs-period"></div></div>
+      <div class="mtwrap"><table class="ft" id="bs-table"><tbody id="bs-tbody"></tbody></table></div>
     </div>
   </div>
 </div>
@@ -916,19 +1053,412 @@ function openInOutlook() {
   window.open(mailto, '_blank');
 }
 
-// Auto-load invoices when switching to the tab
-const origSwitchTop = switchTop;
-switchTop = function(name, btn) {
-  origSwitchTop(name, btn);
-  if (name === 'invoices' && !invoiceCache[currentFilter]) {
-    filterInvoices(currentFilter, document.getElementById('inv-filter-overdue'));
-  }
-};
-
 // If ?qb=connected, auto-switch to invoices tab
 if (new URLSearchParams(window.location.search).get('qb') === 'connected') {
   switchTop('invoices', document.getElementById('tab-invoices'));
 }
+
+// ─── GENERIC QB DATA LOADER ───
+const qbCache = {};
+async function loadQB(type, prefix) {
+  const loading = document.getElementById(prefix + '-loading');
+  const content = document.getElementById(prefix + '-content');
+  const notConn = document.getElementById(prefix + '-not-connected');
+  if (loading) loading.style.display = 'block';
+  if (content) content.style.display = 'none';
+  if (notConn) notConn.style.display = 'none';
+  try {
+    const res = await fetch('/api/qb-invoices?type=' + type);
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      if (err.error === 'not_connected' || err.error === 'auth_expired') {
+        if (loading) loading.style.display = 'none';
+        if (notConn) notConn.style.display = 'block';
+        return null;
+      }
+      throw new Error(err.message || 'Failed');
+    }
+    const data = await res.json();
+    if (loading) loading.style.display = 'none';
+    if (content) content.style.display = 'block';
+    qbCache[type] = data;
+    return data;
+  } catch (e) {
+    if (loading) loading.style.display = 'none';
+    if (notConn) notConn.style.display = 'block';
+    return null;
+  }
+}
+
+// ─── CUSTOMERS ───
+async function loadCustomers() {
+  if (qbCache.customers) { renderCustomers(qbCache.customers); document.getElementById('cust-content').style.display='block'; return; }
+  const data = await loadQB('customers', 'cust');
+  if (data) renderCustomers(data);
+}
+
+function renderCustomers(data) {
+  const custs = data.QueryResponse?.Customer || [];
+  const tbody = document.getElementById('cust-tbody');
+  const empty = document.getElementById('cust-empty');
+  const table = document.getElementById('cust-table');
+  document.getElementById('cust-count').textContent = custs.length + ' customers';
+
+  const totalBal = custs.reduce((s, c) => s + (c.Balance || 0), 0);
+  const active = custs.filter(c => c.Active !== false);
+  const withBal = custs.filter(c => c.Balance > 0);
+  const avgBal = withBal.length ? totalBal / withBal.length : 0;
+
+  document.getElementById('cust-kpis').innerHTML = `
+    <div class="kpi" style="--kpi-color:#3b82f6"><div class="kpi-label">Total Customers</div><div class="kpi-value">${custs.length}</div><div class="kpi-sub">${active.length} active</div></div>
+    <div class="kpi" style="--kpi-color:#ef4444"><div class="kpi-label">Total Outstanding</div><div class="kpi-value">$${f(totalBal)}</div><div class="kpi-sub">${withBal.length} with balance</div></div>
+    <div class="kpi" style="--kpi-color:#f59e0b"><div class="kpi-label">Avg Balance</div><div class="kpi-value">$${f(avgBal)}</div><div class="kpi-sub">Per owing customer</div></div>
+    <div class="kpi" style="--kpi-color:#10b981"><div class="kpi-label">Largest Balance</div><div class="kpi-value">$${f(Math.max(...custs.map(c=>c.Balance||0),0))}</div><div class="kpi-sub">${(custs.sort((a,b)=>(b.Balance||0)-(a.Balance||0))[0]||{}).DisplayName||'—'}</div></div>
+  `;
+
+  if (!custs.length) { table.style.display='none'; empty.style.display='block'; return; }
+  table.style.display=''; empty.style.display='none';
+
+  tbody.innerHTML = custs.sort((a,b)=>(b.Balance||0)-(a.Balance||0)).map(c => {
+    const bal = c.Balance || 0;
+    const balClass = bal > 0 ? 'tr2' : 'tg';
+    return `<tr>
+      <td>${c.DisplayName || c.CompanyName || '—'}</td>
+      <td>${c.PrimaryEmailAddr?.Address || '<span class="tm">—</span>'}</td>
+      <td>${c.PrimaryPhone?.FreeFormNumber || '<span class="tm">—</span>'}</td>
+      <td class="${balClass}">$${f(bal)}</td>
+      <td>${c.Active !== false ? '<span class="badge bg">Active</span>' : '<span class="badge ba">Inactive</span>'}</td>
+    </tr>`;
+  }).join('');
+}
+
+// ─── PAYMENTS ───
+async function loadPayments() {
+  if (qbCache.payments) { renderPayments(qbCache.payments); document.getElementById('pay-content').style.display='block'; return; }
+  const data = await loadQB('payments', 'pay');
+  if (data) renderPayments(data);
+}
+
+function renderPayments(data) {
+  const pays = data.QueryResponse?.Payment || [];
+  const tbody = document.getElementById('pay-tbody');
+  const empty = document.getElementById('pay-empty');
+  const table = document.getElementById('pay-table');
+  document.getElementById('pay-count').textContent = pays.length + ' payments';
+
+  const totalAmt = pays.reduce((s, p) => s + (p.TotalAmt || 0), 0);
+  const avgAmt = pays.length ? totalAmt / pays.length : 0;
+
+  document.getElementById('pay-kpis').innerHTML = `
+    <div class="kpi" style="--kpi-color:#10b981"><div class="kpi-label">Total Received</div><div class="kpi-value">$${f(totalAmt)}</div><div class="kpi-sub">${pays.length} payments</div></div>
+    <div class="kpi" style="--kpi-color:#3b82f6"><div class="kpi-label">Avg Payment</div><div class="kpi-value">$${f(avgAmt)}</div><div class="kpi-sub">Per transaction</div></div>
+    <div class="kpi" style="--kpi-color:#8b5cf6"><div class="kpi-label">Largest Payment</div><div class="kpi-value">$${f(Math.max(...pays.map(p=>p.TotalAmt||0),0))}</div><div class="kpi-sub">${(pays.sort((a,b)=>(b.TotalAmt||0)-(a.TotalAmt||0))[0]||{}).CustomerRef?.name||'—'}</div></div>
+    <div class="kpi" style="--kpi-color:#00d4aa"><div class="kpi-label">Latest Payment</div><div class="kpi-value">${pays[0]?.TxnDate || '—'}</div><div class="kpi-sub">${pays[0]?.CustomerRef?.name || '—'}</div></div>
+  `;
+
+  if (!pays.length) { table.style.display='none'; empty.style.display='block'; return; }
+  table.style.display=''; empty.style.display='none';
+
+  tbody.innerHTML = pays.map(p => `<tr>
+    <td>${p.TxnDate || '—'}</td>
+    <td>${p.CustomerRef?.name || '—'}</td>
+    <td class="tg">$${f(p.TotalAmt || 0)}</td>
+    <td>${p.PaymentMethodRef?.name || '<span class="tm">—</span>'}</td>
+    <td>${p.PaymentRefNum || '<span class="tm">—</span>'}</td>
+  </tr>`).join('');
+}
+
+// ─── AGED RECEIVABLES ───
+async function loadAged() {
+  if (qbCache.unpaid) { renderAged(qbCache.unpaid); document.getElementById('aged-content').style.display='block'; return; }
+  const data = await loadQB('unpaid', 'aged');
+  if (data) renderAged(data);
+}
+
+function renderAged(data) {
+  const invoices = data.QueryResponse?.Invoice || [];
+  const today = new Date();
+  const buckets = { current: [], b30: [], b60: [], b90: [], b90plus: [] };
+
+  invoices.filter(i => i.Balance > 0).forEach(inv => {
+    const days = Math.floor((today - new Date(inv.DueDate)) / 86400000);
+    if (days <= 0) buckets.current.push(inv);
+    else if (days <= 30) buckets.b30.push(inv);
+    else if (days <= 60) buckets.b60.push(inv);
+    else if (days <= 90) buckets.b90.push(inv);
+    else buckets.b90plus.push(inv);
+  });
+
+  const sumBal = arr => arr.reduce((s, i) => s + (i.Balance || 0), 0);
+  const totals = {
+    current: sumBal(buckets.current), b30: sumBal(buckets.b30),
+    b60: sumBal(buckets.b60), b90: sumBal(buckets.b90), b90plus: sumBal(buckets.b90plus)
+  };
+  const grandTotal = totals.current + totals.b30 + totals.b60 + totals.b90 + totals.b90plus;
+
+  document.getElementById('aged-kpis').innerHTML = `
+    <div class="kpi" style="--kpi-color:#10b981"><div class="kpi-label">Current</div><div class="kpi-value">$${f(totals.current)}</div><div class="kpi-sub">${buckets.current.length} invoices</div></div>
+    <div class="kpi" style="--kpi-color:#3b82f6"><div class="kpi-label">1–30 Days</div><div class="kpi-value">$${f(totals.b30)}</div><div class="kpi-sub">${buckets.b30.length} invoices</div></div>
+    <div class="kpi" style="--kpi-color:#f59e0b"><div class="kpi-label">31–60 Days</div><div class="kpi-value">$${f(totals.b60)}</div><div class="kpi-sub">${buckets.b60.length} invoices</div></div>
+    <div class="kpi" style="--kpi-color:#8b5cf6"><div class="kpi-label">61–90 Days</div><div class="kpi-value">$${f(totals.b90)}</div><div class="kpi-sub">${buckets.b90.length} invoices</div></div>
+    <div class="kpi" style="--kpi-color:#ef4444"><div class="kpi-label">90+ Days</div><div class="kpi-value">$${f(totals.b90plus)}</div><div class="kpi-sub"><span class="badge br">${buckets.b90plus.length} invoices</span></div></div>
+    <div class="kpi" style="--kpi-color:#00d4aa"><div class="kpi-label">Total Outstanding</div><div class="kpi-value">$${f(grandTotal)}</div><div class="kpi-sub">${invoices.filter(i=>i.Balance>0).length} invoices</div></div>
+  `;
+
+  // Chart
+  if (typeof Chart !== 'undefined') {
+    const ctx = document.getElementById('c-aged');
+    if (ctx._chart) ctx._chart.destroy();
+    ctx._chart = new Chart(ctx, {
+      type: 'bar',
+      data: {
+        labels: ['Current', '1–30', '31–60', '61–90', '90+'],
+        datasets: [{ data: [totals.current, totals.b30, totals.b60, totals.b90, totals.b90plus],
+          backgroundColor: ['#10b981', '#3b82f6', '#f59e0b', '#8b5cf6', '#ef4444'],
+          borderRadius: 6, barPercentage: 0.6 }]
+      },
+      options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } },
+        scales: { y: { grid: { color: 'rgba(31,45,66,.4)' }, ticks: { callback: v => '$' + f(v) } }, x: { grid: { display: false } } } }
+    });
+  }
+
+  // Group by customer
+  const byCustomer = {};
+  invoices.filter(i => i.Balance > 0).forEach(inv => {
+    const name = inv.CustomerRef?.name || 'Unknown';
+    if (!byCustomer[name]) byCustomer[name] = { current: 0, b30: 0, b60: 0, b90: 0, b90plus: 0, total: 0 };
+    const days = Math.floor((today - new Date(inv.DueDate)) / 86400000);
+    const bal = inv.Balance || 0;
+    byCustomer[name].total += bal;
+    if (days <= 0) byCustomer[name].current += bal;
+    else if (days <= 30) byCustomer[name].b30 += bal;
+    else if (days <= 60) byCustomer[name].b60 += bal;
+    else if (days <= 90) byCustomer[name].b90 += bal;
+    else byCustomer[name].b90plus += bal;
+  });
+
+  const sorted = Object.entries(byCustomer).sort((a, b) => b[1].total - a[1].total);
+  document.getElementById('aged-cust-count').textContent = sorted.length + ' customers';
+  document.getElementById('aged-tbody').innerHTML = sorted.map(([name, d]) =>
+    `<tr><td>${name}</td><td>$${f(d.current)}</td><td>$${f(d.b30)}</td><td>$${f(d.b60)}</td><td>$${f(d.b90)}</td><td class="${d.b90plus>0?'tr2':''}">$${f(d.b90plus)}</td><td><strong>$${f(d.total)}</strong></td></tr>`
+  ).join('');
+}
+
+// ─── EXPENSES ───
+async function loadExpenses() {
+  if (qbCache.expenses) { renderExpenses(qbCache.expenses); document.getElementById('exp-content').style.display='block'; return; }
+  const data = await loadQB('expenses', 'exp');
+  if (data) renderExpenses(data);
+}
+
+function renderExpenses(data) {
+  const items = data.QueryResponse?.Purchase || [];
+  const tbody = document.getElementById('exp-tbody');
+  const empty = document.getElementById('exp-empty');
+  const table = document.getElementById('exp-table');
+  document.getElementById('exp-count').textContent = items.length + ' expenses';
+
+  const totalAmt = items.reduce((s, e) => s + (e.TotalAmt || 0), 0);
+  const largest = Math.max(...items.map(e => e.TotalAmt || 0), 0);
+
+  document.getElementById('exp-kpis').innerHTML = `
+    <div class="kpi" style="--kpi-color:#ef4444"><div class="kpi-label">Total Expenses</div><div class="kpi-value">$${f(totalAmt)}</div><div class="kpi-sub">${items.length} transactions</div></div>
+    <div class="kpi" style="--kpi-color:#f59e0b"><div class="kpi-label">Avg Expense</div><div class="kpi-value">$${f(items.length ? totalAmt / items.length : 0)}</div><div class="kpi-sub">Per transaction</div></div>
+    <div class="kpi" style="--kpi-color:#8b5cf6"><div class="kpi-label">Largest Expense</div><div class="kpi-value">$${f(largest)}</div><div class="kpi-sub">&nbsp;</div></div>
+  `;
+
+  if (!items.length) { table.style.display='none'; empty.style.display='block'; return; }
+  table.style.display=''; empty.style.display='none';
+
+  tbody.innerHTML = items.map(e => {
+    const vendor = e.EntityRef?.name || '—';
+    const category = e.Line?.[0]?.AccountBasedExpenseLineDetail?.AccountRef?.name || e.Line?.[0]?.DetailType || '—';
+    return `<tr>
+      <td>${e.TxnDate || '—'}</td>
+      <td>${vendor}</td>
+      <td>${category}</td>
+      <td class="tr2">$${f(e.TotalAmt || 0)}</td>
+      <td><span class="badge bb">${e.PaymentType || 'Expense'}</span></td>
+    </tr>`;
+  }).join('');
+}
+
+// ─── ESTIMATES ───
+async function loadEstimates() {
+  if (qbCache.estimates) { renderEstimates(qbCache.estimates); document.getElementById('est-content').style.display='block'; return; }
+  const data = await loadQB('estimates', 'est');
+  if (data) renderEstimates(data);
+}
+
+function renderEstimates(data) {
+  const items = data.QueryResponse?.Estimate || [];
+  const tbody = document.getElementById('est-tbody');
+  const empty = document.getElementById('est-empty');
+  const table = document.getElementById('est-table');
+  document.getElementById('est-count').textContent = items.length + ' estimates';
+
+  const totalAmt = items.reduce((s, e) => s + (e.TotalAmt || 0), 0);
+  const accepted = items.filter(e => e.TxnStatus === 'Accepted' || e.AcceptedDate);
+  const pending = items.filter(e => !e.TxnStatus || e.TxnStatus === 'Pending');
+
+  document.getElementById('est-kpis').innerHTML = `
+    <div class="kpi" style="--kpi-color:#3b82f6"><div class="kpi-label">Total Quoted</div><div class="kpi-value">$${f(totalAmt)}</div><div class="kpi-sub">${items.length} estimates</div></div>
+    <div class="kpi" style="--kpi-color:#10b981"><div class="kpi-label">Accepted</div><div class="kpi-value">${accepted.length}</div><div class="kpi-sub">$${f(accepted.reduce((s,e)=>s+(e.TotalAmt||0),0))}</div></div>
+    <div class="kpi" style="--kpi-color:#f59e0b"><div class="kpi-label">Pending</div><div class="kpi-value">${pending.length}</div><div class="kpi-sub">$${f(pending.reduce((s,e)=>s+(e.TotalAmt||0),0))}</div></div>
+  `;
+
+  if (!items.length) { table.style.display='none'; empty.style.display='block'; return; }
+  table.style.display=''; empty.style.display='none';
+
+  tbody.innerHTML = items.map(e => {
+    const status = e.TxnStatus || 'Pending';
+    const statusClass = status === 'Accepted' ? 'bg' : status === 'Closed' ? 'br' : 'ba';
+    return `<tr>
+      <td>#${e.DocNumber || e.Id}</td>
+      <td>${e.CustomerRef?.name || '—'}</td>
+      <td>${e.TxnDate || '—'}</td>
+      <td>${e.ExpirationDate || '<span class="tm">—</span>'}</td>
+      <td>$${f(e.TotalAmt || 0)}</td>
+      <td><span class="badge ${statusClass}">${status}</span></td>
+    </tr>`;
+  }).join('');
+}
+
+// ─── CREDIT NOTES ───
+async function loadCreditNotes() {
+  if (qbCache['credit-notes']) { renderCreditNotes(qbCache['credit-notes']); document.getElementById('cn-content').style.display='block'; return; }
+  const data = await loadQB('credit-notes', 'cn');
+  if (data) renderCreditNotes(data);
+}
+
+function renderCreditNotes(data) {
+  const items = data.QueryResponse?.CreditMemo || [];
+  const tbody = document.getElementById('cn-tbody');
+  const empty = document.getElementById('cn-empty');
+  const table = document.getElementById('cn-table');
+  document.getElementById('cn-count').textContent = items.length + ' credit notes';
+
+  const totalAmt = items.reduce((s, c) => s + (c.TotalAmt || 0), 0);
+  const totalBal = items.reduce((s, c) => s + (c.RemainingCredit || c.Balance || 0), 0);
+
+  document.getElementById('cn-kpis').innerHTML = `
+    <div class="kpi" style="--kpi-color:#8b5cf6"><div class="kpi-label">Total Credits Issued</div><div class="kpi-value">$${f(totalAmt)}</div><div class="kpi-sub">${items.length} credit notes</div></div>
+    <div class="kpi" style="--kpi-color:#f59e0b"><div class="kpi-label">Unapplied Credits</div><div class="kpi-value">$${f(totalBal)}</div><div class="kpi-sub">Remaining balance</div></div>
+  `;
+
+  if (!items.length) { table.style.display='none'; empty.style.display='block'; return; }
+  table.style.display=''; empty.style.display='none';
+
+  tbody.innerHTML = items.map(c => `<tr>
+    <td>#${c.DocNumber || c.Id}</td>
+    <td>${c.CustomerRef?.name || '—'}</td>
+    <td>${c.TxnDate || '—'}</td>
+    <td>$${f(c.TotalAmt || 0)}</td>
+    <td class="${(c.RemainingCredit||c.Balance||0)>0?'ta':'tg'}">$${f(c.RemainingCredit || c.Balance || 0)}</td>
+  </tr>`).join('');
+}
+
+// ─── P&L REPORT ───
+async function loadPnl() {
+  if (qbCache.pnl) { renderReport(qbCache.pnl, 'pnl'); document.getElementById('pnl-content').style.display='block'; return; }
+  const data = await loadQB('pnl', 'pnl');
+  if (data) renderReport(data, 'pnl');
+}
+
+// ─── BALANCE SHEET ───
+async function loadBalanceSheet() {
+  if (qbCache.balancesheet) { renderReport(qbCache.balancesheet, 'bs'); document.getElementById('bs-content').style.display='block'; return; }
+  const data = await loadQB('balancesheet', 'bs');
+  if (data) renderReport(data, 'bs');
+}
+
+// Generic QB Report renderer (P&L + Balance Sheet)
+function renderReport(data, prefix) {
+  const header = data.Header || {};
+  const periodEl = document.getElementById(prefix + '-period');
+  if (periodEl) periodEl.textContent = (header.StartPeriod || '') + ' to ' + (header.EndPeriod || '');
+
+  const rows = data.Rows?.Row || [];
+  const tbody = document.getElementById(prefix + '-tbody');
+  const kpis = document.getElementById(prefix + '-kpis');
+
+  // Extract top-level summary values for KPIs
+  const summaryRows = rows.filter(r => r.Summary);
+  if (prefix === 'pnl') {
+    const getValue = (label) => {
+      const row = rows.find(r => r.Header?.ColData?.[0]?.value?.toLowerCase().includes(label));
+      const val = row?.Summary?.ColData?.[1]?.value;
+      return parseFloat(val) || 0;
+    };
+    const income = getValue('income') || getValue('revenue');
+    const cogs = getValue('cost of goods');
+    const expenses = getValue('expenses');
+    const netIncome = getValue('net income') || (income - cogs - expenses);
+    kpis.innerHTML = `
+      <div class="kpi" style="--kpi-color:#00d4aa"><div class="kpi-label">Total Income</div><div class="kpi-value">$${f(income)}</div></div>
+      <div class="kpi" style="--kpi-color:#ef4444"><div class="kpi-label">Cost of Goods</div><div class="kpi-value">$${f(cogs)}</div></div>
+      <div class="kpi" style="--kpi-color:#f59e0b"><div class="kpi-label">Expenses</div><div class="kpi-value">$${f(expenses)}</div></div>
+      <div class="kpi" style="--kpi-color:#10b981"><div class="kpi-label">Net Income</div><div class="kpi-value ${netIncome>=0?'tg':'tr2'}">$${f(netIncome)}</div></div>
+    `;
+  } else {
+    const getValue = (label) => {
+      const row = rows.find(r => r.Header?.ColData?.[0]?.value?.toLowerCase().includes(label));
+      const val = row?.Summary?.ColData?.[1]?.value;
+      return parseFloat(val) || 0;
+    };
+    const assets = getValue('asset');
+    const liabilities = getValue('liabilit');
+    const equity = getValue('equity');
+    kpis.innerHTML = `
+      <div class="kpi" style="--kpi-color:#00d4aa"><div class="kpi-label">Total Assets</div><div class="kpi-value">$${f(assets)}</div></div>
+      <div class="kpi" style="--kpi-color:#ef4444"><div class="kpi-label">Total Liabilities</div><div class="kpi-value">$${f(liabilities)}</div></div>
+      <div class="kpi" style="--kpi-color:#8b5cf6"><div class="kpi-label">Total Equity</div><div class="kpi-value">$${f(equity)}</div></div>
+    `;
+  }
+
+  // Render report rows
+  let html = '';
+  function renderRows(rowArr, depth) {
+    (rowArr || []).forEach(row => {
+      if (row.Header) {
+        const label = row.Header.ColData?.[0]?.value || '';
+        const val = row.Header.ColData?.[1]?.value || '';
+        html += `<tr class="rs"><td${depth>0?' style="padding-left:'+(depth*1.2)+'rem"':''}>${label}</td><td>${val}</td></tr>`;
+        if (row.Rows?.Row) renderRows(row.Rows.Row, depth + 1);
+        if (row.Summary) {
+          const sLabel = row.Summary.ColData?.[0]?.value || 'Total';
+          const sVal = row.Summary.ColData?.[1]?.value || '';
+          html += `<tr class="rt"><td style="padding-left:${depth*1.2}rem">${sLabel}</td><td>$${f(parseFloat(sVal)||0)}</td></tr>`;
+        }
+      } else if (row.ColData) {
+        const label = row.ColData[0]?.value || '';
+        const val = row.ColData[1]?.value || '';
+        const numVal = parseFloat(val) || 0;
+        html += `<tr class="rb"><td style="padding-left:${depth*1.2}rem">${label}</td><td>${numVal ? '$'+f(numVal) : val}</td></tr>`;
+      }
+    });
+  }
+  renderRows(rows, 0);
+  tbody.innerHTML = html;
+}
+
+// ─── TAB SWITCH HOOK ───
+const _origSwitch = switchTop;
+switchTop = function(name, btn) {
+  _origSwitch(name, btn);
+  const loaders = {
+    invoices: () => { if (!invoiceCache[currentFilter]) filterInvoices(currentFilter, document.getElementById('inv-filter-overdue')); },
+    customers: loadCustomers,
+    payments: loadPayments,
+    aged: loadAged,
+    expenses: loadExpenses,
+    estimates: loadEstimates,
+    creditnotes: loadCreditNotes,
+    pnl: loadPnl,
+    balancesheet: loadBalanceSheet,
+  };
+  if (loaders[name]) loaders[name]();
+};
 </script>
 </body>
 </html>

@@ -123,6 +123,29 @@ export default async function handler(req, res) {
     const url = new URL(req.url, `https://${req.headers.host}`);
     const type = url.searchParams.get('type') || 'overdue';
 
+    // Reports use a different API path
+    const isReport = type === 'pnl' || type === 'balancesheet';
+
+    if (isReport) {
+      const reportMap = {
+        pnl: 'ProfitAndLoss',
+        balancesheet: 'BalanceSheet',
+      };
+      const reportUrl = `${QB_API_BASE}/${tokens.realm_id}/reports/${reportMap[type]}?minorversion=65`;
+      const reportRes = await fetch(reportUrl, {
+        headers: {
+          Authorization: `Bearer ${tokens.access_token}`,
+          Accept: 'application/json',
+        },
+      });
+      if (!reportRes.ok) {
+        const err = await reportRes.text();
+        throw new Error(`QB Report error ${reportRes.status}: ${err}`);
+      }
+      const reportData = await reportRes.json();
+      return res.status(200).json(reportData);
+    }
+
     let query;
     switch (type) {
       case 'overdue':
@@ -138,7 +161,19 @@ export default async function handler(req, res) {
         query = "SELECT * FROM Customer MAXRESULTS 200";
         break;
       case 'payments':
-        query = "SELECT * FROM Payment ORDERBY MetaData.CreateTime DESC MAXRESULTS 50";
+        query = "SELECT * FROM Payment ORDERBY MetaData.CreateTime DESC MAXRESULTS 100";
+        break;
+      case 'estimates':
+        query = "SELECT * FROM Estimate ORDERBY MetaData.CreateTime DESC MAXRESULTS 100";
+        break;
+      case 'credit-notes':
+        query = "SELECT * FROM CreditMemo ORDERBY MetaData.CreateTime DESC MAXRESULTS 100";
+        break;
+      case 'expenses':
+        query = "SELECT * FROM Purchase ORDERBY MetaData.CreateTime DESC MAXRESULTS 100";
+        break;
+      case 'bills':
+        query = "SELECT * FROM Bill ORDERBY MetaData.CreateTime DESC MAXRESULTS 100";
         break;
       default:
         query = "SELECT * FROM Invoice ORDERBY MetaData.CreateTime DESC MAXRESULTS 50";
