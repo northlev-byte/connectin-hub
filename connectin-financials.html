@@ -149,6 +149,17 @@ nav{background:var(--surface);border-bottom:1px solid var(--border);padding:0 2r
 .vval{font-family:var(--serif);font-size:1.4rem;}
 .vnote{font-size:.69rem;color:var(--muted);margin-top:.2rem;}
 
+/* NAV GROUPS */
+.nav-group{position:relative;}
+.nav-group-btn{padding:.35rem 1rem;border-radius:6px;border:none;background:transparent;color:var(--muted);font-family:var(--sans);font-size:.82rem;font-weight:500;cursor:pointer;transition:all .2s;white-space:nowrap;}
+.nav-group-btn:hover{color:var(--text);background:var(--surface2);}
+.nav-group-btn.active{background:var(--accent);color:#000;font-weight:600;}
+.nav-dropdown{display:none;position:absolute;top:100%;left:0;background:var(--surface);border:1px solid var(--border);border-radius:8px;min-width:180px;z-index:300;box-shadow:0 8px 32px rgba(0,0,0,.5);padding:4px 0;margin-top:4px;}
+.nav-group:hover .nav-dropdown,.nav-group.open .nav-dropdown{display:block;}
+.nav-dropdown button{display:block;width:100%;padding:.55rem 1rem;border:none;background:none;color:var(--muted);font-family:var(--sans);font-size:.8rem;text-align:left;cursor:pointer;transition:all .15s;}
+.nav-dropdown button:hover{background:var(--surface2);color:var(--text);}
+.nav-dropdown button.dd-active{color:var(--accent);font-weight:600;}
+
 @media(max-width:900px){
   .g2,.g3{grid-template-columns:1fr;}
   .s2{grid-column:span 1;}
@@ -170,21 +181,38 @@ nav{background:var(--surface);border-bottom:1px solid var(--border);padding:0 2r
     </div>
   </a>
   <div class="top-tabs">
-    <button class="top-tab active" onclick="switchTop('fy-overview',this)">Current FY</button>
-    <button class="top-tab" onclick="switchTop('fy-monthly',this)">Current FY Monthly</button>
-    <button class="top-tab" onclick="switchTop('nfy-overview',this)">Next FY Forecast</button>
-    <button class="top-tab" onclick="switchTop('nfy-monthly',this)">Next FY Monthly</button>
+    <!-- Grouped nav -->
+    <div class="nav-group">
+      <button class="nav-group-btn active" id="ng-overview">Overview ▾</button>
+      <div class="nav-dropdown">
+        <button onclick="navGo('fy-overview',this)">Current FY</button>
+        <button onclick="navGo('fy-monthly',this)">Current FY Monthly</button>
+        <button onclick="navGo('nfy-overview',this)">Next FY Forecast</button>
+        <button onclick="navGo('nfy-monthly',this)">Next FY Monthly</button>
+      </div>
+    </div>
     <button class="top-tab" onclick="switchTop('invoices',this)" id="tab-invoices">Invoices</button>
-    <button class="top-tab" onclick="switchTop('customers',this)" id="tab-customers">Customers</button>
-    <button class="top-tab" onclick="switchTop('payments',this)" id="tab-payments">Payments</button>
-    <button class="top-tab" onclick="switchTop('aged',this)" id="tab-aged">Aged Receivables</button>
-    <button class="top-tab" onclick="switchTop('expenses',this)" id="tab-expenses">Expenses</button>
-    <button class="top-tab" onclick="switchTop('estimates',this)" id="tab-estimates">Estimates</button>
-    <button class="top-tab" onclick="switchTop('creditnotes',this)" id="tab-creditnotes">Credit Notes</button>
-    <button class="top-tab" onclick="switchTop('pnl',this)" id="tab-pnl">P&amp;L</button>
-    <button class="top-tab" onclick="switchTop('balancesheet',this)" id="tab-balancesheet">Balance Sheet</button>
+    <div class="nav-group">
+      <button class="nav-group-btn" id="ng-qb">QuickBooks ▾</button>
+      <div class="nav-dropdown">
+        <button onclick="navGo('customers',this)" id="tab-customers">Customers</button>
+        <button onclick="navGo('payments',this)" id="tab-payments">Payments</button>
+        <button onclick="navGo('aged',this)" id="tab-aged">Aged Receivables</button>
+        <button onclick="navGo('expenses',this)" id="tab-expenses">Expenses</button>
+        <button onclick="navGo('estimates',this)" id="tab-estimates">Estimates</button>
+        <button onclick="navGo('creditnotes',this)" id="tab-creditnotes">Credit Notes</button>
+      </div>
+    </div>
+    <div class="nav-group">
+      <button class="nav-group-btn" id="ng-reports">Reports ▾</button>
+      <div class="nav-dropdown">
+        <button onclick="navGo('pnl',this)" id="tab-pnl">P&amp;L</button>
+        <button onclick="navGo('balancesheet',this)" id="tab-balancesheet">Balance Sheet</button>
+      </div>
+    </div>
     <button class="top-tab" onclick="switchTop('banking',this)" id="tab-banking">Banking</button>
-    <button class="top-tab" onclick="switchTop('matching',this)" id="tab-matching">Payment Matching</button>
+    <button class="top-tab" onclick="switchTop('matching',this)" id="tab-matching">Matching</button>
+    <button class="top-tab" onclick="switchTop('create-invoice',this)" id="tab-create-invoice" style="background:rgba(0,212,170,.12);border:1px solid rgba(0,212,170,.25);color:var(--accent);">+ Invoice</button>
   </div>
   <div class="nav-meta">Apr 2025 – Mar 2026 &nbsp;·&nbsp; 18 Mar 2026</div>
   <a href="https://connectin-hub.vercel.app" style="font-size:.72rem;color:var(--muted);text-decoration:none;display:flex;align-items:center;gap:.35rem;transition:color .2s;" onmouseover="this.style.color='var(--accent)'" onmouseout="this.style.color='var(--muted)'">← Tools Hub</a>
@@ -601,6 +629,81 @@ nav{background:var(--surface);border-bottom:1px solid var(--border);padding:0 2r
         <table class="ft" id="match-table"><thead><tr><th>Date</th><th>Customer / Description</th><th>Amount</th><th>Suggested Invoice</th><th>Status</th><th>Flag</th></tr></thead><tbody id="match-tbody"></tbody></table>
       </div>
       <div id="match-empty" style="display:none;text-align:center;padding:2rem;color:var(--muted);font-size:.85rem;">No items to review.</div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════ VIEW: CREATE INVOICE ═══════ -->
+<div id="view-create-invoice" class="view">
+  <div class="page-header"><h1>Create Invoice</h1><p>Paste a budget and send it straight to QuickBooks</p></div>
+  <div id="ci-not-connected" style="display:none;"><div class="notice notice-blue"><span>ℹ️</span><div>QuickBooks is not connected. <a href="/api/qb-auth" style="color:var(--accent);font-weight:600;">Connect now →</a></div></div></div>
+
+  <div id="ci-form">
+    <!-- Customer + Due Date row -->
+    <div class="g2 mb">
+      <div class="card">
+        <div class="card-hd"><div class="card-title">Customer</div></div>
+        <select id="ci-customer" style="width:100%;background:var(--bg);border:1px solid var(--border);color:var(--text);padding:.6rem .75rem;font-size:.85rem;border-radius:6px;font-family:var(--sans);">
+          <option value="">Loading customers...</option>
+        </select>
+      </div>
+      <div class="card">
+        <div class="card-hd"><div class="card-title">Due Date</div></div>
+        <input type="date" id="ci-due-date" style="width:100%;background:var(--bg);border:1px solid var(--border);color:var(--text);padding:.6rem .75rem;font-size:.85rem;border-radius:6px;font-family:var(--sans);">
+      </div>
+    </div>
+
+    <!-- Memo -->
+    <div class="card mb">
+      <div class="card-hd"><div class="card-title">Memo / Notes</div><div class="card-tag">Optional</div></div>
+      <input type="text" id="ci-memo" placeholder="e.g. Event name, PO number..." style="width:100%;background:var(--bg);border:1px solid var(--border);color:var(--text);padding:.6rem .75rem;font-size:.85rem;border-radius:6px;font-family:var(--sans);">
+    </div>
+
+    <!-- Paste area -->
+    <div class="card mb">
+      <div class="card-hd"><div class="card-title">Paste Budget</div><div class="card-tag">From Excel / Sheets</div></div>
+      <p style="font-size:.78rem;color:var(--muted);margin-bottom:.75rem;">Paste tab-separated rows: <strong>Description, Qty, Unit Price, VAT%</strong> (or just Description + Price). Headers are auto-detected.</p>
+      <textarea id="ci-paste" rows="6" placeholder="Paste your budget lines here...
+e.g.
+Venue hire	1	2500	20
+Catering	150	25	20
+AV Equipment	1	800	0" style="width:100%;background:var(--bg);border:1px solid var(--border);color:var(--text);padding:.75rem;font-size:.82rem;border-radius:6px;font-family:var(--mono,'DM Mono',monospace);line-height:1.6;resize:vertical;"></textarea>
+      <div style="display:flex;gap:.75rem;margin-top:.75rem;">
+        <button onclick="parseBudgetPaste()" style="padding:.5rem 1.2rem;border:none;background:var(--accent);color:#000;border-radius:6px;cursor:pointer;font-size:.82rem;font-weight:600;">Parse Lines</button>
+        <button onclick="clearInvoiceLines()" style="padding:.5rem 1.2rem;border:1px solid var(--border);background:transparent;color:var(--muted);border-radius:6px;cursor:pointer;font-size:.82rem;">Clear</button>
+      </div>
+    </div>
+
+    <!-- Parsed lines preview -->
+    <div class="card mb" id="ci-preview" style="display:none;">
+      <div class="card-hd"><div class="card-title">Invoice Lines</div><div class="card-tag" id="ci-line-count">0 lines</div></div>
+      <div class="mtwrap">
+        <table class="ft" id="ci-lines-table">
+          <thead><tr><th>Description</th><th>Qty</th><th>Unit Price</th><th>VAT %</th><th>Line Total</th><th></th></tr></thead>
+          <tbody id="ci-lines-tbody"></tbody>
+        </table>
+      </div>
+      <button onclick="addInvoiceLine()" style="margin-top:.75rem;padding:.4rem 1rem;border:1px dashed var(--border);background:transparent;color:var(--muted);border-radius:6px;cursor:pointer;font-size:.78rem;width:100%;">+ Add Line</button>
+
+      <!-- Totals -->
+      <div style="margin-top:1.25rem;border-top:1px solid var(--border);padding-top:1rem;">
+        <div style="display:flex;justify-content:flex-end;gap:2rem;font-size:.88rem;">
+          <div><span style="color:var(--muted);">Subtotal:</span> <strong id="ci-subtotal">$0</strong></div>
+          <div><span style="color:var(--muted);">VAT (20%):</span> <strong id="ci-vat20">$0</strong></div>
+          <div style="font-size:1.05rem;"><span style="color:var(--muted);">Total:</span> <strong id="ci-total" style="color:var(--accent);">$0</strong></div>
+        </div>
+      </div>
+
+      <!-- Submit -->
+      <div style="margin-top:1.25rem;display:flex;gap:.75rem;justify-content:flex-end;">
+        <button onclick="submitInvoice()" id="ci-submit-btn" style="padding:.65rem 1.5rem;border:none;background:var(--accent);color:#000;border-radius:6px;cursor:pointer;font-size:.88rem;font-weight:600;">Create Invoice in QuickBooks</button>
+      </div>
+    </div>
+
+    <!-- Success message -->
+    <div id="ci-success" style="display:none;" class="notice notice-green">
+      <span>✓</span>
+      <div id="ci-success-msg">Invoice created!</div>
     </div>
   </div>
 </div>
@@ -1803,6 +1906,232 @@ function renderMatches(type) {
   </tr>`).join('');
 }
 
+// ─── NAV GROUP HELPER ───
+function navGo(viewName, btn) {
+  // Close dropdown
+  document.querySelectorAll('.nav-dropdown button').forEach(b => b.classList.remove('dd-active'));
+  if (btn) btn.classList.add('dd-active');
+
+  // Update group button label to show active item
+  const group = btn?.closest('.nav-group');
+  if (group) {
+    const groupBtn = group.querySelector('.nav-group-btn');
+    groupBtn.classList.add('active');
+    // Deactivate other group buttons and top tabs
+    document.querySelectorAll('.nav-group-btn').forEach(g => { if (g !== groupBtn) g.classList.remove('active'); });
+    document.querySelectorAll('.top-tabs > .top-tab').forEach(t => t.classList.remove('active'));
+  }
+
+  switchTop(viewName, btn);
+}
+
+// Close dropdowns when clicking elsewhere
+document.addEventListener('click', function(e) {
+  if (!e.target.closest('.nav-group')) {
+    document.querySelectorAll('.nav-group').forEach(g => g.classList.remove('open'));
+  }
+});
+
+// ─── CREATE INVOICE ───
+let invoiceLines = [];
+
+async function loadCreateInvoice() {
+  // Load customer list for dropdown
+  const sel = document.getElementById('ci-customer');
+  if (sel.options.length <= 1) {
+    try {
+      const res = await fetch('/api/qb-invoices?type=customers');
+      if (res.ok) {
+        const data = await res.json();
+        const custs = data.QueryResponse?.Customer || [];
+        sel.innerHTML = '<option value="">— Select customer —</option>' +
+          custs.filter(c => c.Active !== false)
+            .sort((a, b) => (a.DisplayName || '').localeCompare(b.DisplayName || ''))
+            .map(c => `<option value="${c.Id}" data-name="${(c.DisplayName || '').replace(/"/g, '&quot;')}">${c.DisplayName || c.CompanyName}</option>`)
+            .join('');
+      } else {
+        document.getElementById('ci-not-connected').style.display = 'block';
+      }
+    } catch (e) {
+      document.getElementById('ci-not-connected').style.display = 'block';
+    }
+  }
+  // Set default due date to 30 days from now
+  const dd = document.getElementById('ci-due-date');
+  if (!dd.value) {
+    const d = new Date(); d.setDate(d.getDate() + 30);
+    dd.value = d.toISOString().split('T')[0];
+  }
+}
+
+function parseBudgetPaste() {
+  const raw = document.getElementById('ci-paste').value.trim();
+  if (!raw) return;
+
+  const rows = raw.split('\n').map(r => r.split('\t').map(c => c.trim()));
+  if (!rows.length) return;
+
+  // Detect headers
+  let startRow = 0;
+  const first = rows[0].map(c => c.toLowerCase());
+  if (first.some(c => c.includes('desc') || c.includes('item') || c.includes('name'))) {
+    startRow = 1; // Skip header row
+  }
+
+  // Detect column positions
+  let descCol = 0, qtyCol = 1, rateCol = 2, vatCol = 3;
+  if (startRow === 1) {
+    first.forEach((h, i) => {
+      if (h.includes('desc') || h.includes('item') || h.includes('name') || h.includes('service')) descCol = i;
+      if (h.includes('qty') || h.includes('quantity') || h.includes('units')) qtyCol = i;
+      if (h.includes('price') || h.includes('rate') || h.includes('unit') || h.includes('cost')) rateCol = i;
+      if (h.includes('vat') || h.includes('tax') || h.includes('%')) vatCol = i;
+    });
+  }
+
+  invoiceLines = [];
+  for (let i = startRow; i < rows.length; i++) {
+    const row = rows[i];
+    if (!row.length || !row[0]) continue;
+
+    const desc = row[descCol] || '';
+    const numCols = row.length;
+
+    let qty, rate, vat;
+    if (numCols === 1) {
+      // Just description
+      qty = 1; rate = 0; vat = 20;
+    } else if (numCols === 2) {
+      // Description + Price
+      qty = 1; rate = parseNum(row[1]); vat = 20;
+    } else if (numCols === 3) {
+      // Desc + Qty + Price or Desc + Price + VAT
+      const v2 = parseNum(row[2]);
+      if (v2 === 0 || v2 === 20) {
+        qty = 1; rate = parseNum(row[1]); vat = v2;
+      } else {
+        qty = parseNum(row[qtyCol]) || 1; rate = parseNum(row[rateCol]); vat = 20;
+      }
+    } else {
+      qty = parseNum(row[qtyCol]) || 1;
+      rate = parseNum(row[rateCol]) || 0;
+      vat = parseNum(row[vatCol]);
+      if (vat !== 0 && vat !== 20) vat = 20; // Default to 20%
+    }
+
+    if (desc) invoiceLines.push({ description: desc, qty, rate, vat });
+  }
+
+  renderInvoiceLines();
+}
+
+function parseNum(s) {
+  if (typeof s === 'number') return s;
+  const n = parseFloat(String(s).replace(/[£$,\s]/g, ''));
+  return isNaN(n) ? 0 : n;
+}
+
+function renderInvoiceLines() {
+  const preview = document.getElementById('ci-preview');
+  const tbody = document.getElementById('ci-lines-tbody');
+
+  if (!invoiceLines.length) { preview.style.display = 'none'; return; }
+  preview.style.display = 'block';
+  document.getElementById('ci-line-count').textContent = invoiceLines.length + ' lines';
+
+  tbody.innerHTML = invoiceLines.map((l, i) => {
+    const lineTotal = l.qty * l.rate;
+    return `<tr>
+      <td><input type="text" value="${l.description.replace(/"/g, '&quot;')}" onchange="updateLine(${i},'description',this.value)" style="background:var(--bg);border:1px solid var(--border);color:var(--text);padding:.3rem .5rem;font-size:.8rem;border-radius:4px;width:100%;min-width:200px;font-family:var(--sans);"></td>
+      <td><input type="number" value="${l.qty}" onchange="updateLine(${i},'qty',this.value)" style="background:var(--bg);border:1px solid var(--border);color:var(--text);padding:.3rem .5rem;font-size:.8rem;border-radius:4px;width:60px;text-align:right;font-family:var(--sans);" min="0" step="1"></td>
+      <td><input type="number" value="${l.rate}" onchange="updateLine(${i},'rate',this.value)" style="background:var(--bg);border:1px solid var(--border);color:var(--text);padding:.3rem .5rem;font-size:.8rem;border-radius:4px;width:90px;text-align:right;font-family:var(--sans);" min="0" step="0.01"></td>
+      <td><select onchange="updateLine(${i},'vat',this.value)" style="background:var(--bg);border:1px solid var(--border);color:var(--text);padding:.3rem .5rem;font-size:.8rem;border-radius:4px;font-family:var(--sans);">
+        <option value="20" ${l.vat===20?'selected':''}>20%</option>
+        <option value="0" ${l.vat===0?'selected':''}>0%</option>
+      </select></td>
+      <td style="text-align:right;font-variant-numeric:tabular-nums;">$${f(lineTotal)}</td>
+      <td><button onclick="removeLine(${i})" style="background:none;border:none;color:var(--danger);cursor:pointer;font-size:1rem;padding:.2rem;">&times;</button></td>
+    </tr>`;
+  }).join('');
+
+  updateTotals();
+}
+
+function updateLine(i, field, val) {
+  if (field === 'qty' || field === 'rate') invoiceLines[i][field] = parseFloat(val) || 0;
+  else if (field === 'vat') invoiceLines[i][field] = parseInt(val) || 0;
+  else invoiceLines[i][field] = val;
+  renderInvoiceLines();
+}
+
+function removeLine(i) {
+  invoiceLines.splice(i, 1);
+  renderInvoiceLines();
+}
+
+function addInvoiceLine() {
+  invoiceLines.push({ description: '', qty: 1, rate: 0, vat: 20 });
+  renderInvoiceLines();
+}
+
+function clearInvoiceLines() {
+  invoiceLines = [];
+  document.getElementById('ci-paste').value = '';
+  document.getElementById('ci-preview').style.display = 'none';
+  document.getElementById('ci-success').style.display = 'none';
+}
+
+function updateTotals() {
+  let subtotal = 0, vat20 = 0;
+  invoiceLines.forEach(l => {
+    const lt = l.qty * l.rate;
+    subtotal += lt;
+    if (l.vat === 20) vat20 += lt * 0.2;
+  });
+  document.getElementById('ci-subtotal').textContent = '$' + f(subtotal);
+  document.getElementById('ci-vat20').textContent = '$' + f(vat20);
+  document.getElementById('ci-total').textContent = '$' + f(subtotal + vat20);
+}
+
+async function submitInvoice() {
+  const sel = document.getElementById('ci-customer');
+  const customerId = sel.value;
+  const customerName = sel.options[sel.selectedIndex]?.dataset?.name || '';
+  const dueDate = document.getElementById('ci-due-date').value;
+  const memo = document.getElementById('ci-memo').value;
+
+  if (!customerId) { alert('Please select a customer.'); return; }
+  if (!invoiceLines.length) { alert('No lines to invoice.'); return; }
+
+  const btn = document.getElementById('ci-submit-btn');
+  btn.disabled = true; btn.textContent = 'Creating...';
+
+  try {
+    const res = await fetch('/api/qb-create-invoice', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ customerId, customerName, dueDate, memo, lines: invoiceLines }),
+    });
+
+    const data = await res.json();
+
+    if (data.ok) {
+      document.getElementById('ci-success').style.display = 'flex';
+      document.getElementById('ci-success-msg').innerHTML =
+        `Invoice <strong>#${data.invoice.docNumber}</strong> created for <strong>${data.invoice.customer}</strong> — Total: <strong>$${f(data.invoice.totalAmt)}</strong>, Due: ${data.invoice.dueDate}`;
+      btn.textContent = 'Created!'; btn.style.background = 'var(--green)';
+      // Clear cache so invoices tab refreshes
+      delete invoiceCache.all; delete invoiceCache.unpaid; delete invoiceCache.overdue;
+    } else {
+      alert('Error creating invoice: ' + (data.detail?.Fault?.Error?.[0]?.Detail || data.error || 'Unknown error'));
+      btn.disabled = false; btn.textContent = 'Create Invoice in QuickBooks';
+    }
+  } catch (e) {
+    alert('Error: ' + e.message);
+    btn.disabled = false; btn.textContent = 'Create Invoice in QuickBooks';
+  }
+}
+
 // ─── TAB SWITCH HOOK ───
 const _origSwitch = switchTop;
 switchTop = function(name, btn) {
@@ -1819,8 +2148,24 @@ switchTop = function(name, btn) {
     balancesheet: loadBalanceSheet,
     banking: loadBanking,
     matching: loadMatching,
+    'create-invoice': loadCreateInvoice,
   };
   if (loaders[name]) loaders[name]();
+
+  // Update nav group active states
+  const overviewViews = ['fy-overview','fy-monthly','nfy-overview','nfy-monthly'];
+  const qbViews = ['customers','payments','aged','expenses','estimates','creditnotes'];
+  const reportViews = ['pnl','balancesheet'];
+
+  document.querySelectorAll('.nav-group-btn').forEach(g => g.classList.remove('active'));
+  document.querySelectorAll('.top-tabs > .top-tab').forEach(t => {
+    if (t !== btn) t.classList.remove('active');
+  });
+
+  if (overviewViews.includes(name)) document.getElementById('ng-overview').classList.add('active');
+  if (qbViews.includes(name)) document.getElementById('ng-qb').classList.add('active');
+  if (reportViews.includes(name)) document.getElementById('ng-reports').classList.add('active');
+  if (btn && btn.classList) btn.classList.add('active');
 };
 </script>
 </body>
