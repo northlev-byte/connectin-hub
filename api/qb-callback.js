@@ -34,7 +34,16 @@ export default async function handler(req, res) {
     if (!tokenRes.ok) {
       const err = await tokenRes.text();
       console.error('QB_TOKEN_ERROR|' + err);
-      return res.status(500).send('Failed to exchange code for tokens.');
+      return res.status(500).send(
+        `<html><body style="font-family:sans-serif;padding:40px;background:#0b0f1a;color:#e8edf5;">
+          <h2 style="color:#ef4444;">Token Exchange Failed</h2>
+          <p>Status: ${tokenRes.status}</p>
+          <pre style="background:#111827;padding:20px;border-radius:8px;overflow-x:auto;color:#f87171;">${err}</pre>
+          <p style="color:#6b7a99;">Client ID present: ${!!clientId} | Client Secret present: ${!!clientSecret}</p>
+          <p style="color:#6b7a99;">Check your QB_CLIENT_ID and QB_CLIENT_SECRET env vars in Vercel, then redeploy.</p>
+          <a href="/api/qb-auth" style="color:#00d4aa;">Try again →</a>
+        </body></html>`
+      );
     }
 
     const tokens = await tokenRes.json();
