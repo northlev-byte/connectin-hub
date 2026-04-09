@@ -382,10 +382,19 @@ nav{background:var(--surface);border-bottom:1px solid var(--border);padding:0 2r
 
   <!-- Chase email modal -->
   <div id="chase-modal" style="display:none;position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,.7);align-items:center;justify-content:center;">
-    <div style="background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:2rem;width:100%;max-width:600px;margin:24px;position:relative;">
+    <div style="background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:2rem;width:100%;max-width:600px;margin:24px;position:relative;max-height:90vh;overflow-y:auto;">
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1.25rem;">
         <h3 style="font-family:var(--serif);font-size:1.2rem;">Draft Chase Email</h3>
         <button onclick="closeChaseModal()" style="background:none;border:none;color:var(--muted);font-size:1.3rem;cursor:pointer;">&times;</button>
+      </div>
+      <!-- Tone selector -->
+      <div style="margin-bottom:1rem;">
+        <label style="display:block;font-size:.68rem;font-weight:600;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);margin-bottom:.5rem;">Tone</label>
+        <div style="display:flex;gap:6px;" id="chase-tone-btns">
+          <button onclick="setChaseTone('soft',this)" class="top-tab active" style="font-size:.78rem;">Soft</button>
+          <button onclick="setChaseTone('medium',this)" class="top-tab" style="font-size:.78rem;">Medium</button>
+          <button onclick="setChaseTone('hard',this)" class="top-tab" style="font-size:.78rem;">Hard</button>
+        </div>
       </div>
       <div style="margin-bottom:.75rem;">
         <label style="display:block;font-size:.68rem;font-weight:600;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);margin-bottom:.4rem;">To</label>
@@ -399,9 +408,10 @@ nav{background:var(--surface);border-bottom:1px solid var(--border);padding:0 2r
         <label style="display:block;font-size:.68rem;font-weight:600;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);margin-bottom:.4rem;">Message</label>
         <textarea id="chase-body" rows="10" style="width:100%;background:var(--bg);border:1px solid var(--border);color:var(--text);padding:.55rem .75rem;font-size:.85rem;border-radius:6px;resize:vertical;font-family:var(--sans);line-height:1.6;"></textarea>
       </div>
-      <div style="display:flex;gap:.75rem;justify-content:flex-end;">
+      <div style="display:flex;gap:.75rem;justify-content:flex-end;flex-wrap:wrap;">
         <button onclick="closeChaseModal()" style="padding:.55rem 1.2rem;border:1px solid var(--border);background:transparent;color:var(--muted);border-radius:6px;cursor:pointer;font-size:.82rem;">Cancel</button>
-        <button onclick="copyChaseEmail()" style="padding:.55rem 1.2rem;border:none;background:var(--accent);color:#000;border-radius:6px;cursor:pointer;font-size:.82rem;font-weight:600;">Copy to Clipboard</button>
+        <button onclick="copyChaseEmail()" style="padding:.55rem 1.2rem;border:1px solid var(--accent);background:transparent;color:var(--accent);border-radius:6px;cursor:pointer;font-size:.82rem;font-weight:600;">Copy</button>
+        <button onclick="openInOutlook()" style="padding:.55rem 1.2rem;border:none;background:var(--accent);color:#000;border-radius:6px;cursor:pointer;font-size:.82rem;font-weight:600;">Open in Outlook</button>
       </div>
     </div>
   </div>
@@ -799,29 +809,84 @@ async function filterInvoices(type, btn) {
   }
 }
 
+let chaseInfo = {};
+let chaseTone = 'soft';
+
+const chaseTemplates = {
+  soft: (info) => ({
+    subject: `Friendly Reminder — Invoice #${info.invoice}`,
+    body: `Dear ${info.customer},
+
+I hope you're well. Just a quick, friendly reminder that Invoice #${info.invoice} for $${f(info.amount)} was due on ${info.dueDate}.
+
+We completely understand that things can slip through the cracks — if payment is already on its way, please disregard this message.
+
+If you have any questions about the invoice or need to discuss payment arrangements, we're more than happy to help.
+
+Warm regards,
+ConnectIn Events`
+  }),
+
+  medium: (info) => ({
+    subject: `Payment Reminder — Invoice #${info.invoice} ($${f(info.amount)})`,
+    body: `Dear ${info.customer},
+
+I'm writing to follow up on Invoice #${info.invoice} for $${f(info.amount)}, which was due on ${info.dueDate}. This invoice is now ${info.daysOver} day${info.daysOver !== 1 ? 's' : ''} overdue.
+
+Could you please arrange payment at your earliest convenience? If payment has already been made, please let us know so we can update our records.
+
+If there are any issues with this invoice, please don't hesitate to get in touch so we can resolve them promptly.
+
+Kind regards,
+ConnectIn Events`
+  }),
+
+  hard: (info) => ({
+    subject: `URGENT: Overdue Payment — Invoice #${info.invoice} ($${f(info.amount)})`,
+    body: `Dear ${info.customer},
+
+Despite previous correspondence, Invoice #${info.invoice} for $${f(info.amount)} remains unpaid. This invoice was due on ${info.dueDate} and is now ${info.daysOver} day${info.daysOver !== 1 ? 's' : ''} overdue.
+
+We must receive payment within 7 days of this notice. Failure to settle this outstanding balance may result in:
+• Suspension of services
+• Late payment fees being applied
+• The matter being referred to our collections process
+
+If there is a genuine reason for the delay, please contact us immediately so we can discuss a resolution.
+
+Please treat this matter as urgent.
+
+Regards,
+ConnectIn Events`
+  })
+};
+
 function openChaseModal(info) {
+  chaseInfo = info;
+  chaseTone = 'soft';
   const modal = document.getElementById('chase-modal');
   modal.style.display = 'flex';
 
+  // Reset tone buttons
+  document.querySelectorAll('#chase-tone-btns .top-tab').forEach((b, i) => {
+    b.classList.toggle('active', i === 0);
+  });
+
   document.getElementById('chase-to').value = info.email || 'No email on file';
-  document.getElementById('chase-subject').value =
-    `Payment Reminder — Invoice #${info.invoice} ($${f(info.amount)})`;
+  applyChaseTemplate('soft');
+}
 
-  const daysText = info.daysOver > 0
-    ? `This invoice is now ${info.daysOver} day${info.daysOver !== 1 ? 's' : ''} overdue.`
-    : 'This invoice is currently outstanding.';
+function setChaseTone(tone, btn) {
+  chaseTone = tone;
+  document.querySelectorAll('#chase-tone-btns .top-tab').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  applyChaseTemplate(tone);
+}
 
-  document.getElementById('chase-body').value =
-`Dear ${info.customer},
-
-I hope this message finds you well. I'm writing to follow up on Invoice #${info.invoice} for $${f(info.amount)}, which was due on ${info.dueDate}. ${daysText}
-
-Could you please arrange payment at your earliest convenience? If payment has already been made, please disregard this message and accept our thanks.
-
-If you have any questions about this invoice, please don't hesitate to get in touch.
-
-Kind regards,
-ConnectIn Events`;
+function applyChaseTemplate(tone) {
+  const tmpl = chaseTemplates[tone](chaseInfo);
+  document.getElementById('chase-subject').value = tmpl.subject;
+  document.getElementById('chase-body').value = tmpl.body;
 }
 
 function closeChaseModal() {
@@ -833,11 +898,22 @@ function copyChaseEmail() {
   const body = document.getElementById('chase-body').value;
   const text = 'Subject: ' + subject + '\n\n' + body;
   navigator.clipboard.writeText(text).then(() => {
-    const btn = document.querySelector('#chase-modal button:last-child');
+    const btn = event.target;
+    const orig = btn.textContent;
     btn.textContent = 'Copied!';
     btn.style.background = 'var(--green)';
-    setTimeout(() => { btn.textContent = 'Copy to Clipboard'; btn.style.background = 'var(--accent)'; }, 2000);
+    btn.style.color = '#000';
+    btn.style.borderColor = 'var(--green)';
+    setTimeout(() => { btn.textContent = orig; btn.style.background = 'transparent'; btn.style.color = 'var(--accent)'; btn.style.borderColor = 'var(--accent)'; }, 2000);
   });
+}
+
+function openInOutlook() {
+  const to = document.getElementById('chase-to').value;
+  const subject = document.getElementById('chase-subject').value;
+  const body = document.getElementById('chase-body').value;
+  const mailto = `mailto:${encodeURIComponent(to)}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+  window.open(mailto, '_blank');
 }
 
 // Auto-load invoices when switching to the tab
