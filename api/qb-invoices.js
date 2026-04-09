@@ -175,6 +175,15 @@ export default async function handler(req, res) {
       case 'bills':
         query = "SELECT * FROM Bill ORDERBY MetaData.CreateTime DESC MAXRESULTS 100";
         break;
+      case 'accounts':
+        query = "SELECT * FROM Account WHERE AccountType = 'Bank' ORDERBY Name ASC";
+        break;
+      case 'deposits':
+        query = "SELECT * FROM Deposit ORDERBY TxnDate DESC MAXRESULTS 100";
+        break;
+      case 'transfers':
+        query = "SELECT * FROM Transfer ORDERBY TxnDate DESC MAXRESULTS 50";
+        break;
       default:
         query = "SELECT * FROM Invoice ORDERBY MetaData.CreateTime DESC MAXRESULTS 50";
     }

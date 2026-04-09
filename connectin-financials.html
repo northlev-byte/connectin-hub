@@ -183,6 +183,8 @@ nav{background:var(--surface);border-bottom:1px solid var(--border);padding:0 2r
     <button class="top-tab" onclick="switchTop('creditnotes',this)" id="tab-creditnotes">Credit Notes</button>
     <button class="top-tab" onclick="switchTop('pnl',this)" id="tab-pnl">P&amp;L</button>
     <button class="top-tab" onclick="switchTop('balancesheet',this)" id="tab-balancesheet">Balance Sheet</button>
+    <button class="top-tab" onclick="switchTop('banking',this)" id="tab-banking">Banking</button>
+    <button class="top-tab" onclick="switchTop('matching',this)" id="tab-matching">Payment Matching</button>
   </div>
   <div class="nav-meta">Apr 2025 – Mar 2026 &nbsp;·&nbsp; 18 Mar 2026</div>
   <a href="https://connectin-hub.vercel.app" style="font-size:.72rem;color:var(--muted);text-decoration:none;display:flex;align-items:center;gap:.35rem;transition:color .2s;" onmouseover="this.style.color='var(--accent)'" onmouseout="this.style.color='var(--muted)'">← Tools Hub</a>
@@ -550,6 +552,55 @@ nav{background:var(--surface);border-bottom:1px solid var(--border);padding:0 2r
     <div class="card">
       <div class="card-hd"><div class="card-title">Balance Sheet</div><div class="card-tag" id="bs-period"></div></div>
       <div class="mtwrap"><table class="ft" id="bs-table"><tbody id="bs-tbody"></tbody></table></div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════ VIEW: BANKING ═══════ -->
+<div id="view-banking" class="view">
+  <div class="page-header"><h1>Banking</h1><p>Live from QuickBooks &nbsp;·&nbsp; Bank accounts, deposits &amp; transfers</p></div>
+  <div id="bank-not-connected" style="display:none;"><div class="notice notice-blue"><span>ℹ️</span><div>QuickBooks is not connected. <a href="/api/qb-auth" style="color:var(--accent);font-weight:600;">Connect now →</a></div></div></div>
+  <div id="bank-loading" style="display:none;text-align:center;padding:3rem;color:var(--muted);">Loading banking data...</div>
+  <div id="bank-content" style="display:none;">
+    <div class="kpi-grid" id="bank-kpis"></div>
+    <!-- Account cards -->
+    <div class="g3 mb" id="bank-accounts"></div>
+    <!-- Transactions -->
+    <div class="card">
+      <div class="card-hd"><div class="card-title">Recent Transactions</div><div class="card-tag" id="bank-txn-count">0</div></div>
+      <div style="display:flex;gap:6px;margin-bottom:1rem;">
+        <button class="top-tab active" onclick="filterBankTxns('all',this)">All</button>
+        <button class="top-tab" onclick="filterBankTxns('deposits',this)">Deposits</button>
+        <button class="top-tab" onclick="filterBankTxns('transfers',this)">Transfers</button>
+      </div>
+      <div class="mtwrap">
+        <table class="ft" id="bank-table"><thead><tr><th>Date</th><th>Type</th><th>Description</th><th>Account</th><th>Amount</th></tr></thead><tbody id="bank-tbody"></tbody></table>
+      </div>
+      <div id="bank-empty" style="display:none;text-align:center;padding:2rem;color:var(--muted);font-size:.85rem;">No transactions found.</div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════ VIEW: PAYMENT MATCHING ═══════ -->
+<div id="view-matching" class="view">
+  <div class="page-header"><h1>Payment Matching</h1><p>Live from QuickBooks &nbsp;·&nbsp; Cross-reference deposits against invoices</p></div>
+  <div id="match-not-connected" style="display:none;"><div class="notice notice-blue"><span>ℹ️</span><div>QuickBooks is not connected. <a href="/api/qb-auth" style="color:var(--accent);font-weight:600;">Connect now →</a></div></div></div>
+  <div id="match-loading" style="display:none;text-align:center;padding:3rem;color:var(--muted);">Analysing payments and invoices...</div>
+  <div id="match-content" style="display:none;">
+    <div class="kpi-grid" id="match-kpis"></div>
+    <!-- Filter -->
+    <div style="display:flex;gap:6px;margin-bottom:1.25rem;">
+      <button class="top-tab active" onclick="filterMatches('all',this)" id="match-filter-all">All</button>
+      <button class="top-tab" onclick="filterMatches('flagged',this)">Flagged</button>
+      <button class="top-tab" onclick="filterMatches('unmatched',this)">Unmatched</button>
+      <button class="top-tab" onclick="filterMatches('matched',this)">Matched</button>
+    </div>
+    <div class="card">
+      <div class="card-hd"><div class="card-title">Payment Review</div><div class="card-tag" id="match-count">0</div></div>
+      <div class="mtwrap">
+        <table class="ft" id="match-table"><thead><tr><th>Date</th><th>Customer / Description</th><th>Amount</th><th>Suggested Invoice</th><th>Status</th><th>Flag</th></tr></thead><tbody id="match-tbody"></tbody></table>
+      </div>
+      <div id="match-empty" style="display:none;text-align:center;padding:2rem;color:var(--muted);font-size:.85rem;">No items to review.</div>
     </div>
   </div>
 </div>
@@ -1442,6 +1493,316 @@ function renderReport(data, prefix) {
   tbody.innerHTML = html;
 }
 
+// ─── BANKING ───
+let bankTxnData = { deposits: [], transfers: [] };
+let bankFilterType = 'all';
+
+async function loadBanking() {
+  if (qbCache.accounts && qbCache.deposits) {
+    renderBanking();
+    document.getElementById('bank-content').style.display = 'block';
+    return;
+  }
+  const loading = document.getElementById('bank-loading');
+  const content = document.getElementById('bank-content');
+  const notConn = document.getElementById('bank-not-connected');
+  loading.style.display = 'block'; content.style.display = 'none'; notConn.style.display = 'none';
+
+  try {
+    const [acctRes, depRes, xferRes] = await Promise.all([
+      fetch('/api/qb-invoices?type=accounts'),
+      fetch('/api/qb-invoices?type=deposits'),
+      fetch('/api/qb-invoices?type=transfers')
+    ]);
+
+    for (const r of [acctRes, depRes, xferRes]) {
+      if (!r.ok) {
+        const err = await r.json().catch(() => ({}));
+        if (err.error === 'not_connected' || err.error === 'auth_expired') {
+          loading.style.display = 'none'; notConn.style.display = 'block'; return;
+        }
+      }
+    }
+
+    qbCache.accounts = await acctRes.json();
+    qbCache.deposits = await depRes.json();
+    qbCache.transfers = await xferRes.json();
+    loading.style.display = 'none'; content.style.display = 'block';
+    renderBanking();
+  } catch (e) {
+    loading.style.display = 'none';
+    document.getElementById('bank-not-connected').style.display = 'block';
+  }
+}
+
+function renderBanking() {
+  const accounts = qbCache.accounts?.QueryResponse?.Account || [];
+  const deposits = qbCache.deposits?.QueryResponse?.Deposit || [];
+  const transfers = qbCache.transfers?.QueryResponse?.Transfer || [];
+  bankTxnData = { deposits, transfers };
+
+  const totalBal = accounts.reduce((s, a) => s + (a.CurrentBalance || 0), 0);
+  const largest = accounts.length ? accounts.sort((a, b) => (b.CurrentBalance || 0) - (a.CurrentBalance || 0))[0] : null;
+
+  document.getElementById('bank-kpis').innerHTML = `
+    <div class="kpi" style="--kpi-color:#00d4aa"><div class="kpi-label">Total Bank Balance</div><div class="kpi-value">$${f(totalBal)}</div><div class="kpi-sub">${accounts.length} account${accounts.length !== 1 ? 's' : ''}</div></div>
+    <div class="kpi" style="--kpi-color:#3b82f6"><div class="kpi-label">Recent Deposits</div><div class="kpi-value">$${f(deposits.reduce((s, d) => s + (d.TotalAmt || 0), 0))}</div><div class="kpi-sub">${deposits.length} transactions</div></div>
+    <div class="kpi" style="--kpi-color:#8b5cf6"><div class="kpi-label">Recent Transfers</div><div class="kpi-value">$${f(transfers.reduce((s, t) => s + (t.Amount || 0), 0))}</div><div class="kpi-sub">${transfers.length} transfers</div></div>
+    ${largest ? `<div class="kpi" style="--kpi-color:#10b981"><div class="kpi-label">Largest Account</div><div class="kpi-value">$${f(largest.CurrentBalance || 0)}</div><div class="kpi-sub">${largest.Name || '—'}</div></div>` : ''}
+  `;
+
+  // Account cards
+  const acctGrid = document.getElementById('bank-accounts');
+  acctGrid.innerHTML = accounts.map(a => `
+    <div class="card" style="border-left:3px solid ${(a.CurrentBalance||0) > 0 ? 'var(--accent)' : 'var(--danger)'};">
+      <div style="font-size:.68rem;font-weight:600;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);margin-bottom:.35rem;">${a.Name || 'Account'}</div>
+      <div style="font-family:var(--serif);font-size:1.5rem;color:var(--text);">$${f(a.CurrentBalance || 0)}</div>
+      <div style="font-size:.72rem;color:var(--muted);margin-top:.25rem;">${a.AccountSubType || a.AccountType || 'Bank'} ${a.AcctNum ? '· #' + a.AcctNum : ''}</div>
+    </div>
+  `).join('');
+
+  filterBankTxns('all', null);
+}
+
+function filterBankTxns(type, btn) {
+  bankFilterType = type;
+  if (btn) {
+    btn.closest('div').querySelectorAll('.top-tab').forEach(t => t.classList.remove('active'));
+    btn.classList.add('active');
+  }
+
+  let txns = [];
+  if (type === 'all' || type === 'deposits') {
+    txns = txns.concat(bankTxnData.deposits.map(d => ({
+      date: d.TxnDate || '—',
+      type: 'Deposit',
+      desc: d.Line?.[0]?.Description || d.PrivateNote || 'Deposit',
+      account: d.DepositToAccountRef?.name || '—',
+      amount: d.TotalAmt || 0,
+      isDeposit: true
+    })));
+  }
+  if (type === 'all' || type === 'transfers') {
+    txns = txns.concat(bankTxnData.transfers.map(t => ({
+      date: t.TxnDate || '—',
+      type: 'Transfer',
+      desc: `${t.FromAccountRef?.name || '?'} → ${t.ToAccountRef?.name || '?'}`,
+      account: t.FromAccountRef?.name || '—',
+      amount: t.Amount || 0,
+      isDeposit: false
+    })));
+  }
+
+  txns.sort((a, b) => new Date(b.date) - new Date(a.date));
+
+  const tbody = document.getElementById('bank-tbody');
+  const empty = document.getElementById('bank-empty');
+  const table = document.getElementById('bank-table');
+  document.getElementById('bank-txn-count').textContent = txns.length + ' transactions';
+
+  if (!txns.length) { table.style.display = 'none'; empty.style.display = 'block'; return; }
+  table.style.display = ''; empty.style.display = 'none';
+
+  tbody.innerHTML = txns.map(t => `<tr>
+    <td>${t.date}</td>
+    <td><span class="badge ${t.type === 'Deposit' ? 'bg' : 'bb'}">${t.type}</span></td>
+    <td>${t.desc}</td>
+    <td>${t.account}</td>
+    <td class="${t.isDeposit ? 'tg' : 'ta'}">$${f(t.amount)}</td>
+  </tr>`).join('');
+}
+
+// ─── PAYMENT MATCHING ───
+let matchData = [];
+let matchFilterType = 'all';
+
+async function loadMatching() {
+  if (matchData.length) {
+    renderMatches(matchFilterType);
+    document.getElementById('match-content').style.display = 'block';
+    return;
+  }
+  const loading = document.getElementById('match-loading');
+  const content = document.getElementById('match-content');
+  const notConn = document.getElementById('match-not-connected');
+  loading.style.display = 'block'; content.style.display = 'none'; notConn.style.display = 'none';
+
+  try {
+    const [payRes, invRes, depRes] = await Promise.all([
+      fetch('/api/qb-invoices?type=payments'),
+      fetch('/api/qb-invoices?type=unpaid'),
+      fetch('/api/qb-invoices?type=deposits')
+    ]);
+
+    for (const r of [payRes, invRes, depRes]) {
+      if (!r.ok) {
+        const err = await r.json().catch(() => ({}));
+        if (err.error === 'not_connected' || err.error === 'auth_expired') {
+          loading.style.display = 'none'; notConn.style.display = 'block'; return;
+        }
+      }
+    }
+
+    const payments = (await payRes.json()).QueryResponse?.Payment || [];
+    const invoices = (await invRes.json()).QueryResponse?.Invoice || [];
+    const deposits = (await depRes.json()).QueryResponse?.Deposit || [];
+
+    matchData = analyseMatches(payments, invoices, deposits);
+    loading.style.display = 'none'; content.style.display = 'block';
+    renderMatchKPIs();
+    renderMatches('all');
+  } catch (e) {
+    loading.style.display = 'none';
+    document.getElementById('match-not-connected').style.display = 'block';
+  }
+}
+
+function analyseMatches(payments, invoices, deposits) {
+  const results = [];
+  const today = new Date();
+  const invMap = {};
+  invoices.forEach(inv => {
+    const key = (inv.CustomerRef?.name || '').toLowerCase();
+    if (!invMap[key]) invMap[key] = [];
+    invMap[key].push(inv);
+  });
+
+  // Analyse payments — check if they match invoices correctly
+  payments.forEach(pay => {
+    const custName = pay.CustomerRef?.name || 'Unknown';
+    const custKey = custName.toLowerCase();
+    const amt = pay.TotalAmt || 0;
+    const custInvoices = invMap[custKey] || [];
+
+    // Check for exact amount match against an unpaid invoice
+    const exactMatch = custInvoices.find(inv => Math.abs(inv.Balance - amt) < 0.01);
+    const closeMatch = custInvoices.find(inv => Math.abs(inv.Balance - amt) < amt * 0.1 && Math.abs(inv.Balance - amt) >= 0.01);
+    const anyInvoice = custInvoices[0];
+
+    let status, flag, suggestedInv;
+
+    if (exactMatch) {
+      status = 'matched';
+      flag = '';
+      suggestedInv = '#' + (exactMatch.DocNumber || exactMatch.Id) + ' ($' + f(exactMatch.Balance) + ')';
+    } else if (closeMatch) {
+      status = 'flagged';
+      const diff = amt - closeMatch.Balance;
+      flag = diff > 0 ? 'Overpayment by $' + f(Math.abs(diff)) : 'Underpayment by $' + f(Math.abs(diff));
+      suggestedInv = '#' + (closeMatch.DocNumber || closeMatch.Id) + ' ($' + f(closeMatch.Balance) + ')';
+    } else if (anyInvoice) {
+      status = 'flagged';
+      flag = 'Amount doesn\'t match any invoice';
+      suggestedInv = '#' + (anyInvoice.DocNumber || anyInvoice.Id) + ' ($' + f(anyInvoice.Balance) + ') ?';
+    } else {
+      status = 'unmatched';
+      flag = 'No unpaid invoice found for this customer';
+      suggestedInv = '—';
+    }
+
+    results.push({
+      date: pay.TxnDate || '—',
+      description: custName,
+      amount: amt,
+      suggestedInv,
+      status,
+      flag,
+      source: 'payment'
+    });
+  });
+
+  // Check for stale invoices (unpaid > 30 days, no matching payment)
+  const paidCustomers = new Set(payments.map(p => (p.CustomerRef?.name || '').toLowerCase()));
+  invoices.forEach(inv => {
+    if (inv.Balance <= 0) return;
+    const custKey = (inv.CustomerRef?.name || '').toLowerCase();
+    const daysOld = Math.floor((today - new Date(inv.DueDate)) / 86400000);
+    if (daysOld > 30 && !paidCustomers.has(custKey)) {
+      results.push({
+        date: inv.DueDate || '—',
+        description: (inv.CustomerRef?.name || 'Unknown') + ' — Invoice #' + (inv.DocNumber || inv.Id),
+        amount: inv.Balance,
+        suggestedInv: '#' + (inv.DocNumber || inv.Id),
+        status: 'flagged',
+        flag: 'Stale: ' + daysOld + ' days overdue, no payment received',
+        source: 'invoice'
+      });
+    }
+  });
+
+  // Check deposits that don't clearly link to a payment
+  deposits.forEach(dep => {
+    const depAmt = dep.TotalAmt || 0;
+    const hasMatchingPayment = payments.some(p => Math.abs((p.TotalAmt || 0) - depAmt) < 0.01);
+    if (!hasMatchingPayment && depAmt > 0) {
+      const desc = dep.Line?.[0]?.Description || dep.PrivateNote || 'Bank deposit';
+      results.push({
+        date: dep.TxnDate || '—',
+        description: desc,
+        amount: depAmt,
+        suggestedInv: '—',
+        status: 'unmatched',
+        flag: 'Deposit with no matching payment record',
+        source: 'deposit'
+      });
+    }
+  });
+
+  // Sort: flagged first, then unmatched, then matched
+  const order = { flagged: 0, unmatched: 1, matched: 2 };
+  results.sort((a, b) => (order[a.status] ?? 9) - (order[b.status] ?? 9));
+  return results;
+}
+
+function renderMatchKPIs() {
+  const flagged = matchData.filter(m => m.status === 'flagged').length;
+  const unmatched = matchData.filter(m => m.status === 'unmatched').length;
+  const matched = matchData.filter(m => m.status === 'matched').length;
+  const flaggedAmt = matchData.filter(m => m.status === 'flagged').reduce((s, m) => s + m.amount, 0);
+
+  document.getElementById('match-kpis').innerHTML = `
+    <div class="kpi" style="--kpi-color:#ef4444"><div class="kpi-label">Flagged</div><div class="kpi-value">${flagged}</div><div class="kpi-sub"><span class="badge br">$${f(flaggedAmt)} needs review</span></div></div>
+    <div class="kpi" style="--kpi-color:#f59e0b"><div class="kpi-label">Unmatched</div><div class="kpi-value">${unmatched}</div><div class="kpi-sub">No invoice link</div></div>
+    <div class="kpi" style="--kpi-color:#10b981"><div class="kpi-label">Matched</div><div class="kpi-value">${matched}</div><div class="kpi-sub">Correctly linked</div></div>
+    <div class="kpi" style="--kpi-color:#3b82f6"><div class="kpi-label">Total Reviewed</div><div class="kpi-value">${matchData.length}</div><div class="kpi-sub">Payments + deposits</div></div>
+  `;
+}
+
+function filterMatches(type, btn) {
+  matchFilterType = type;
+  if (btn) {
+    btn.closest('div').querySelectorAll('.top-tab').forEach(t => t.classList.remove('active'));
+    btn.classList.add('active');
+  }
+  renderMatches(type);
+}
+
+function renderMatches(type) {
+  const filtered = type === 'all' ? matchData : matchData.filter(m => m.status === type);
+  const tbody = document.getElementById('match-tbody');
+  const empty = document.getElementById('match-empty');
+  const table = document.getElementById('match-table');
+  document.getElementById('match-count').textContent = filtered.length + ' items';
+
+  if (!filtered.length) { table.style.display = 'none'; empty.style.display = 'block'; return; }
+  table.style.display = ''; empty.style.display = 'none';
+
+  const statusBadge = {
+    matched: '<span class="badge bg">Matched</span>',
+    unmatched: '<span class="badge br">Unmatched</span>',
+    flagged: '<span class="badge ba">Review</span>'
+  };
+
+  tbody.innerHTML = filtered.map(m => `<tr>
+    <td>${m.date}</td>
+    <td>${m.description}</td>
+    <td>$${f(m.amount)}</td>
+    <td>${m.suggestedInv}</td>
+    <td>${statusBadge[m.status] || '—'}</td>
+    <td style="font-size:.75rem;color:${m.flag ? 'var(--accent3)' : 'var(--muted)'};">${m.flag || '—'}</td>
+  </tr>`).join('');
+}
+
 // ─── TAB SWITCH HOOK ───
 const _origSwitch = switchTop;
 switchTop = function(name, btn) {
@@ -1456,6 +1817,8 @@ switchTop = function(name, btn) {
     creditnotes: loadCreditNotes,
     pnl: loadPnl,
     balancesheet: loadBalanceSheet,
+    banking: loadBanking,
+    matching: loadMatching,
   };
   if (loaders[name]) loaders[name]();
 };
