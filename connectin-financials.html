@@ -190,14 +190,11 @@ nav{background:var(--surface);border-bottom:1px solid var(--border);padding:0 2r
   </div>
 </div>
 <script>
-(function(){
-  if(localStorage.getItem('ci_fin_auth')==='1'){
-    var exp=parseInt(localStorage.getItem('ci_fin_auth_exp')||'0',10);
-    if(Date.now()<exp){document.getElementById('fin-gate').style.display='none';return;}
-    localStorage.removeItem('ci_fin_auth');localStorage.removeItem('ci_fin_auth_exp');
-  }
-  document.body.style.overflow='hidden';
-})();
+// Clear any old persisted auth — financials page requires password every time
+localStorage.removeItem('ci_fin_auth');
+localStorage.removeItem('ci_fin_auth_exp');
+document.body.style.overflow='hidden';
+
 async function checkFinPw(e){
   e.preventDefault();
   var pw=document.getElementById('fin-pw').value;
@@ -207,8 +204,6 @@ async function checkFinPw(e){
   try{
     var res=await fetch('/api/fin-login',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({password:pw})});
     if(res.ok){
-      localStorage.setItem('ci_fin_auth','1');
-      localStorage.setItem('ci_fin_auth_exp',(Date.now()+7*24*60*60*1000).toString());
       document.getElementById('fin-gate').style.display='none';
       document.body.style.overflow='';
       return false;
