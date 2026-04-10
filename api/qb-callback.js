@@ -1,9 +1,30 @@
 // Handles QuickBooks OAuth callback — exchanges code for tokens and stores them
 export default async function handler(req, res) {
-  const { code, realmId } = req.query;
+  const { code, realmId, error, error_description, state } = req.query;
+
+  if (error) {
+    return res.status(400).send(
+      `<html><body style="font-family:sans-serif;padding:40px;background:#0b0f1a;color:#e8edf5;">
+        <h2 style="color:#ef4444;">QuickBooks Authorization Error</h2>
+        <p><strong>Error:</strong> ${error}</p>
+        <p><strong>Description:</strong> ${error_description || 'No description provided'}</p>
+        <p style="color:#6b7a99;">This usually means the redirect URI is not registered in your Intuit app's Production tab, or the user denied access.</p>
+        <a href="/api/qb-auth" style="color:#00d4aa;">Try again →</a>
+      </body></html>`
+    );
+  }
 
   if (!code || !realmId) {
-    return res.status(400).send('Missing code or realmId from QuickBooks.');
+    return res.status(400).send(
+      `<html><body style="font-family:sans-serif;padding:40px;background:#0b0f1a;color:#e8edf5;">
+        <h2 style="color:#ef4444;">Missing code or realmId from QuickBooks</h2>
+        <p>The callback was hit but the expected OAuth parameters were missing.</p>
+        <p><strong>Received query params:</strong></p>
+        <pre style="background:#111827;padding:16px;border-radius:8px;overflow-x:auto;">${JSON.stringify(req.query, null, 2)}</pre>
+        <p style="color:#6b7a99;">Most likely cause: the redirect URI <code>https://connectin-hub.vercel.app/api/qb-callback</code> is not added under the <strong>Production</strong> tab on the Intuit Developer Portal (Settings → Redirect URIs → Production).</p>
+        <a href="/api/qb-auth" style="color:#00d4aa;">Try again →</a>
+      </body></html>`
+    );
   }
 
   const clientId = process.env.QB_CLIENT_ID;
