@@ -5,7 +5,9 @@
     { "source": "/password", "destination": "/password.html" },
     { "source": "/profile", "destination": "/profile.html" },
     { "source": "/logout", "destination": "/logout.html" },
-    { "source": "/financials", "destination": "/connectin-financials.html" }
+    { "source": "/financials", "destination": "/connectin-financials.html" },
+    { "source": "/privacy", "destination": "/privacy.html" },
+    { "source": "/eula", "destination": "/eula.html" }
   ],
   "headers": [
     {
