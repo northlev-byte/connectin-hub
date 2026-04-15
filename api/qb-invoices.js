@@ -152,12 +152,17 @@ export default async function handler(req, res) {
       // P&L broken down by Class — pivot the report columns so each class is a separate column
       if (type === 'pnl-class') {
         reportParams.set('summarize_column_by', 'Classes');
-        // If caller did not specify a date window, report across all dates
-        if (!fromDate && !toDate) reportParams.set('date_macro', 'All Dates');
+        // If caller did not specify a date window, use an explicit wide range.
+        // date_macro=All Dates is flaky on some report endpoints, explicit dates are reliable.
+        if (!fromDate && !toDate) {
+          reportParams.set('start_date', '2000-01-01');
+          reportParams.set('end_date', '2099-12-31');
+        }
       }
       // TransactionList with no date window defaults to all time too
       if (type === 'txn-list' && !fromDate && !toDate) {
-        reportParams.set('date_macro', 'All Dates');
+        reportParams.set('start_date', '2000-01-01');
+        reportParams.set('end_date', '2099-12-31');
       }
       const reportUrl = `${QB_API_BASE}/${tokens.realm_id}/reports/${reportMap[type]}?${reportParams.toString()}`;
       const reportRes = await fetch(reportUrl, {

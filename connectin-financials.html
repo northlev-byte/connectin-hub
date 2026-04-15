@@ -1879,14 +1879,16 @@ async function loadJobs() {
   if (content) content.style.display = 'none';
   if (notConn) notConn.style.display = 'none';
   try {
-    // No date params — the API will default to "All Dates" for pnl-class
+    // No date params — the API will use a wide explicit date range for pnl-class
     const res = await fetch('/api/qb-invoices?type=pnl-class');
     if (!res.ok) {
       const err = await res.json().catch(() => ({}));
+      // Only show the "not connected" banner for actual auth failures
       if (err.error === 'not_connected' || err.error === 'auth_expired') {
         loading.style.display = 'none'; notConn.style.display = 'block'; return;
       }
-      throw new Error(err.message || 'Failed');
+      // For any other failure (e.g. QB rejected the report params), surface the real error
+      throw new Error(err.error || err.message || ('HTTP ' + res.status));
     }
     const data = await res.json();
     jobsData = parsePnlByClass(data);
@@ -1894,7 +1896,15 @@ async function loadJobs() {
     renderJobsKPIs();
     renderJobsList();
   } catch (e) {
-    loading.style.display = 'none'; notConn.style.display = 'block';
+    loading.style.display = 'none';
+    // Show the actual error inline so we can diagnose without opening devtools
+    content.style.display = 'block';
+    document.getElementById('jobs-kpis').innerHTML = `
+      <div class="notice" style="grid-column:1/-1;background:rgba(239,68,68,.08);border:1px solid rgba(239,68,68,.3);color:#ef4444;padding:1rem 1.25rem;border-radius:8px;">
+        <strong>Failed to load jobs:</strong> ${(e && e.message ? e.message : 'Unknown error').replace(/</g,'&lt;')}
+      </div>
+    `;
+    document.getElementById('jobs-grid').innerHTML = '';
   }
 }
 
