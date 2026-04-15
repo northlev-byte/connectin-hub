@@ -2006,8 +2006,10 @@ async function openBankTxnModal(accountId, accountName) {
     };
 
     // Helper: pull a numeric amount from a row, trying multiple columns.
-    // In QB TransactionList, credit_amt and debt_amt are populated per line,
-    // while subt_nat_amount / nat_amount may only populate for certain row types.
+    // For a BANK (asset) account in double-entry bookkeeping:
+    //   DEBIT to the account  = money IN  (bank balance goes up)
+    //   CREDIT to the account = money OUT (bank balance goes down)
+    // So net = debit - credit (positive = money in, negative = money out).
     const readAmount = (colData) => {
       const tryNum = (i) => {
         if (i < 0 || !colData[i]) return null;
@@ -2016,11 +2018,10 @@ async function openBankTxnModal(accountId, accountName) {
         const n = parseFloat(raw);
         return isNaN(n) ? null : n;
       };
-      // credit = money in, debit = money out → net = credit - debit
-      const credit = tryNum(colIdx.credit);
       const debit = tryNum(colIdx.debit);
-      if (credit !== null || debit !== null) {
-        return (credit || 0) - (debit || 0);
+      const credit = tryNum(colIdx.credit);
+      if (debit !== null || credit !== null) {
+        return (debit || 0) - (credit || 0);
       }
       // Fall back to subtotal or natural amount if credit/debit aren't there
       const subt = tryNum(colIdx.subtNat);
