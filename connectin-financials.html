@@ -669,19 +669,27 @@ async function checkFinPw(e){
   <div id="jobs-loading" style="display:none;text-align:center;padding:3rem;color:var(--muted);">Loading jobs...</div>
   <div id="jobs-content" style="display:none;">
     <div class="kpi-grid" id="jobs-kpis"></div>
+    <!-- View toggle -->
+    <div style="display:flex;gap:.6rem;align-items:center;margin-bottom:1rem;flex-wrap:wrap;">
+      <label style="color:var(--muted);font-size:.78rem;font-weight:600;text-transform:uppercase;letter-spacing:.05em;">View:</label>
+      <button class="top-tab active" onclick="setJobsView('class',this)" id="jobs-view-class">Individual Jobs</button>
+      <button class="top-tab" onclick="setJobsView('customer',this)" id="jobs-view-customer">By Customer (Top Spenders)</button>
+    </div>
+    <!-- Sort + filter controls -->
     <div style="display:flex;gap:.6rem;align-items:center;margin-bottom:1rem;flex-wrap:wrap;">
       <label style="color:var(--muted);font-size:.78rem;font-weight:600;text-transform:uppercase;letter-spacing:.05em;">Sort:</label>
-      <button class="top-tab active" onclick="sortJobs('profit',this)" id="jobs-sort-profit">Profit</button>
-      <button class="top-tab" onclick="sortJobs('revenue',this)">Revenue</button>
-      <button class="top-tab" onclick="sortJobs('name',this)">Name</button>
+      <button class="top-tab active" onclick="sortJobs('date',this)" id="jobs-sort-date">Date</button>
+      <button class="top-tab" onclick="sortJobs('profit',this)" id="jobs-sort-profit">Profit</button>
+      <button class="top-tab" onclick="sortJobs('revenue',this)" id="jobs-sort-revenue">Revenue</button>
+      <button class="top-tab" onclick="sortJobs('name',this)" id="jobs-sort-name">Name</button>
       <label style="color:var(--muted);font-size:.78rem;font-weight:600;text-transform:uppercase;letter-spacing:.05em;margin-left:.75rem;">Filter:</label>
-      <input type="text" id="jobs-search" oninput="renderJobsList()" placeholder="Search jobs..." style="background:var(--bg);border:1px solid var(--border);color:var(--text);padding:.4rem .6rem;border-radius:6px;font-family:inherit;font-size:.82rem;min-width:200px;">
+      <input type="text" id="jobs-search" oninput="renderJobsList()" placeholder="Search jobs or customers..." style="background:var(--bg);border:1px solid var(--border);color:var(--text);padding:.4rem .6rem;border-radius:6px;font-family:inherit;font-size:.82rem;min-width:200px;">
       <label style="display:flex;align-items:center;gap:.4rem;color:var(--muted);font-size:.78rem;cursor:pointer;margin-left:.5rem;">
         <input type="checkbox" id="jobs-hide-zero" onchange="renderJobsList()" checked> Hide jobs with no activity
       </label>
     </div>
-    <div id="jobs-grid" class="g3"></div>
-    <div id="jobs-empty" style="display:none;text-align:center;padding:2rem;color:var(--muted);font-size:.85rem;">No jobs found for this date range.</div>
+    <div id="jobs-grid"></div>
+    <div id="jobs-empty" style="display:none;text-align:center;padding:2rem;color:var(--muted);font-size:.85rem;">No jobs found.</div>
   </div>
 </div>
 
@@ -1869,7 +1877,74 @@ function renderReport(data, prefix) {
 
 // ─── JOBS (P&L BY CLASS) ───
 let jobsData = [];
-let jobsSortBy = 'profit';
+let jobsSortBy = 'date';
+let jobsView = 'class'; // 'class' | 'customer'
+
+// Parse a class name like "ANS - Jan 2025 Conference" into { customer, date, raw }
+// Handles customer before the date (with various delimiters) and multiple date formats.
+function parseJobName(name) {
+  if (!name) return { customer: 'Unknown', date: null, dateLabel: '', raw: name || '' };
+  const monthShort = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+
+  // Try date patterns in order of specificity
+  const patterns = [
+    // YYYY-MM-DD or YYYY/MM/DD
+    { re: /\b(\d{4})[-/](\d{1,2})[-/](\d{1,2})\b/, kind: 'ymd' },
+    // MM/YYYY or M/YYYY
+    { re: /\b(\d{1,2})[-/](\d{4})\b/, kind: 'my' },
+    // YYYY-MM or YYYY/MM
+    { re: /\b(\d{4})[-/](\d{1,2})\b/, kind: 'ym' },
+    // "Jan 2025" / "January 2025"
+    { re: /\b(January|February|March|April|May|June|July|August|September|October|November|December|Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Sept|Oct|Nov|Dec)\s+(\d{4})\b/i, kind: 'textY' },
+    // "2025 Jan"
+    { re: /\b(\d{4})\s+(January|February|March|April|May|June|July|August|September|October|November|December|Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Sept|Oct|Nov|Dec)\b/i, kind: 'Ytext' },
+    // Just a year on its own
+    { re: /\b(20\d{2}|19\d{2})\b/, kind: 'y' },
+  ];
+
+  for (const p of patterns) {
+    const m = name.match(p.re);
+    if (!m) continue;
+    // Extract customer = text before the date (or after, if before is empty)
+    let customer = name.substring(0, m.index).trim();
+    customer = customer.replace(/[\s\-–—:,]+$/, '').trim();
+    if (!customer) {
+      customer = name.substring(m.index + m[0].length).trim().replace(/^[\s\-–—:,]+/, '').trim();
+    }
+
+    let dateSort = '';
+    let dateLabel = m[0];
+    try {
+      if (p.kind === 'ymd') {
+        dateSort = m[1] + '-' + m[2].padStart(2, '0') + '-' + m[3].padStart(2, '0');
+      } else if (p.kind === 'ym') {
+        dateSort = m[1] + '-' + m[2].padStart(2, '0');
+      } else if (p.kind === 'my') {
+        dateSort = m[2] + '-' + m[1].padStart(2, '0');
+      } else if (p.kind === 'textY') {
+        const mIdx = monthShort.findIndex(x => m[1].toLowerCase().startsWith(x.toLowerCase()));
+        dateSort = mIdx >= 0 ? (m[2] + '-' + String(mIdx + 1).padStart(2, '0')) : m[2];
+      } else if (p.kind === 'Ytext') {
+        const mIdx = monthShort.findIndex(x => m[2].toLowerCase().startsWith(x.toLowerCase()));
+        dateSort = mIdx >= 0 ? (m[1] + '-' + String(mIdx + 1).padStart(2, '0')) : m[1];
+      } else if (p.kind === 'y') {
+        dateSort = m[1];
+      }
+    } catch (e) { /* ignore */ }
+
+    return {
+      customer: customer || 'Unknown',
+      date: dateSort || null,
+      dateLabel,
+      raw: name,
+    };
+  }
+
+  // No date found — try to extract customer from text before first delimiter
+  const delim = name.match(/^([^\-–—:]+?)[\s]*[-–—:]/);
+  if (delim) return { customer: delim[1].trim() || 'Unknown', date: null, dateLabel: '', raw: name };
+  return { customer: name.trim(), date: null, dateLabel: '', raw: name };
+}
 
 async function loadJobs() {
   const loading = document.getElementById('jobs-loading');
@@ -1968,14 +2043,20 @@ function parsePnlByClass(data) {
   }
   walk(data.Rows?.Row || []);
 
-  // Compute profit
-  const jobs = Object.values(byClass).map(j => ({
-    name: j.name,
-    revenue: j.revenue,
-    cogs: j.cogs,
-    expenses: j.expenses,
-    profit: j.revenue - j.cogs - j.expenses,
-  }));
+  // Compute profit and parse customer/date from each class name
+  const jobs = Object.values(byClass).map(j => {
+    const parsed = parseJobName(j.name);
+    return {
+      name: j.name,
+      customer: parsed.customer,
+      date: parsed.date,
+      dateLabel: parsed.dateLabel,
+      revenue: j.revenue,
+      cogs: j.cogs,
+      expenses: j.expenses,
+      profit: j.revenue - j.cogs - j.expenses,
+    };
+  });
   return jobs;
 }
 
@@ -1993,6 +2074,15 @@ function renderJobsKPIs() {
   `;
 }
 
+function setJobsView(view, btn) {
+  jobsView = view;
+  if (btn) {
+    btn.closest('div').querySelectorAll('.top-tab').forEach(t => t.classList.remove('active'));
+    btn.classList.add('active');
+  }
+  renderJobsList();
+}
+
 function sortJobs(by, btn) {
   jobsSortBy = by;
   if (btn) {
@@ -2002,46 +2092,222 @@ function sortJobs(by, btn) {
   renderJobsList();
 }
 
+// Pretty label for a YYYY-MM sort key (e.g. "2025-01" → "January 2025")
+function monthLabel(ym) {
+  if (!ym) return 'Undated';
+  const parts = ym.split('-');
+  if (parts.length < 2) return parts[0] || 'Undated';
+  const monthNames = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+  const mi = parseInt(parts[1], 10) - 1;
+  if (mi < 0 || mi > 11) return ym;
+  return monthNames[mi] + ' ' + parts[0];
+}
+
+// Build a card of a single job (used in the Individual Jobs view)
+function jobCardHTML(j) {
+  const costs = j.cogs + j.expenses;
+  const margin = j.revenue > 0 ? ((j.profit / j.revenue) * 100).toFixed(1) : null;
+  const profitColor = j.profit > 0 ? 'var(--accent)' : j.profit < 0 ? 'var(--danger)' : 'var(--muted)';
+  const safeName = j.name.replace(/'/g, "\\'").replace(/"/g, '&quot;');
+  return `
+    <div class="card" style="border-left:3px solid ${profitColor};cursor:pointer;transition:transform .15s;" onclick="openJobModal('${safeName}')" onmouseover="this.style.transform='translateY(-2px)'" onmouseout="this.style.transform='translateY(0)'">
+      <div style="font-size:.68rem;font-weight:600;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);margin-bottom:.2rem;">${j.customer || '—'}</div>
+      <div style="font-size:.82rem;font-weight:600;color:var(--text);margin-bottom:.5rem;line-height:1.25;">${j.name}</div>
+      ${j.dateLabel ? `<div style="font-size:.68rem;color:var(--accent);margin-bottom:.5rem;">📅 ${j.dateLabel}</div>` : ''}
+      <div style="display:flex;justify-content:space-between;margin-bottom:.35rem;">
+        <span style="color:var(--muted);font-size:.78rem;">Revenue</span>
+        <strong style="font-size:.9rem;">£${f(j.revenue)}</strong>
+      </div>
+      <div style="display:flex;justify-content:space-between;margin-bottom:.35rem;">
+        <span style="color:var(--muted);font-size:.78rem;">Costs</span>
+        <strong class="tr2" style="font-size:.9rem;">£${f(costs)}</strong>
+      </div>
+      <div style="display:flex;justify-content:space-between;margin-top:.5rem;padding-top:.5rem;border-top:1px solid var(--border);">
+        <span style="color:var(--muted);font-size:.78rem;font-weight:600;">Profit</span>
+        <strong class="${j.profit >= 0 ? 'tg' : 'tr2'}" style="font-size:1.05rem;font-family:var(--serif);">£${f(j.profit)}</strong>
+      </div>
+      <div style="text-align:right;font-size:.72rem;color:var(--muted);margin-top:.25rem;">${margin !== null ? margin + '% margin' : '&nbsp;'}</div>
+      <div style="font-size:.68rem;color:var(--accent);margin-top:.5rem;font-weight:600;">View transactions →</div>
+    </div>
+  `;
+}
+
+// Build a customer rollup card (used in By Customer view)
+function customerCardHTML(c) {
+  const profitColor = c.profit > 0 ? 'var(--accent)' : c.profit < 0 ? 'var(--danger)' : 'var(--muted)';
+  const margin = c.revenue > 0 ? ((c.profit / c.revenue) * 100).toFixed(1) : null;
+  const costs = c.cogs + c.expenses;
+  const safeName = c.customer.replace(/'/g, "\\'").replace(/"/g, '&quot;');
+  return `
+    <div class="card" style="border-left:3px solid ${profitColor};cursor:pointer;transition:transform .15s;" onclick="openCustomerModal('${safeName}')" onmouseover="this.style.transform='translateY(-2px)'" onmouseout="this.style.transform='translateY(0)'">
+      <div style="font-family:var(--serif);font-size:1.15rem;color:var(--text);margin-bottom:.25rem;">${c.customer}</div>
+      <div style="font-size:.72rem;color:var(--muted);margin-bottom:.75rem;">${c.count} job${c.count !== 1 ? 's' : ''}</div>
+      <div style="display:flex;justify-content:space-between;margin-bottom:.35rem;">
+        <span style="color:var(--muted);font-size:.78rem;">Total Revenue</span>
+        <strong style="font-size:.9rem;">£${f(c.revenue)}</strong>
+      </div>
+      <div style="display:flex;justify-content:space-between;margin-bottom:.35rem;">
+        <span style="color:var(--muted);font-size:.78rem;">Total Costs</span>
+        <strong class="tr2" style="font-size:.9rem;">£${f(costs)}</strong>
+      </div>
+      <div style="display:flex;justify-content:space-between;margin-top:.5rem;padding-top:.5rem;border-top:1px solid var(--border);">
+        <span style="color:var(--muted);font-size:.78rem;font-weight:600;">Total Profit</span>
+        <strong class="${c.profit >= 0 ? 'tg' : 'tr2'}" style="font-size:1.05rem;font-family:var(--serif);">£${f(c.profit)}</strong>
+      </div>
+      <div style="text-align:right;font-size:.72rem;color:var(--muted);margin-top:.25rem;">${margin !== null ? margin + '% margin' : '&nbsp;'}</div>
+      <div style="font-size:.68rem;color:var(--accent);margin-top:.5rem;font-weight:600;">View all jobs →</div>
+    </div>
+  `;
+}
+
 function renderJobsList() {
   const searchTerm = (document.getElementById('jobs-search')?.value || '').toLowerCase();
   const hideZero = document.getElementById('jobs-hide-zero')?.checked !== false;
-  let list = jobsData.slice();
-  if (hideZero) list = list.filter(j => j.revenue !== 0 || j.expenses !== 0 || j.cogs !== 0);
-  if (searchTerm) list = list.filter(j => j.name.toLowerCase().includes(searchTerm));
-  if (jobsSortBy === 'profit') list.sort((a, b) => b.profit - a.profit);
-  else if (jobsSortBy === 'revenue') list.sort((a, b) => b.revenue - a.revenue);
-  else list.sort((a, b) => a.name.localeCompare(b.name));
-
   const grid = document.getElementById('jobs-grid');
   const empty = document.getElementById('jobs-empty');
+
+  // Base filter: drop jobs with no activity if requested
+  let list = jobsData.slice();
+  if (hideZero) list = list.filter(j => j.revenue !== 0 || j.expenses !== 0 || j.cogs !== 0);
+
+  // ─── BY CUSTOMER VIEW ───
+  if (jobsView === 'customer') {
+    // Aggregate per customer
+    const byCust = {};
+    list.forEach(j => {
+      const key = j.customer || 'Unknown';
+      if (!byCust[key]) byCust[key] = { customer: key, revenue: 0, cogs: 0, expenses: 0, profit: 0, count: 0, jobs: [] };
+      byCust[key].revenue += j.revenue;
+      byCust[key].cogs += j.cogs;
+      byCust[key].expenses += j.expenses;
+      byCust[key].profit += j.profit;
+      byCust[key].count += 1;
+      byCust[key].jobs.push(j);
+    });
+    let customers = Object.values(byCust);
+    if (searchTerm) customers = customers.filter(c => c.customer.toLowerCase().includes(searchTerm));
+    // Sort
+    if (jobsSortBy === 'profit') customers.sort((a, b) => b.profit - a.profit);
+    else if (jobsSortBy === 'revenue' || jobsSortBy === 'date') customers.sort((a, b) => b.revenue - a.revenue);
+    else customers.sort((a, b) => a.customer.localeCompare(b.customer));
+
+    if (!customers.length) { grid.innerHTML = ''; empty.style.display = 'block'; return; }
+    empty.style.display = 'none';
+    grid.innerHTML = '<div class="g3">' + customers.map(customerCardHTML).join('') + '</div>';
+    return;
+  }
+
+  // ─── INDIVIDUAL JOBS VIEW ───
+  if (searchTerm) list = list.filter(j => j.name.toLowerCase().includes(searchTerm) || (j.customer || '').toLowerCase().includes(searchTerm));
+
+  // Sort
+  if (jobsSortBy === 'profit') list.sort((a, b) => b.profit - a.profit);
+  else if (jobsSortBy === 'revenue') list.sort((a, b) => b.revenue - a.revenue);
+  else if (jobsSortBy === 'name') list.sort((a, b) => a.name.localeCompare(b.name));
+  else {
+    // 'date' — newest first, undated at bottom
+    list.sort((a, b) => {
+      if (!a.date && !b.date) return 0;
+      if (!a.date) return 1;
+      if (!b.date) return -1;
+      return b.date.localeCompare(a.date);
+    });
+  }
+
   if (!list.length) { grid.innerHTML = ''; empty.style.display = 'block'; return; }
   empty.style.display = 'none';
 
-  grid.innerHTML = list.map(j => {
+  // When sorting by date, group by month with section headers
+  if (jobsSortBy === 'date') {
+    const groups = {};
+    const groupOrder = [];
+    list.forEach(j => {
+      const key = j.date ? j.date.substring(0, 7) : 'undated';
+      if (!groups[key]) { groups[key] = []; groupOrder.push(key); }
+      groups[key].push(j);
+    });
+    grid.innerHTML = groupOrder.map(key => {
+      const items = groups[key];
+      const totalRev = items.reduce((s, j) => s + j.revenue, 0);
+      const totalProfit = items.reduce((s, j) => s + j.profit, 0);
+      return `
+        <div style="margin-bottom:1.5rem;">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:.75rem;padding-bottom:.5rem;border-bottom:1px solid var(--border);">
+            <div style="font-family:var(--serif);font-size:1.1rem;">${monthLabel(key === 'undated' ? null : key)}</div>
+            <div style="font-size:.78rem;color:var(--muted);">
+              ${items.length} job${items.length !== 1 ? 's' : ''} &nbsp;·&nbsp; Revenue £${f(totalRev)} &nbsp;·&nbsp; Profit <span class="${totalProfit >= 0 ? 'tg' : 'tr2'}">£${f(totalProfit)}</span>
+            </div>
+          </div>
+          <div class="g3">${items.map(jobCardHTML).join('')}</div>
+        </div>
+      `;
+    }).join('');
+    return;
+  }
+
+  // Plain grid for non-date sorts
+  grid.innerHTML = '<div class="g3">' + list.map(jobCardHTML).join('') + '</div>';
+}
+
+// Customer drill-down: show all jobs for a customer in a modal
+function openCustomerModal(customerName) {
+  const jobs = jobsData.filter(j => (j.customer || 'Unknown') === customerName);
+  const modal = document.getElementById('job-modal');
+  const title = document.getElementById('jm-title');
+  const subtitle = document.getElementById('jm-subtitle');
+  const loading = document.getElementById('jm-loading');
+  const error = document.getElementById('jm-error');
+  const table = document.getElementById('jm-table');
+  const empty = document.getElementById('jm-empty');
+  const tbody = document.getElementById('jm-tbody');
+  const kpis = document.getElementById('jm-kpis');
+
+  const totals = jobs.reduce((s, j) => ({
+    revenue: s.revenue + j.revenue,
+    costs: s.costs + j.cogs + j.expenses,
+    profit: s.profit + j.profit,
+  }), { revenue: 0, costs: 0, profit: 0 });
+
+  title.textContent = customerName;
+  subtitle.textContent = jobs.length + ' job' + (jobs.length !== 1 ? 's' : '') + ' · all-time totals';
+  kpis.innerHTML = `
+    <div class="kpi" style="--kpi-color:#00d4aa"><div class="kpi-label">Total Revenue</div><div class="kpi-value">£${f(totals.revenue)}</div></div>
+    <div class="kpi" style="--kpi-color:#ef4444"><div class="kpi-label">Total Costs</div><div class="kpi-value">£${f(totals.costs)}</div><div class="kpi-sub">COGS + Expenses</div></div>
+    <div class="kpi" style="--kpi-color:${totals.profit >= 0 ? '#10b981' : '#f59e0b'}"><div class="kpi-label">Total Profit</div><div class="kpi-value ${totals.profit < 0 ? 'tr2' : 'tg'}">£${f(totals.profit)}</div><div class="kpi-sub">${totals.revenue > 0 ? ((totals.profit / totals.revenue) * 100).toFixed(1) + '% margin' : '—'}</div></div>
+  `;
+
+  // Show a per-job breakdown table instead of transaction list
+  loading.style.display = 'none';
+  error.style.display = 'none';
+  empty.style.display = jobs.length ? 'none' : 'block';
+  table.style.display = jobs.length ? '' : 'none';
+
+  // Reuse the modal table structure — redefine the header for this view
+  const thead = table.querySelector('thead');
+  thead.innerHTML = '<tr><th>Date</th><th>Job</th><th style="text-align:right;">Revenue</th><th style="text-align:right;">Costs</th><th style="text-align:right;">Profit</th><th style="text-align:right;">Margin</th></tr>';
+
+  // Sort jobs by date (newest first)
+  const sorted = jobs.slice().sort((a, b) => {
+    if (!a.date && !b.date) return 0;
+    if (!a.date) return 1;
+    if (!b.date) return -1;
+    return b.date.localeCompare(a.date);
+  });
+
+  tbody.innerHTML = sorted.map(j => {
     const costs = j.cogs + j.expenses;
-    const margin = j.revenue > 0 ? ((j.profit / j.revenue) * 100).toFixed(1) : '—';
-    const profitColor = j.profit > 0 ? 'var(--accent)' : j.profit < 0 ? 'var(--danger)' : 'var(--muted)';
-    const safeName = j.name.replace(/'/g, "\\'").replace(/"/g, '&quot;');
-    return `
-      <div class="card" style="border-left:3px solid ${profitColor};cursor:pointer;transition:transform .15s;" onclick="openJobModal('${safeName}')" onmouseover="this.style.transform='translateY(-2px)'" onmouseout="this.style.transform='translateY(0)'">
-        <div style="font-size:.68rem;font-weight:600;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);margin-bottom:.5rem;">${j.name}</div>
-        <div style="display:flex;justify-content:space-between;margin-bottom:.35rem;">
-          <span style="color:var(--muted);font-size:.78rem;">Revenue</span>
-          <strong style="font-size:.9rem;">£${f(j.revenue)}</strong>
-        </div>
-        <div style="display:flex;justify-content:space-between;margin-bottom:.35rem;">
-          <span style="color:var(--muted);font-size:.78rem;">Costs</span>
-          <strong class="tr2" style="font-size:.9rem;">£${f(costs)}</strong>
-        </div>
-        <div style="display:flex;justify-content:space-between;margin-top:.5rem;padding-top:.5rem;border-top:1px solid var(--border);">
-          <span style="color:var(--muted);font-size:.78rem;font-weight:600;">Profit</span>
-          <strong class="${j.profit >= 0 ? 'tg' : 'tr2'}" style="font-size:1.05rem;font-family:var(--serif);">£${f(j.profit)}</strong>
-        </div>
-        <div style="text-align:right;font-size:.72rem;color:var(--muted);margin-top:.25rem;">${margin !== '—' ? margin + '% margin' : '&nbsp;'}</div>
-        <div style="font-size:.68rem;color:var(--accent);margin-top:.5rem;font-weight:600;">View transactions →</div>
-      </div>
-    `;
+    const margin = j.revenue > 0 ? ((j.profit / j.revenue) * 100).toFixed(1) + '%' : '—';
+    return `<tr style="cursor:pointer;" onclick="closeJobModal(); setTimeout(() => openJobModal('${j.name.replace(/'/g, "\\'")}'), 50);">
+      <td>${j.dateLabel || '—'}</td>
+      <td>${j.name}</td>
+      <td style="text-align:right;">£${f(j.revenue)}</td>
+      <td class="tr2" style="text-align:right;">£${f(costs)}</td>
+      <td class="${j.profit >= 0 ? 'tg' : 'tr2'}" style="text-align:right;"><strong>£${f(j.profit)}</strong></td>
+      <td style="text-align:right;color:var(--muted);">${margin}</td>
+    </tr>`;
   }).join('');
+
+  modal.style.display = 'flex';
 }
 
 // Job drill-down: reuses the TransactionList endpoint with class filter
@@ -2059,6 +2325,11 @@ async function openJobModal(className) {
   const empty = document.getElementById('jm-empty');
   const tbody = document.getElementById('jm-tbody');
   const kpis = document.getElementById('jm-kpis');
+
+  // Reset the table header to the transaction-list format (customer modal reuses
+  // the same table element with a different header)
+  const thead = table.querySelector('thead');
+  thead.innerHTML = '<tr><th>Date</th><th>Type</th><th>No.</th><th>Name / Memo</th><th style="text-align:right;">In</th><th style="text-align:right;">Out</th></tr>';
 
   title.textContent = className;
   subtitle.textContent = 'All transactions across all dates';
