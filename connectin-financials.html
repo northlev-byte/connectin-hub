@@ -668,7 +668,6 @@ async function checkFinPw(e){
   <div id="jobs-not-connected" style="display:none;"><div class="notice notice-blue"><span>ℹ️</span><div>QuickBooks is not connected. <a href="/api/qb-auth" style="color:var(--accent);font-weight:600;">Connect now →</a></div></div></div>
   <div id="jobs-loading" style="display:none;text-align:center;padding:3rem;color:var(--muted);">Loading jobs...</div>
   <div id="jobs-content" style="display:none;">
-    <div id="jobs-date-range"></div>
     <div class="kpi-grid" id="jobs-kpis"></div>
     <div style="display:flex;gap:.6rem;align-items:center;margin-bottom:1rem;flex-wrap:wrap;">
       <label style="color:var(--muted);font-size:.78rem;font-weight:600;text-transform:uppercase;letter-spacing:.05em;">Sort:</label>
@@ -1873,7 +1872,6 @@ let jobsData = [];
 let jobsSortBy = 'profit';
 
 async function loadJobs() {
-  const { from, to } = getRange('jobs');
   const loading = document.getElementById('jobs-loading');
   const content = document.getElementById('jobs-content');
   const notConn = document.getElementById('jobs-not-connected');
@@ -1881,10 +1879,8 @@ async function loadJobs() {
   if (content) content.style.display = 'none';
   if (notConn) notConn.style.display = 'none';
   try {
-    const qs = new URLSearchParams({ type: 'pnl-class' });
-    if (from) qs.set('from', from);
-    if (to) qs.set('to', to);
-    const res = await fetch('/api/qb-invoices?' + qs.toString());
+    // No date params — the API will default to "All Dates" for pnl-class
+    const res = await fetch('/api/qb-invoices?type=pnl-class');
     if (!res.ok) {
       const err = await res.json().catch(() => ({}));
       if (err.error === 'not_connected' || err.error === 'auth_expired') {
@@ -1895,14 +1891,12 @@ async function loadJobs() {
     const data = await res.json();
     jobsData = parsePnlByClass(data);
     loading.style.display = 'none'; content.style.display = 'block';
-    document.getElementById('jobs-date-range').innerHTML = dateRangeHTML('jobs', 'rerenderJobs');
     renderJobsKPIs();
     renderJobsList();
   } catch (e) {
     loading.style.display = 'none'; notConn.style.display = 'block';
   }
 }
-function rerenderJobs() { loadJobs(); }
 
 // Parse a QB "Profit and Loss by Classes" report into a flat list of { name, revenue, cogs, expenses, profit }
 // The report has Columns = [Category, Class1, Class2, ..., Total] and Rows grouped by section (Income, COGS, Expenses).
@@ -1928,25 +1922,37 @@ function parsePnlByClass(data) {
     byClass[c.name] = { name: c.name, revenue: 0, cogs: 0, expenses: 0, profit: 0, colIdx: c.idx };
   });
 
-  // Walk the rows and categorise each section's summary into revenue / cogs / expenses
-  // QB sections have a Group field like "Income", "COGS", "Expenses", "GrossProfit", "NetIncome" etc.
+  // Walk rows looking for top-level QB section groups. We ONLY count each
+  // recognized section's summary once and DO NOT recurse into its children —
+  // otherwise we'd double-count sub-sections that also have their own summaries.
+  // QB P&L sections typically have group markers like:
+  //   Income, COGS, GrossProfit, Expenses, NetOperatingIncome,
+  //   OtherIncome, OtherExpenses, NetOtherIncome, NetIncome
   function walk(rows) {
     (rows || []).forEach(row => {
       const group = row.group || row.Group || '';
-      if (row.Summary?.ColData) {
-        const summaryLabel = (row.Summary.ColData[0]?.value || '').toLowerCase();
+      const isIncome = group === 'Income' || group === 'OtherIncome';
+      const isCogs = group === 'COGS';
+      const isExpense = group === 'Expenses' || group === 'OtherExpense' || group === 'OtherExpenses';
+      const recognized = isIncome || isCogs || isExpense;
+
+      if (recognized && row.Summary?.ColData) {
         classCols.forEach(c => {
           const val = parseFloat(row.Summary.ColData[c.idx]?.value || '0') || 0;
-          // Prefer the explicit QB group markers, fall back to the row's label text
-          if (group === 'Income' || summaryLabel.includes('total income') || summaryLabel.includes('total revenue')) {
-            byClass[c.name].revenue += val;
-          } else if (group === 'COGS' || summaryLabel.includes('cost of goods') || summaryLabel.includes('cost of sales')) {
-            byClass[c.name].cogs += val;
-          } else if (group === 'Expenses' || summaryLabel === 'total expenses') {
-            byClass[c.name].expenses += val;
-          }
+          if (isIncome)  byClass[c.name].revenue += val;
+          if (isCogs)    byClass[c.name].cogs    += val;
+          if (isExpense) byClass[c.name].expenses += val;
         });
+        // Do NOT recurse into this section's rows — its summary already rolls up everything below it.
+        return;
       }
+
+      // Skip summary-only rows (GrossProfit / NetOperatingIncome / NetIncome) — they're derived values, not sources
+      if (group === 'GrossProfit' || group === 'NetOperatingIncome' || group === 'NetIncome' || group === 'NetOtherIncome') {
+        return;
+      }
+
+      // For anything else (e.g. a top-level wrapper Row with no group), keep walking
       if (row.Rows?.Row) walk(row.Rows.Row);
     });
   }
@@ -2044,9 +2050,8 @@ async function openJobModal(className) {
   const tbody = document.getElementById('jm-tbody');
   const kpis = document.getElementById('jm-kpis');
 
-  const { from, to } = getRange('jobs');
   title.textContent = className;
-  subtitle.textContent = 'Transactions from ' + from + ' to ' + to;
+  subtitle.textContent = 'All transactions across all dates';
 
   // Show summary KPIs from the P&L report immediately
   if (job) {
@@ -2082,9 +2087,8 @@ async function openJobModal(className) {
       return;
     }
 
+    // No date params — API defaults to All Dates for txn-list when start/end are omitted
     const qs = new URLSearchParams({ type: 'txn-list', class: matched.Id });
-    if (from) qs.set('from', from);
-    if (to) qs.set('to', to);
     const res = await fetch('/api/qb-invoices?' + qs.toString());
     if (!res.ok) {
       const err = await res.json().catch(() => ({}));
