@@ -1985,15 +1985,30 @@ async function openBankTxnModal(accountId, accountName) {
       throw new Error(err.message || err.error || 'Failed to load transactions');
     }
     const data = await res.json();
-    const columns = (data.Columns?.Column || []).map(c => c.ColType);
-    const colIdx = {
-      date: columns.indexOf('tx_date'),
-      type: columns.indexOf('txn_type'),
-      num: columns.indexOf('doc_num'),
-      name: columns.indexOf('name'),
-      memo: columns.indexOf('memo'),
-      amount: columns.indexOf('subt_nat_amount'),
+    // QB reports put the real column key in MetaData[].Name === 'ColKey';
+    // ColType is a data type string like "Date"/"String"/"Number", not the key we want.
+    const getColKey = (col) => {
+      const meta = (col.MetaData || []).find(m => m.Name === 'ColKey');
+      return meta?.Value || '';
     };
+    const columns = (data.Columns?.Column || []).map(getColKey);
+    const findCol = (key) => columns.indexOf(key);
+    const colIdx = {
+      date: findCol('tx_date'),
+      type: findCol('txn_type'),
+      num: findCol('doc_num'),
+      name: findCol('name'),
+      memo: findCol('memo'),
+      amount: findCol('subt_nat_amount'),
+    };
+    // Fallback to positional indices if ColKey lookup failed (matches our
+    // requested `columns=tx_date,txn_type,doc_num,name,memo,subt_nat_amount`)
+    if (colIdx.date === -1) colIdx.date = 0;
+    if (colIdx.type === -1) colIdx.type = 1;
+    if (colIdx.num === -1) colIdx.num = 2;
+    if (colIdx.name === -1) colIdx.name = 3;
+    if (colIdx.memo === -1) colIdx.memo = 4;
+    if (colIdx.amount === -1) colIdx.amount = 5;
 
     // Flatten nested report rows into a single list
     const txns = [];
@@ -2001,14 +2016,18 @@ async function openBankTxnModal(accountId, accountName) {
       (rows || []).forEach(row => {
         if (row.ColData) {
           const amt = parseFloat(row.ColData[colIdx.amount]?.value || '0') || 0;
-          txns.push({
-            date: row.ColData[colIdx.date]?.value || '',
-            type: row.ColData[colIdx.type]?.value || '',
-            num: row.ColData[colIdx.num]?.value || '',
-            name: row.ColData[colIdx.name]?.value || '',
-            memo: row.ColData[colIdx.memo]?.value || '',
-            amount: amt,
-          });
+          const date = row.ColData[colIdx.date]?.value || '';
+          // Skip section header/total rows that have no date or amount
+          if (date || amt !== 0) {
+            txns.push({
+              date,
+              type: row.ColData[colIdx.type]?.value || '',
+              num: row.ColData[colIdx.num]?.value || '',
+              name: row.ColData[colIdx.name]?.value || '',
+              memo: row.ColData[colIdx.memo]?.value || '',
+              amount: amt,
+            });
+          }
         }
         if (row.Rows?.Row) walk(row.Rows.Row);
       });
