@@ -107,7 +107,7 @@ QB_REFRESH_TOKEN=${tokens.refresh_token}
         Authorization: `Bearer ${kvToken}`,
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify(JSON.stringify(tokenData)),
+      body: JSON.stringify(tokenData),
     });
 
     res.redirect(302, '/financials?qb=connected');

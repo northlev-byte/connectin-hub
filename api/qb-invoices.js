@@ -76,7 +76,7 @@ async function refreshAccessToken(tokens) {
         Authorization: `Bearer ${kvToken}`,
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify(JSON.stringify(updated)),
+      body: JSON.stringify(updated),
     });
   }
 
