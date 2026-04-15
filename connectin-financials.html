@@ -423,7 +423,6 @@ async function checkFinPw(e){
   </div>
 
   <div id="qb-content" style="display:none;">
-    <div id="inv-date-range"></div>
     <!-- KPI row -->
     <div class="kpi-grid" id="inv-kpis"></div>
 
@@ -1138,25 +1137,21 @@ async function filterInvoices(type, btn) {
   const titles = { overdue: 'Overdue Invoices', unpaid: 'Unpaid Invoices', all: 'All Invoices' };
   document.getElementById('inv-table-title').textContent = titles[type] || 'Invoices';
 
-  // Render the date range picker
-  document.getElementById('inv-date-range').innerHTML = dateRangeHTML('inv', 'rerenderInvoices');
-
   if (invoiceCache[type]) {
-    const invoices = filterByDate(invoiceCache[type].QueryResponse?.Invoice || [], 'TxnDate', 'inv');
+    const invoices = invoiceCache[type].QueryResponse?.Invoice || [];
     renderInvoiceTable(invoices);
-    renderInvoiceKPIs(invoices);
+    if (type === 'overdue' || type === 'unpaid') renderInvoiceKPIs(invoices);
     return;
   }
 
   const data = await loadInvoices(type);
   if (data) {
     invoiceCache[type] = data;
-    const invoices = filterByDate(data.QueryResponse?.Invoice || [], 'TxnDate', 'inv');
+    const invoices = data.QueryResponse?.Invoice || [];
     renderInvoiceTable(invoices);
-    renderInvoiceKPIs(invoices);
+    if (type === 'overdue' || type === 'unpaid') renderInvoiceKPIs(invoices);
   }
 }
-function rerenderInvoices() { filterInvoices(currentFilter || 'overdue'); }
 
 let chaseInfo = {};
 let chaseTone = 'soft';
