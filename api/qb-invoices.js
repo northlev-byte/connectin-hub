@@ -126,13 +126,14 @@ export default async function handler(req, res) {
     const toDate = url.searchParams.get('to');
 
     // Reports use a different API path
-    const isReport = type === 'pnl' || type === 'balancesheet' || type === 'txn-list';
+    const isReport = type === 'pnl' || type === 'balancesheet' || type === 'txn-list' || type === 'pnl-class';
 
     if (isReport) {
       const reportMap = {
         pnl: 'ProfitAndLoss',
         balancesheet: 'BalanceSheet',
         'txn-list': 'TransactionList',
+        'pnl-class': 'ProfitAndLoss',
       };
       const reportParams = new URLSearchParams({ minorversion: '65' });
       if (fromDate) reportParams.set('start_date', fromDate);
@@ -143,8 +144,14 @@ export default async function handler(req, res) {
         // QB's TransactionList uses `source_account` to filter by the account
         // that a transaction posts to/from. `account` alone means something else.
         if (accountId) reportParams.set('source_account', accountId);
+        const classId = url.searchParams.get('class');
+        if (classId) reportParams.set('class', classId);
         // Request multiple amount columns so we can fall back if one is empty
         reportParams.set('columns', 'tx_date,txn_type,doc_num,name,memo,subt_nat_amount,nat_amount,credit_amt,debt_amt');
+      }
+      // P&L broken down by Class — pivot the report columns so each class is a separate column
+      if (type === 'pnl-class') {
+        reportParams.set('summarize_column_by', 'Classes');
       }
       const reportUrl = `${QB_API_BASE}/${tokens.realm_id}/reports/${reportMap[type]}?${reportParams.toString()}`;
       const reportRes = await fetch(reportUrl, {
@@ -174,6 +181,9 @@ export default async function handler(req, res) {
         break;
       case 'customers':
         query = "SELECT * FROM Customer MAXRESULTS 200";
+        break;
+      case 'classes':
+        query = "SELECT * FROM Class MAXRESULTS 500";
         break;
       case 'payments':
         query = "SELECT * FROM Payment ORDERBY MetaData.CreateTime DESC MAXRESULTS 100";

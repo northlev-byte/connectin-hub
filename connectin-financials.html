@@ -252,6 +252,7 @@ async function checkFinPw(e){
       <div class="nav-dropdown">
         <button onclick="navGo('pnl',this)" id="tab-pnl">P&amp;L</button>
         <button onclick="navGo('balancesheet',this)" id="tab-balancesheet">Balance Sheet</button>
+        <button onclick="navGo('jobs',this)" id="tab-jobs">Jobs (P&amp;L by Class)</button>
       </div>
     </div>
     <button class="top-tab" onclick="switchTop('banking',this)" id="tab-banking">Banking</button>
@@ -657,6 +658,53 @@ async function checkFinPw(e){
         <table class="ft" id="bank-table"><thead><tr><th>Date</th><th>Type</th><th>Description</th><th>Account</th><th>Amount</th></tr></thead><tbody id="bank-tbody"></tbody></table>
       </div>
       <div id="bank-empty" style="display:none;text-align:center;padding:2rem;color:var(--muted);font-size:.85rem;">No transactions found.</div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════ VIEW: JOBS (P&L BY CLASS) ═══════ -->
+<div id="view-jobs" class="view">
+  <div class="page-header"><h1>Jobs</h1><p>Live from QuickBooks &nbsp;·&nbsp; Profit &amp; loss per class (event / job)</p></div>
+  <div id="jobs-not-connected" style="display:none;"><div class="notice notice-blue"><span>ℹ️</span><div>QuickBooks is not connected. <a href="/api/qb-auth" style="color:var(--accent);font-weight:600;">Connect now →</a></div></div></div>
+  <div id="jobs-loading" style="display:none;text-align:center;padding:3rem;color:var(--muted);">Loading jobs...</div>
+  <div id="jobs-content" style="display:none;">
+    <div id="jobs-date-range"></div>
+    <div class="kpi-grid" id="jobs-kpis"></div>
+    <div style="display:flex;gap:.6rem;align-items:center;margin-bottom:1rem;flex-wrap:wrap;">
+      <label style="color:var(--muted);font-size:.78rem;font-weight:600;text-transform:uppercase;letter-spacing:.05em;">Sort:</label>
+      <button class="top-tab active" onclick="sortJobs('profit',this)" id="jobs-sort-profit">Profit</button>
+      <button class="top-tab" onclick="sortJobs('revenue',this)">Revenue</button>
+      <button class="top-tab" onclick="sortJobs('name',this)">Name</button>
+      <label style="color:var(--muted);font-size:.78rem;font-weight:600;text-transform:uppercase;letter-spacing:.05em;margin-left:.75rem;">Filter:</label>
+      <input type="text" id="jobs-search" oninput="renderJobsList()" placeholder="Search jobs..." style="background:var(--bg);border:1px solid var(--border);color:var(--text);padding:.4rem .6rem;border-radius:6px;font-family:inherit;font-size:.82rem;min-width:200px;">
+      <label style="display:flex;align-items:center;gap:.4rem;color:var(--muted);font-size:.78rem;cursor:pointer;margin-left:.5rem;">
+        <input type="checkbox" id="jobs-hide-zero" onchange="renderJobsList()" checked> Hide jobs with no activity
+      </label>
+    </div>
+    <div id="jobs-grid" class="g3"></div>
+    <div id="jobs-empty" style="display:none;text-align:center;padding:2rem;color:var(--muted);font-size:.85rem;">No jobs found for this date range.</div>
+  </div>
+</div>
+
+<!-- ═══════ JOB DETAIL MODAL ═══════ -->
+<div id="job-modal" style="display:none;position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,.75);align-items:center;justify-content:center;padding:24px;">
+  <div style="background:var(--surface);border:1px solid var(--border);border-radius:10px;width:100%;max-width:1000px;max-height:90vh;display:flex;flex-direction:column;position:relative;">
+    <div style="display:flex;justify-content:space-between;align-items:flex-start;padding:1.5rem 1.75rem 1rem;border-bottom:1px solid var(--border);">
+      <div>
+        <h3 id="jm-title" style="font-family:var(--serif);font-size:1.3rem;margin:0 0 .25rem;">Job Detail</h3>
+        <div id="jm-subtitle" style="font-size:.78rem;color:var(--muted);"></div>
+      </div>
+      <button onclick="closeJobModal()" style="background:none;border:none;color:var(--muted);font-size:1.5rem;cursor:pointer;line-height:1;padding:0;margin-left:1rem;">&times;</button>
+    </div>
+    <div id="jm-kpis" class="kpi-grid" style="padding:1.25rem 1.75rem .25rem;"></div>
+    <div id="jm-loading" style="display:none;text-align:center;padding:2rem;color:var(--muted);">Loading transactions...</div>
+    <div id="jm-error" style="display:none;padding:1rem 1.75rem;color:#ef4444;font-size:.85rem;"></div>
+    <div id="jm-body" style="overflow-y:auto;padding:.5rem 1.75rem 1.75rem;">
+      <table class="ft" id="jm-table" style="width:100%;">
+        <thead><tr><th>Date</th><th>Type</th><th>No.</th><th>Name / Memo</th><th style="text-align:right;">In</th><th style="text-align:right;">Out</th></tr></thead>
+        <tbody id="jm-tbody"></tbody>
+      </table>
+      <div id="jm-empty" style="display:none;text-align:center;padding:2rem;color:var(--muted);font-size:.85rem;">No transactions in this date range for this job.</div>
     </div>
   </div>
 </div>
@@ -1820,6 +1868,326 @@ function renderReport(data, prefix) {
   tbody.innerHTML = html;
 }
 
+// ─── JOBS (P&L BY CLASS) ───
+let jobsData = [];
+let jobsSortBy = 'profit';
+
+async function loadJobs() {
+  const { from, to } = getRange('jobs');
+  const loading = document.getElementById('jobs-loading');
+  const content = document.getElementById('jobs-content');
+  const notConn = document.getElementById('jobs-not-connected');
+  if (loading) loading.style.display = 'block';
+  if (content) content.style.display = 'none';
+  if (notConn) notConn.style.display = 'none';
+  try {
+    const qs = new URLSearchParams({ type: 'pnl-class' });
+    if (from) qs.set('from', from);
+    if (to) qs.set('to', to);
+    const res = await fetch('/api/qb-invoices?' + qs.toString());
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      if (err.error === 'not_connected' || err.error === 'auth_expired') {
+        loading.style.display = 'none'; notConn.style.display = 'block'; return;
+      }
+      throw new Error(err.message || 'Failed');
+    }
+    const data = await res.json();
+    jobsData = parsePnlByClass(data);
+    loading.style.display = 'none'; content.style.display = 'block';
+    document.getElementById('jobs-date-range').innerHTML = dateRangeHTML('jobs', 'rerenderJobs');
+    renderJobsKPIs();
+    renderJobsList();
+  } catch (e) {
+    loading.style.display = 'none'; notConn.style.display = 'block';
+  }
+}
+function rerenderJobs() { loadJobs(); }
+
+// Parse a QB "Profit and Loss by Classes" report into a flat list of { name, revenue, cogs, expenses, profit }
+// The report has Columns = [Category, Class1, Class2, ..., Total] and Rows grouped by section (Income, COGS, Expenses).
+function parsePnlByClass(data) {
+  const getColKey = (col) => {
+    const meta = (col.MetaData || []).find(m => m.Name === 'ColKey');
+    return meta?.Value || '';
+  };
+  const columns = data.Columns?.Column || [];
+  // The first column is the row label; the rest are classes + a total column at the end
+  // Build a list of class columns (skip the label column and the final Total column)
+  const classCols = [];
+  columns.forEach((col, idx) => {
+    if (idx === 0) return; // label column
+    const key = getColKey(col);
+    if (key === 'total' || key === 'Total') return; // skip total
+    classCols.push({ idx, name: col.ColTitle || ('Class ' + idx), key });
+  });
+
+  // Initialise accumulators per class
+  const byClass = {};
+  classCols.forEach(c => {
+    byClass[c.name] = { name: c.name, revenue: 0, cogs: 0, expenses: 0, profit: 0, colIdx: c.idx };
+  });
+
+  // Walk the rows and categorise each section's summary into revenue / cogs / expenses
+  // QB sections have a Group field like "Income", "COGS", "Expenses", "GrossProfit", "NetIncome" etc.
+  function walk(rows) {
+    (rows || []).forEach(row => {
+      const group = row.group || row.Group || '';
+      if (row.Summary?.ColData) {
+        const summaryLabel = (row.Summary.ColData[0]?.value || '').toLowerCase();
+        classCols.forEach(c => {
+          const val = parseFloat(row.Summary.ColData[c.idx]?.value || '0') || 0;
+          // Prefer the explicit QB group markers, fall back to the row's label text
+          if (group === 'Income' || summaryLabel.includes('total income') || summaryLabel.includes('total revenue')) {
+            byClass[c.name].revenue += val;
+          } else if (group === 'COGS' || summaryLabel.includes('cost of goods') || summaryLabel.includes('cost of sales')) {
+            byClass[c.name].cogs += val;
+          } else if (group === 'Expenses' || summaryLabel === 'total expenses') {
+            byClass[c.name].expenses += val;
+          }
+        });
+      }
+      if (row.Rows?.Row) walk(row.Rows.Row);
+    });
+  }
+  walk(data.Rows?.Row || []);
+
+  // Compute profit
+  const jobs = Object.values(byClass).map(j => ({
+    name: j.name,
+    revenue: j.revenue,
+    cogs: j.cogs,
+    expenses: j.expenses,
+    profit: j.revenue - j.cogs - j.expenses,
+  }));
+  return jobs;
+}
+
+function renderJobsKPIs() {
+  const active = jobsData.filter(j => j.revenue !== 0 || j.expenses !== 0 || j.cogs !== 0);
+  const totalRevenue = active.reduce((s, j) => s + j.revenue, 0);
+  const totalCosts = active.reduce((s, j) => s + j.cogs + j.expenses, 0);
+  const totalProfit = totalRevenue - totalCosts;
+  const profitable = active.filter(j => j.profit > 0).length;
+  document.getElementById('jobs-kpis').innerHTML = `
+    <div class="kpi" style="--kpi-color:#3b82f6"><div class="kpi-label">Total Jobs</div><div class="kpi-value">${active.length}</div><div class="kpi-sub">${jobsData.length} total classes</div></div>
+    <div class="kpi" style="--kpi-color:#00d4aa"><div class="kpi-label">Total Revenue</div><div class="kpi-value">£${f(totalRevenue)}</div><div class="kpi-sub">Across all active jobs</div></div>
+    <div class="kpi" style="--kpi-color:#ef4444"><div class="kpi-label">Total Costs</div><div class="kpi-value">£${f(totalCosts)}</div><div class="kpi-sub">COGS + Expenses</div></div>
+    <div class="kpi" style="--kpi-color:${totalProfit >= 0 ? '#10b981' : '#f59e0b'}"><div class="kpi-label">Total Profit</div><div class="kpi-value ${totalProfit < 0 ? 'tr2' : 'tg'}">£${f(totalProfit)}</div><div class="kpi-sub">${profitable} of ${active.length} profitable</div></div>
+  `;
+}
+
+function sortJobs(by, btn) {
+  jobsSortBy = by;
+  if (btn) {
+    btn.closest('div').querySelectorAll('.top-tab').forEach(t => t.classList.remove('active'));
+    btn.classList.add('active');
+  }
+  renderJobsList();
+}
+
+function renderJobsList() {
+  const searchTerm = (document.getElementById('jobs-search')?.value || '').toLowerCase();
+  const hideZero = document.getElementById('jobs-hide-zero')?.checked !== false;
+  let list = jobsData.slice();
+  if (hideZero) list = list.filter(j => j.revenue !== 0 || j.expenses !== 0 || j.cogs !== 0);
+  if (searchTerm) list = list.filter(j => j.name.toLowerCase().includes(searchTerm));
+  if (jobsSortBy === 'profit') list.sort((a, b) => b.profit - a.profit);
+  else if (jobsSortBy === 'revenue') list.sort((a, b) => b.revenue - a.revenue);
+  else list.sort((a, b) => a.name.localeCompare(b.name));
+
+  const grid = document.getElementById('jobs-grid');
+  const empty = document.getElementById('jobs-empty');
+  if (!list.length) { grid.innerHTML = ''; empty.style.display = 'block'; return; }
+  empty.style.display = 'none';
+
+  grid.innerHTML = list.map(j => {
+    const costs = j.cogs + j.expenses;
+    const margin = j.revenue > 0 ? ((j.profit / j.revenue) * 100).toFixed(1) : '—';
+    const profitColor = j.profit > 0 ? 'var(--accent)' : j.profit < 0 ? 'var(--danger)' : 'var(--muted)';
+    const safeName = j.name.replace(/'/g, "\\'").replace(/"/g, '&quot;');
+    return `
+      <div class="card" style="border-left:3px solid ${profitColor};cursor:pointer;transition:transform .15s;" onclick="openJobModal('${safeName}')" onmouseover="this.style.transform='translateY(-2px)'" onmouseout="this.style.transform='translateY(0)'">
+        <div style="font-size:.68rem;font-weight:600;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);margin-bottom:.5rem;">${j.name}</div>
+        <div style="display:flex;justify-content:space-between;margin-bottom:.35rem;">
+          <span style="color:var(--muted);font-size:.78rem;">Revenue</span>
+          <strong style="font-size:.9rem;">£${f(j.revenue)}</strong>
+        </div>
+        <div style="display:flex;justify-content:space-between;margin-bottom:.35rem;">
+          <span style="color:var(--muted);font-size:.78rem;">Costs</span>
+          <strong class="tr2" style="font-size:.9rem;">£${f(costs)}</strong>
+        </div>
+        <div style="display:flex;justify-content:space-between;margin-top:.5rem;padding-top:.5rem;border-top:1px solid var(--border);">
+          <span style="color:var(--muted);font-size:.78rem;font-weight:600;">Profit</span>
+          <strong class="${j.profit >= 0 ? 'tg' : 'tr2'}" style="font-size:1.05rem;font-family:var(--serif);">£${f(j.profit)}</strong>
+        </div>
+        <div style="text-align:right;font-size:.72rem;color:var(--muted);margin-top:.25rem;">${margin !== '—' ? margin + '% margin' : '&nbsp;'}</div>
+        <div style="font-size:.68rem;color:var(--accent);margin-top:.5rem;font-weight:600;">View transactions →</div>
+      </div>
+    `;
+  }).join('');
+}
+
+// Job drill-down: reuses the TransactionList endpoint with class filter
+function closeJobModal() { document.getElementById('job-modal').style.display = 'none'; }
+
+async function openJobModal(className) {
+  // Find the job in jobsData to get its summary numbers
+  const job = jobsData.find(j => j.name === className);
+  const modal = document.getElementById('job-modal');
+  const title = document.getElementById('jm-title');
+  const subtitle = document.getElementById('jm-subtitle');
+  const loading = document.getElementById('jm-loading');
+  const error = document.getElementById('jm-error');
+  const table = document.getElementById('jm-table');
+  const empty = document.getElementById('jm-empty');
+  const tbody = document.getElementById('jm-tbody');
+  const kpis = document.getElementById('jm-kpis');
+
+  const { from, to } = getRange('jobs');
+  title.textContent = className;
+  subtitle.textContent = 'Transactions from ' + from + ' to ' + to;
+
+  // Show summary KPIs from the P&L report immediately
+  if (job) {
+    const costs = job.cogs + job.expenses;
+    kpis.innerHTML = `
+      <div class="kpi" style="--kpi-color:#00d4aa"><div class="kpi-label">Revenue</div><div class="kpi-value">£${f(job.revenue)}</div></div>
+      <div class="kpi" style="--kpi-color:#ef4444"><div class="kpi-label">Costs</div><div class="kpi-value">£${f(costs)}</div><div class="kpi-sub">COGS + Expenses</div></div>
+      <div class="kpi" style="--kpi-color:${job.profit >= 0 ? '#10b981' : '#f59e0b'}"><div class="kpi-label">Profit</div><div class="kpi-value ${job.profit < 0 ? 'tr2' : 'tg'}">£${f(job.profit)}</div><div class="kpi-sub">${job.revenue > 0 ? ((job.profit / job.revenue) * 100).toFixed(1) + '% margin' : '—'}</div></div>
+    `;
+  } else {
+    kpis.innerHTML = '';
+  }
+
+  loading.style.display = 'block';
+  error.style.display = 'none';
+  table.style.display = 'none';
+  empty.style.display = 'none';
+  tbody.innerHTML = '';
+  modal.style.display = 'flex';
+
+  try {
+    // First, look up the class id by name (QB TransactionList's `class` param takes an ID)
+    const classesRes = await fetch('/api/qb-invoices?type=classes');
+    if (!classesRes.ok) throw new Error('Could not load classes list');
+    const classesData = await classesRes.json();
+    const classes = classesData.QueryResponse?.Class || [];
+    // Match by full name OR by leaf name (QB class names can be "Parent:Child")
+    const matched = classes.find(c => c.FullyQualifiedName === className || c.Name === className);
+    if (!matched) {
+      loading.style.display = 'none';
+      error.textContent = 'Could not find class "' + className + '" in QuickBooks.';
+      error.style.display = 'block';
+      return;
+    }
+
+    const qs = new URLSearchParams({ type: 'txn-list', class: matched.Id });
+    if (from) qs.set('from', from);
+    if (to) qs.set('to', to);
+    const res = await fetch('/api/qb-invoices?' + qs.toString());
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.message || err.error || 'Failed to load transactions');
+    }
+    const data = await res.json();
+
+    // Reuse the same parsing logic as the bank modal
+    const getColKey = (col) => {
+      const meta = (col.MetaData || []).find(m => m.Name === 'ColKey');
+      return meta?.Value || '';
+    };
+    const cols = (data.Columns?.Column || []).map(getColKey);
+    const findCol = (key) => cols.indexOf(key);
+    const ci = {
+      date: findCol('tx_date'),
+      type: findCol('txn_type'),
+      num: findCol('doc_num'),
+      name: findCol('name'),
+      memo: findCol('memo'),
+      subtNat: findCol('subt_nat_amount'),
+      natAmt: findCol('nat_amount'),
+      credit: findCol('credit_amt'),
+      debit: findCol('debt_amt'),
+    };
+    if (ci.date === -1) { ci.date = 0; ci.type = 1; ci.num = 2; ci.name = 3; ci.memo = 4; ci.subtNat = 5; }
+    // For a class-filtered report, "in" is income/revenue (credits to P&L), "out" is costs (debits to P&L).
+    // Expenses & COGS show as negative nat_amount; revenue shows as positive. Use subt_nat_amount as primary.
+    const readAmt = (colData) => {
+      const tryNum = (i) => {
+        if (i < 0 || !colData[i]) return null;
+        const raw = String(colData[i].value ?? '').replace(/[,£$]/g, '').trim();
+        if (!raw) return null;
+        const n = parseFloat(raw);
+        return isNaN(n) ? null : n;
+      };
+      const subt = tryNum(ci.subtNat);
+      if (subt !== null) return subt;
+      const nat = tryNum(ci.natAmt);
+      if (nat !== null) return nat;
+      const credit = tryNum(ci.credit);
+      const debit = tryNum(ci.debit);
+      return (credit || 0) - (debit || 0);
+    };
+
+    const txns = [];
+    (function walk(rows) {
+      (rows || []).forEach(row => {
+        if (row.ColData) {
+          const date = row.ColData[ci.date]?.value || '';
+          const amt = readAmt(row.ColData);
+          if (date || amt !== 0) {
+            txns.push({
+              date,
+              type: row.ColData[ci.type]?.value || '',
+              num: row.ColData[ci.num]?.value || '',
+              name: row.ColData[ci.name]?.value || '',
+              memo: row.ColData[ci.memo]?.value || '',
+              amount: amt,
+            });
+          }
+        }
+        if (row.Rows?.Row) walk(row.Rows.Row);
+      });
+    })(data.Rows?.Row || []);
+
+    txns.sort((a, b) => (b.date || '').localeCompare(a.date || ''));
+    loading.style.display = 'none';
+
+    if (!txns.length) { empty.style.display = 'block'; return; }
+    table.style.display = '';
+    tbody.innerHTML = txns.map(t => {
+      const inAmt = t.amount > 0 ? '£' + f(t.amount) : '';
+      const outAmt = t.amount < 0 ? '£' + f(Math.abs(t.amount)) : '';
+      const nameMemo = [t.name, t.memo].filter(Boolean).join(' · ') || '—';
+      return `<tr>
+        <td>${t.date || '—'}</td>
+        <td><span class="badge bb">${t.type || '—'}</span></td>
+        <td>${t.num || '—'}</td>
+        <td>${nameMemo}</td>
+        <td class="tg" style="text-align:right;">${inAmt}</td>
+        <td class="tr2" style="text-align:right;">${outAmt}</td>
+      </tr>`;
+    }).join('');
+  } catch (e) {
+    loading.style.display = 'none';
+    error.textContent = 'Failed to load transactions: ' + e.message;
+    error.style.display = 'block';
+  }
+}
+
+// Close job modal on outside click / Escape
+document.addEventListener('click', function(e) {
+  const modal = document.getElementById('job-modal');
+  if (modal && e.target === modal) closeJobModal();
+});
+document.addEventListener('keydown', function(e) {
+  if (e.key === 'Escape') {
+    const modal = document.getElementById('job-modal');
+    if (modal && modal.style.display === 'flex') closeJobModal();
+  }
+});
+
 // ─── BANKING ───
 let bankTxnData = { deposits: [], transfers: [] };
 let bankFilterType = 'all';
@@ -2550,6 +2918,7 @@ switchTop = function(name, btn) {
     creditnotes: loadCreditNotes,
     pnl: loadPnl,
     balancesheet: loadBalanceSheet,
+    jobs: loadJobs,
     banking: loadBanking,
     matching: loadMatching,
     'create-invoice': loadCreateInvoice,
@@ -2559,7 +2928,7 @@ switchTop = function(name, btn) {
   // Update nav group active states
   const overviewViews = ['fy-overview','fy-monthly','nfy-overview','nfy-monthly'];
   const qbViews = ['customers','payments','aged','expenses','estimates','creditnotes'];
-  const reportViews = ['pnl','balancesheet'];
+  const reportViews = ['pnl','balancesheet','jobs'];
 
   document.querySelectorAll('.nav-group-btn').forEach(g => g.classList.remove('active'));
   document.querySelectorAll('.top-tabs > .top-tab').forEach(t => {
