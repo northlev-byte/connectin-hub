@@ -423,6 +423,7 @@ async function checkFinPw(e){
   </div>
 
   <div id="qb-content" style="display:none;">
+    <div id="inv-date-range"></div>
     <!-- KPI row -->
     <div class="kpi-grid" id="inv-kpis"></div>
 
@@ -522,6 +523,7 @@ async function checkFinPw(e){
   <div id="pay-not-connected" style="display:none;"><div class="notice notice-blue"><span>ℹ️</span><div>QuickBooks is not connected. <a href="/api/qb-auth" style="color:var(--accent);font-weight:600;">Connect now →</a></div></div></div>
   <div id="pay-loading" style="display:none;text-align:center;padding:3rem;color:var(--muted);">Loading payments...</div>
   <div id="pay-content" style="display:none;">
+    <div id="pay-date-range"></div>
     <div class="kpi-grid" id="pay-kpis"></div>
     <div class="card">
       <div class="card-hd"><div class="card-title">Recent Payments</div><div class="card-tag" id="pay-count">0</div></div>
@@ -539,6 +541,7 @@ async function checkFinPw(e){
   <div id="aged-not-connected" style="display:none;"><div class="notice notice-blue"><span>ℹ️</span><div>QuickBooks is not connected. <a href="/api/qb-auth" style="color:var(--accent);font-weight:600;">Connect now →</a></div></div></div>
   <div id="aged-loading" style="display:none;text-align:center;padding:3rem;color:var(--muted);">Loading aged receivables...</div>
   <div id="aged-content" style="display:none;">
+    <div id="aged-date-range"></div>
     <div class="kpi-grid" id="aged-kpis"></div>
     <div class="g2">
       <div class="card"><div class="card-hd"><div class="card-title">Ageing Breakdown</div><div class="card-tag">By bucket</div></div><div class="ch240"><canvas id="c-aged"></canvas></div></div>
@@ -555,6 +558,7 @@ async function checkFinPw(e){
   <div id="exp-not-connected" style="display:none;"><div class="notice notice-blue"><span>ℹ️</span><div>QuickBooks is not connected. <a href="/api/qb-auth" style="color:var(--accent);font-weight:600;">Connect now →</a></div></div></div>
   <div id="exp-loading" style="display:none;text-align:center;padding:3rem;color:var(--muted);">Loading expenses...</div>
   <div id="exp-content" style="display:none;">
+    <div id="exp-date-range"></div>
     <div class="kpi-grid" id="exp-kpis"></div>
     <div class="card">
       <div class="card-hd"><div class="card-title">Recent Expenses</div><div class="card-tag" id="exp-count">0</div></div>
@@ -572,6 +576,7 @@ async function checkFinPw(e){
   <div id="est-not-connected" style="display:none;"><div class="notice notice-blue"><span>ℹ️</span><div>QuickBooks is not connected. <a href="/api/qb-auth" style="color:var(--accent);font-weight:600;">Connect now →</a></div></div></div>
   <div id="est-loading" style="display:none;text-align:center;padding:3rem;color:var(--muted);">Loading estimates...</div>
   <div id="est-content" style="display:none;">
+    <div id="est-date-range"></div>
     <div class="kpi-grid" id="est-kpis"></div>
     <div class="card">
       <div class="card-hd"><div class="card-title">All Estimates</div><div class="card-tag" id="est-count">0</div></div>
@@ -589,6 +594,7 @@ async function checkFinPw(e){
   <div id="cn-not-connected" style="display:none;"><div class="notice notice-blue"><span>ℹ️</span><div>QuickBooks is not connected. <a href="/api/qb-auth" style="color:var(--accent);font-weight:600;">Connect now →</a></div></div></div>
   <div id="cn-loading" style="display:none;text-align:center;padding:3rem;color:var(--muted);">Loading credit notes...</div>
   <div id="cn-content" style="display:none;">
+    <div id="cn-date-range"></div>
     <div class="kpi-grid" id="cn-kpis"></div>
     <div class="card">
       <div class="card-hd"><div class="card-title">All Credit Notes</div><div class="card-tag" id="cn-count">0</div></div>
@@ -606,6 +612,7 @@ async function checkFinPw(e){
   <div id="pnl-not-connected" style="display:none;"><div class="notice notice-blue"><span>ℹ️</span><div>QuickBooks is not connected. <a href="/api/qb-auth" style="color:var(--accent);font-weight:600;">Connect now →</a></div></div></div>
   <div id="pnl-loading" style="display:none;text-align:center;padding:3rem;color:var(--muted);">Loading P&amp;L report...</div>
   <div id="pnl-content" style="display:none;">
+    <div id="pnl-date-range"></div>
     <div class="kpi-grid" id="pnl-kpis"></div>
     <div class="card">
       <div class="card-hd"><div class="card-title">Profit &amp; Loss Statement</div><div class="card-tag" id="pnl-period"></div></div>
@@ -620,6 +627,7 @@ async function checkFinPw(e){
   <div id="bs-not-connected" style="display:none;"><div class="notice notice-blue"><span>ℹ️</span><div>QuickBooks is not connected. <a href="/api/qb-auth" style="color:var(--accent);font-weight:600;">Connect now →</a></div></div></div>
   <div id="bs-loading" style="display:none;text-align:center;padding:3rem;color:var(--muted);">Loading balance sheet...</div>
   <div id="bs-content" style="display:none;">
+    <div id="bs-date-range"></div>
     <div class="kpi-grid" id="bs-kpis"></div>
     <div class="card">
       <div class="card-hd"><div class="card-title">Balance Sheet</div><div class="card-tag" id="bs-period"></div></div>
@@ -634,6 +642,7 @@ async function checkFinPw(e){
   <div id="bank-not-connected" style="display:none;"><div class="notice notice-blue"><span>ℹ️</span><div>QuickBooks is not connected. <a href="/api/qb-auth" style="color:var(--accent);font-weight:600;">Connect now →</a></div></div></div>
   <div id="bank-loading" style="display:none;text-align:center;padding:3rem;color:var(--muted);">Loading banking data...</div>
   <div id="bank-content" style="display:none;">
+    <div id="bank-date-range"></div>
     <div class="kpi-grid" id="bank-kpis"></div>
     <!-- Account cards -->
     <div class="g3 mb" id="bank-accounts"></div>
@@ -659,6 +668,7 @@ async function checkFinPw(e){
   <div id="match-not-connected" style="display:none;"><div class="notice notice-blue"><span>ℹ️</span><div>QuickBooks is not connected. <a href="/api/qb-auth" style="color:var(--accent);font-weight:600;">Connect now →</a></div></div></div>
   <div id="match-loading" style="display:none;text-align:center;padding:3rem;color:var(--muted);">Analysing payments and invoices...</div>
   <div id="match-content" style="display:none;">
+    <div id="match-date-range"></div>
     <div class="kpi-grid" id="match-kpis"></div>
     <!-- Filter -->
     <div style="display:flex;gap:6px;margin-bottom:1.25rem;">
@@ -1128,21 +1138,25 @@ async function filterInvoices(type, btn) {
   const titles = { overdue: 'Overdue Invoices', unpaid: 'Unpaid Invoices', all: 'All Invoices' };
   document.getElementById('inv-table-title').textContent = titles[type] || 'Invoices';
 
+  // Render the date range picker
+  document.getElementById('inv-date-range').innerHTML = dateRangeHTML('inv', 'rerenderInvoices');
+
   if (invoiceCache[type]) {
-    const invoices = invoiceCache[type].QueryResponse?.Invoice || [];
+    const invoices = filterByDate(invoiceCache[type].QueryResponse?.Invoice || [], 'TxnDate', 'inv');
     renderInvoiceTable(invoices);
-    if (type === 'overdue' || type === 'unpaid') renderInvoiceKPIs(invoices);
+    renderInvoiceKPIs(invoices);
     return;
   }
 
   const data = await loadInvoices(type);
   if (data) {
     invoiceCache[type] = data;
-    const invoices = data.QueryResponse?.Invoice || [];
+    const invoices = filterByDate(data.QueryResponse?.Invoice || [], 'TxnDate', 'inv');
     renderInvoiceTable(invoices);
-    if (type === 'overdue' || type === 'unpaid') renderInvoiceKPIs(invoices);
+    renderInvoiceKPIs(invoices);
   }
 }
+function rerenderInvoices() { filterInvoices(currentFilter || 'overdue'); }
 
 let chaseInfo = {};
 let chaseTone = 'soft';
@@ -1256,6 +1270,57 @@ if (new URLSearchParams(window.location.search).get('qb') === 'connected') {
   switchTop('invoices', document.getElementById('tab-invoices'));
 }
 
+// ─── DATE RANGE HELPERS ───
+// Per-page date ranges keyed by a short prefix. Default is the current UK financial year (Apr–Mar).
+const dateRanges = {};
+function defaultRange() {
+  const now = new Date();
+  const fyStart = now.getMonth() >= 3 ? now.getFullYear() : now.getFullYear() - 1;
+  return { from: fyStart + '-04-01', to: (fyStart + 1) + '-03-31' };
+}
+function getRange(prefix) {
+  if (!dateRanges[prefix]) dateRanges[prefix] = defaultRange();
+  return dateRanges[prefix];
+}
+function setRangeFrom(prefix, val, reloadFnName) {
+  getRange(prefix).from = val;
+  if (reloadFnName && typeof window[reloadFnName] === 'function') window[reloadFnName]();
+}
+function setRangeTo(prefix, val, reloadFnName) {
+  getRange(prefix).to = val;
+  if (reloadFnName && typeof window[reloadFnName] === 'function') window[reloadFnName]();
+}
+// Filter a list of QB records by a date field within the stored range for that prefix.
+function filterByDate(items, dateField, prefix) {
+  const { from, to } = getRange(prefix);
+  if (!from && !to) return items;
+  return items.filter(item => {
+    const d = item?.[dateField];
+    if (!d) return false;
+    if (from && d < from) return false;
+    if (to && d > to) return false;
+    return true;
+  });
+}
+// HTML for a two-input date range picker. `asOfOnly` renders just the "To" (as-of) field.
+function dateRangeHTML(prefix, reloadFnName, asOfOnly) {
+  const { from, to } = getRange(prefix);
+  const inputStyle = 'background:var(--bg);border:1px solid var(--border);color:var(--text);padding:.4rem .6rem;border-radius:6px;font-family:inherit;font-size:.82rem;color-scheme:dark;';
+  const labelStyle = 'color:var(--muted);font-size:.78rem;font-weight:600;text-transform:uppercase;letter-spacing:.05em;';
+  if (asOfOnly) {
+    return '<div style="display:flex;gap:.6rem;align-items:center;margin-bottom:1rem;flex-wrap:wrap;">'
+      + '<label style="' + labelStyle + '">As of:</label>'
+      + '<input type="date" value="' + to + '" onchange="setRangeTo(\'' + prefix + '\', this.value, \'' + reloadFnName + '\')" style="' + inputStyle + '">'
+      + '</div>';
+  }
+  return '<div style="display:flex;gap:.6rem;align-items:center;margin-bottom:1rem;flex-wrap:wrap;">'
+    + '<label style="' + labelStyle + '">From:</label>'
+    + '<input type="date" value="' + from + '" onchange="setRangeFrom(\'' + prefix + '\', this.value, \'' + reloadFnName + '\')" style="' + inputStyle + '">'
+    + '<label style="' + labelStyle + '">To:</label>'
+    + '<input type="date" value="' + to + '" onchange="setRangeTo(\'' + prefix + '\', this.value, \'' + reloadFnName + '\')" style="' + inputStyle + '">'
+    + '</div>';
+}
+
 // ─── GENERIC QB DATA LOADER ───
 const qbCache = {};
 async function loadQB(type, prefix) {
@@ -1336,9 +1401,12 @@ async function loadPayments() {
   const data = await loadQB('payments', 'pay');
   if (data) renderPayments(data);
 }
+function rerenderPayments() { if (qbCache.payments) renderPayments(qbCache.payments); }
 
 function renderPayments(data) {
-  const pays = data.QueryResponse?.Payment || [];
+  document.getElementById('pay-date-range').innerHTML = dateRangeHTML('pay', 'rerenderPayments');
+  const allPays = data.QueryResponse?.Payment || [];
+  const pays = filterByDate(allPays, 'TxnDate', 'pay');
   const tbody = document.getElementById('pay-tbody');
   const empty = document.getElementById('pay-empty');
   const table = document.getElementById('pay-table');
@@ -1372,13 +1440,22 @@ async function loadAged() {
   const data = await loadQB('unpaid', 'aged');
   if (data) renderAged(data);
 }
+function rerenderAged() { if (qbCache.unpaid) renderAged(qbCache.unpaid); }
 
 function renderAged(data) {
+  document.getElementById('aged-date-range').innerHTML = dateRangeHTML('aged', 'rerenderAged', true);
   const invoices = data.QueryResponse?.Invoice || [];
-  const today = new Date();
+  // "As of" date: treat invoices whose TxnDate is after the picker's 'to' date as not yet existing
+  const asOfStr = getRange('aged').to;
+  const asOfDate = asOfStr ? new Date(asOfStr) : new Date();
+  const today = asOfDate;
+  const inScope = invoices.filter(i => {
+    if (!i.TxnDate) return true;
+    return i.TxnDate <= asOfStr;
+  });
   const buckets = { current: [], b30: [], b60: [], b90: [], b90plus: [] };
 
-  invoices.filter(i => i.Balance > 0).forEach(inv => {
+  inScope.filter(i => i.Balance > 0).forEach(inv => {
     const days = Math.floor((today - new Date(inv.DueDate)) / 86400000);
     if (days <= 0) buckets.current.push(inv);
     else if (days <= 30) buckets.b30.push(inv);
@@ -1400,7 +1477,7 @@ function renderAged(data) {
     <div class="kpi" style="--kpi-color:#f59e0b"><div class="kpi-label">31–60 Days</div><div class="kpi-value">£${f(totals.b60)}</div><div class="kpi-sub">${buckets.b60.length} invoices</div></div>
     <div class="kpi" style="--kpi-color:#8b5cf6"><div class="kpi-label">61–90 Days</div><div class="kpi-value">£${f(totals.b90)}</div><div class="kpi-sub">${buckets.b90.length} invoices</div></div>
     <div class="kpi" style="--kpi-color:#ef4444"><div class="kpi-label">90+ Days</div><div class="kpi-value">£${f(totals.b90plus)}</div><div class="kpi-sub"><span class="badge br">${buckets.b90plus.length} invoices</span></div></div>
-    <div class="kpi" style="--kpi-color:#00d4aa"><div class="kpi-label">Total Outstanding</div><div class="kpi-value">£${f(grandTotal)}</div><div class="kpi-sub">${invoices.filter(i=>i.Balance>0).length} invoices</div></div>
+    <div class="kpi" style="--kpi-color:#00d4aa"><div class="kpi-label">Total Outstanding</div><div class="kpi-value">£${f(grandTotal)}</div><div class="kpi-sub">${inScope.filter(i=>i.Balance>0).length} invoices</div></div>
   `;
 
   // Chart
@@ -1422,7 +1499,7 @@ function renderAged(data) {
 
   // Group by customer
   const byCustomer = {};
-  invoices.filter(i => i.Balance > 0).forEach(inv => {
+  inScope.filter(i => i.Balance > 0).forEach(inv => {
     const name = inv.CustomerRef?.name || 'Unknown';
     if (!byCustomer[name]) byCustomer[name] = { current: 0, b30: 0, b60: 0, b90: 0, b90plus: 0, total: 0 };
     const days = Math.floor((today - new Date(inv.DueDate)) / 86400000);
@@ -1448,9 +1525,11 @@ async function loadExpenses() {
   const data = await loadQB('expenses', 'exp');
   if (data) renderExpenses(data);
 }
+function rerenderExpenses() { if (qbCache.expenses) renderExpenses(qbCache.expenses); }
 
 function renderExpenses(data) {
-  const items = data.QueryResponse?.Purchase || [];
+  document.getElementById('exp-date-range').innerHTML = dateRangeHTML('exp', 'rerenderExpenses');
+  const items = filterByDate(data.QueryResponse?.Purchase || [], 'TxnDate', 'exp');
   const tbody = document.getElementById('exp-tbody');
   const empty = document.getElementById('exp-empty');
   const table = document.getElementById('exp-table');
@@ -1487,9 +1566,11 @@ async function loadEstimates() {
   const data = await loadQB('estimates', 'est');
   if (data) renderEstimates(data);
 }
+function rerenderEstimates() { if (qbCache.estimates) renderEstimates(qbCache.estimates); }
 
 function renderEstimates(data) {
-  const items = data.QueryResponse?.Estimate || [];
+  document.getElementById('est-date-range').innerHTML = dateRangeHTML('est', 'rerenderEstimates');
+  const items = filterByDate(data.QueryResponse?.Estimate || [], 'TxnDate', 'est');
   const tbody = document.getElementById('est-tbody');
   const empty = document.getElementById('est-empty');
   const table = document.getElementById('est-table');
@@ -1528,9 +1609,11 @@ async function loadCreditNotes() {
   const data = await loadQB('credit-notes', 'cn');
   if (data) renderCreditNotes(data);
 }
+function rerenderCreditNotes() { if (qbCache['credit-notes']) renderCreditNotes(qbCache['credit-notes']); }
 
 function renderCreditNotes(data) {
-  const items = data.QueryResponse?.CreditMemo || [];
+  document.getElementById('cn-date-range').innerHTML = dateRangeHTML('cn', 'rerenderCreditNotes');
+  const items = filterByDate(data.QueryResponse?.CreditMemo || [], 'TxnDate', 'cn');
   const tbody = document.getElementById('cn-tbody');
   const empty = document.getElementById('cn-empty');
   const table = document.getElementById('cn-table');
@@ -1558,20 +1641,61 @@ function renderCreditNotes(data) {
 
 // ─── P&L REPORT ───
 async function loadPnl() {
-  if (qbCache.pnl) { renderReport(qbCache.pnl, 'pnl'); document.getElementById('pnl-content').style.display='block'; return; }
-  const data = await loadQB('pnl', 'pnl');
+  const { from, to } = getRange('pnl');
+  const data = await loadQBReport('pnl', 'pnl', from, to);
   if (data) renderReport(data, 'pnl');
 }
+function rerenderPnl() { loadPnl(); }
 
 // ─── BALANCE SHEET ───
 async function loadBalanceSheet() {
-  if (qbCache.balancesheet) { renderReport(qbCache.balancesheet, 'bs'); document.getElementById('bs-content').style.display='block'; return; }
-  const data = await loadQB('balancesheet', 'bs');
+  const { to } = getRange('bs');
+  // Balance Sheet is a snapshot — only the "as of" date matters, passed as end_date
+  const data = await loadQBReport('balancesheet', 'bs', null, to);
   if (data) renderReport(data, 'bs');
+}
+function rerenderBalanceSheet() { loadBalanceSheet(); }
+
+// Fetch a QB report with optional date range (bypasses qbCache to always reflect the picker)
+async function loadQBReport(type, prefix, from, to) {
+  const loading = document.getElementById(prefix + '-loading');
+  const content = document.getElementById(prefix + '-content');
+  const notConn = document.getElementById(prefix + '-not-connected');
+  if (loading) loading.style.display = 'block';
+  if (content) content.style.display = 'none';
+  if (notConn) notConn.style.display = 'none';
+  try {
+    const qs = new URLSearchParams({ type });
+    if (from) qs.set('from', from);
+    if (to) qs.set('to', to);
+    const res = await fetch('/api/qb-invoices?' + qs.toString());
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      if (err.error === 'not_connected' || err.error === 'auth_expired') {
+        if (loading) loading.style.display = 'none';
+        if (notConn) notConn.style.display = 'block';
+        return null;
+      }
+      throw new Error(err.message || 'Failed');
+    }
+    const data = await res.json();
+    if (loading) loading.style.display = 'none';
+    if (content) content.style.display = 'block';
+    return data;
+  } catch (e) {
+    if (loading) loading.style.display = 'none';
+    if (notConn) notConn.style.display = 'block';
+    return null;
+  }
 }
 
 // Generic QB Report renderer (P&L + Balance Sheet)
 function renderReport(data, prefix) {
+  // Balance Sheet only needs an as-of date; P&L uses full range
+  const asOfOnly = prefix === 'bs';
+  const reloadFn = prefix === 'pnl' ? 'rerenderPnl' : 'rerenderBalanceSheet';
+  document.getElementById(prefix + '-date-range').innerHTML = dateRangeHTML(prefix, reloadFn, asOfOnly);
+
   const header = data.Header || {};
   const periodEl = document.getElementById(prefix + '-period');
   if (periodEl) periodEl.textContent = (header.StartPeriod || '') + ' to ' + (header.EndPeriod || '');
@@ -1682,10 +1806,15 @@ async function loadBanking() {
   }
 }
 
+function rerenderBanking() { if (qbCache.accounts && qbCache.deposits) renderBanking(); }
+
 function renderBanking() {
+  document.getElementById('bank-date-range').innerHTML = dateRangeHTML('bank', 'rerenderBanking');
   const accounts = qbCache.accounts?.QueryResponse?.Account || [];
-  const deposits = qbCache.deposits?.QueryResponse?.Deposit || [];
-  const transfers = qbCache.transfers?.QueryResponse?.Transfer || [];
+  const allDeposits = qbCache.deposits?.QueryResponse?.Deposit || [];
+  const allTransfers = qbCache.transfers?.QueryResponse?.Transfer || [];
+  const deposits = filterByDate(allDeposits, 'TxnDate', 'bank');
+  const transfers = filterByDate(allTransfers, 'TxnDate', 'bank');
   bankTxnData = { deposits, transfers };
 
   const totalBal = accounts.reduce((s, a) => s + (a.CurrentBalance || 0), 0);
@@ -1764,8 +1893,8 @@ let matchData = [];
 let matchFilterType = 'all';
 
 async function loadMatching() {
-  if (matchData.length) {
-    renderMatches(matchFilterType);
+  if (qbCache.matchPayments) {
+    rerenderMatching();
     document.getElementById('match-content').style.display = 'block';
     return;
   }
@@ -1790,18 +1919,26 @@ async function loadMatching() {
       }
     }
 
-    const payments = (await payRes.json()).QueryResponse?.Payment || [];
-    const invoices = (await invRes.json()).QueryResponse?.Invoice || [];
-    const deposits = (await depRes.json()).QueryResponse?.Deposit || [];
+    qbCache.matchPayments = (await payRes.json()).QueryResponse?.Payment || [];
+    qbCache.matchInvoices = (await invRes.json()).QueryResponse?.Invoice || [];
+    qbCache.matchDeposits = (await depRes.json()).QueryResponse?.Deposit || [];
 
-    matchData = analyseMatches(payments, invoices, deposits);
+    rerenderMatching();
     loading.style.display = 'none'; content.style.display = 'block';
-    renderMatchKPIs();
-    renderMatches('all');
   } catch (e) {
     loading.style.display = 'none';
     document.getElementById('match-not-connected').style.display = 'block';
   }
+}
+
+function rerenderMatching() {
+  if (!qbCache.matchPayments) return;
+  document.getElementById('match-date-range').innerHTML = dateRangeHTML('match', 'rerenderMatching');
+  const payments = filterByDate(qbCache.matchPayments, 'TxnDate', 'match');
+  const deposits = filterByDate(qbCache.matchDeposits || [], 'TxnDate', 'match');
+  matchData = analyseMatches(payments, qbCache.matchInvoices || [], deposits);
+  renderMatchKPIs();
+  renderMatches(matchFilterType || 'all');
 }
 
 function analyseMatches(payments, invoices, deposits) {

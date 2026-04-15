@@ -122,6 +122,8 @@ export default async function handler(req, res) {
     // Determine what to fetch based on ?type= param
     const url = new URL(req.url, `https://${req.headers.host}`);
     const type = url.searchParams.get('type') || 'overdue';
+    const fromDate = url.searchParams.get('from');
+    const toDate = url.searchParams.get('to');
 
     // Reports use a different API path
     const isReport = type === 'pnl' || type === 'balancesheet';
@@ -131,7 +133,10 @@ export default async function handler(req, res) {
         pnl: 'ProfitAndLoss',
         balancesheet: 'BalanceSheet',
       };
-      const reportUrl = `${QB_API_BASE}/${tokens.realm_id}/reports/${reportMap[type]}?minorversion=65`;
+      const reportParams = new URLSearchParams({ minorversion: '65' });
+      if (fromDate) reportParams.set('start_date', fromDate);
+      if (toDate) reportParams.set('end_date', toDate);
+      const reportUrl = `${QB_API_BASE}/${tokens.realm_id}/reports/${reportMap[type]}?${reportParams.toString()}`;
       const reportRes = await fetch(reportUrl, {
         headers: {
           Authorization: `Bearer ${tokens.access_token}`,
