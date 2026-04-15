@@ -661,6 +661,29 @@ async function checkFinPw(e){
   </div>
 </div>
 
+<!-- ═══════ BANK ACCOUNT TRANSACTION MODAL ═══════ -->
+<div id="bank-txn-modal" style="display:none;position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,.75);align-items:center;justify-content:center;padding:24px;">
+  <div style="background:var(--surface);border:1px solid var(--border);border-radius:10px;width:100%;max-width:1000px;max-height:90vh;display:flex;flex-direction:column;position:relative;">
+    <div style="display:flex;justify-content:space-between;align-items:flex-start;padding:1.5rem 1.75rem 1rem;border-bottom:1px solid var(--border);">
+      <div>
+        <h3 id="btm-title" style="font-family:var(--serif);font-size:1.3rem;margin:0 0 .25rem;">Account Transactions</h3>
+        <div id="btm-subtitle" style="font-size:.78rem;color:var(--muted);"></div>
+      </div>
+      <button onclick="closeBankTxnModal()" style="background:none;border:none;color:var(--muted);font-size:1.5rem;cursor:pointer;line-height:1;padding:0;margin-left:1rem;">&times;</button>
+    </div>
+    <div id="btm-kpis" class="kpi-grid" style="padding:1.25rem 1.75rem .25rem;"></div>
+    <div id="btm-loading" style="display:none;text-align:center;padding:2rem;color:var(--muted);">Loading transactions...</div>
+    <div id="btm-error" style="display:none;padding:1rem 1.75rem;color:#ef4444;font-size:.85rem;"></div>
+    <div id="btm-body" style="overflow-y:auto;padding:.5rem 1.75rem 1.75rem;">
+      <table class="ft" id="btm-table" style="width:100%;">
+        <thead><tr><th>Date</th><th>Type</th><th>No.</th><th>Name / Memo</th><th style="text-align:right;">In</th><th style="text-align:right;">Out</th></tr></thead>
+        <tbody id="btm-tbody"></tbody>
+      </table>
+      <div id="btm-empty" style="display:none;text-align:center;padding:2rem;color:var(--muted);font-size:.85rem;">No transactions in this date range.</div>
+    </div>
+  </div>
+</div>
+
 <!-- ═══════ VIEW: PAYMENT MATCHING ═══════ -->
 <div id="view-matching" class="view">
   <div class="page-header"><h1>Payment Matching</h1><p>Live from QuickBooks &nbsp;·&nbsp; Cross-reference deposits against invoices</p></div>
@@ -1860,15 +1883,18 @@ function renderBanking() {
     ${largest ? `<div class="kpi" style="--kpi-color:#10b981"><div class="kpi-label">Largest Account</div><div class="kpi-value">£${f(largest.CurrentBalance || 0)}</div><div class="kpi-sub">${largest.Name || '—'}</div></div>` : ''}
   `;
 
-  // Account cards
+  // Account cards — click to drill into transactions for that account
   const acctGrid = document.getElementById('bank-accounts');
-  acctGrid.innerHTML = accounts.map(a => `
-    <div class="card" style="border-left:3px solid ${(a.CurrentBalance||0) > 0 ? 'var(--accent)' : 'var(--danger)'};">
+  acctGrid.innerHTML = accounts.map(a => {
+    const safeName = (a.Name || 'Account').replace(/'/g, "\\'");
+    return `
+    <div class="card" style="border-left:3px solid ${(a.CurrentBalance||0) > 0 ? 'var(--accent)' : 'var(--danger)'};cursor:pointer;transition:transform .15s,border-color .15s;" onclick="openBankTxnModal('${a.Id}','${safeName}')" onmouseover="this.style.transform='translateY(-2px)'" onmouseout="this.style.transform='translateY(0)'">
       <div style="font-size:.68rem;font-weight:600;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);margin-bottom:.35rem;">${a.Name || 'Account'}</div>
       <div style="font-family:var(--serif);font-size:1.5rem;color:var(--text);">£${f(a.CurrentBalance || 0)}</div>
       <div style="font-size:.72rem;color:var(--muted);margin-top:.25rem;">${a.AccountSubType || a.AccountType || 'Bank'} ${a.AcctNum ? '· #' + a.AcctNum : ''}</div>
+      <div style="font-size:.68rem;color:var(--accent);margin-top:.5rem;font-weight:600;">View transactions →</div>
     </div>
-  `).join('');
+  `;}).join('');
 
   filterBankTxns('all', null);
 }
@@ -1920,6 +1946,130 @@ function filterBankTxns(type, btn) {
     <td class="${t.isDeposit ? 'tg' : 'ta'}">£${f(t.amount)}</td>
   </tr>`).join('');
 }
+
+// ─── BANK ACCOUNT TRANSACTION DRILL-DOWN MODAL ───
+function closeBankTxnModal() {
+  document.getElementById('bank-txn-modal').style.display = 'none';
+}
+
+async function openBankTxnModal(accountId, accountName) {
+  const modal = document.getElementById('bank-txn-modal');
+  const title = document.getElementById('btm-title');
+  const subtitle = document.getElementById('btm-subtitle');
+  const loading = document.getElementById('btm-loading');
+  const error = document.getElementById('btm-error');
+  const table = document.getElementById('btm-table');
+  const empty = document.getElementById('btm-empty');
+  const tbody = document.getElementById('btm-tbody');
+  const kpis = document.getElementById('btm-kpis');
+
+  const { from, to } = getRange('bank');
+
+  title.textContent = accountName;
+  subtitle.textContent = 'Transactions from ' + from + ' to ' + to;
+  loading.style.display = 'block';
+  error.style.display = 'none';
+  table.style.display = 'none';
+  empty.style.display = 'none';
+  tbody.innerHTML = '';
+  kpis.innerHTML = '';
+  modal.style.display = 'flex';
+
+  try {
+    const qs = new URLSearchParams({ type: 'txn-list', account: accountId });
+    if (from) qs.set('from', from);
+    if (to) qs.set('to', to);
+    const res = await fetch('/api/qb-invoices?' + qs.toString());
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.message || err.error || 'Failed to load transactions');
+    }
+    const data = await res.json();
+    const columns = (data.Columns?.Column || []).map(c => c.ColType);
+    const colIdx = {
+      date: columns.indexOf('tx_date'),
+      type: columns.indexOf('txn_type'),
+      num: columns.indexOf('doc_num'),
+      name: columns.indexOf('name'),
+      memo: columns.indexOf('memo'),
+      amount: columns.indexOf('subt_nat_amount'),
+    };
+
+    // Flatten nested report rows into a single list
+    const txns = [];
+    function walk(rows) {
+      (rows || []).forEach(row => {
+        if (row.ColData) {
+          const amt = parseFloat(row.ColData[colIdx.amount]?.value || '0') || 0;
+          txns.push({
+            date: row.ColData[colIdx.date]?.value || '',
+            type: row.ColData[colIdx.type]?.value || '',
+            num: row.ColData[colIdx.num]?.value || '',
+            name: row.ColData[colIdx.name]?.value || '',
+            memo: row.ColData[colIdx.memo]?.value || '',
+            amount: amt,
+          });
+        }
+        if (row.Rows?.Row) walk(row.Rows.Row);
+      });
+    }
+    walk(data.Rows?.Row || []);
+
+    // Sort newest first
+    txns.sort((a, b) => (b.date || '').localeCompare(a.date || ''));
+
+    loading.style.display = 'none';
+
+    if (!txns.length) {
+      empty.style.display = 'block';
+      kpis.innerHTML = '';
+      return;
+    }
+
+    // KPIs: total in / out / net
+    const totalIn = txns.filter(t => t.amount > 0).reduce((s, t) => s + t.amount, 0);
+    const totalOut = txns.filter(t => t.amount < 0).reduce((s, t) => s + Math.abs(t.amount), 0);
+    const net = totalIn - totalOut;
+    kpis.innerHTML = `
+      <div class="kpi" style="--kpi-color:#10b981"><div class="kpi-label">Money In</div><div class="kpi-value">£${f(totalIn)}</div><div class="kpi-sub">${txns.filter(t => t.amount > 0).length} transactions</div></div>
+      <div class="kpi" style="--kpi-color:#ef4444"><div class="kpi-label">Money Out</div><div class="kpi-value">£${f(totalOut)}</div><div class="kpi-sub">${txns.filter(t => t.amount < 0).length} transactions</div></div>
+      <div class="kpi" style="--kpi-color:${net >= 0 ? '#00d4aa' : '#f59e0b'}"><div class="kpi-label">Net Movement</div><div class="kpi-value ${net < 0 ? 'tr2' : 'tg'}">£${f(Math.abs(net))}${net < 0 ? ' ▼' : ' ▲'}</div><div class="kpi-sub">${txns.length} total</div></div>
+    `;
+
+    // Table
+    table.style.display = '';
+    tbody.innerHTML = txns.map(t => {
+      const inAmt = t.amount > 0 ? '£' + f(t.amount) : '';
+      const outAmt = t.amount < 0 ? '£' + f(Math.abs(t.amount)) : '';
+      const nameMemo = [t.name, t.memo].filter(Boolean).join(' · ') || '—';
+      return `<tr>
+        <td>${t.date || '—'}</td>
+        <td><span class="badge bb">${t.type || '—'}</span></td>
+        <td>${t.num || '—'}</td>
+        <td>${nameMemo}</td>
+        <td class="tg" style="text-align:right;">${inAmt}</td>
+        <td class="tr2" style="text-align:right;">${outAmt}</td>
+      </tr>`;
+    }).join('');
+  } catch (e) {
+    loading.style.display = 'none';
+    error.textContent = 'Failed to load transactions: ' + e.message;
+    error.style.display = 'block';
+  }
+}
+
+// Close the modal when clicking outside the card
+document.addEventListener('click', function(e) {
+  const modal = document.getElementById('bank-txn-modal');
+  if (modal && e.target === modal) closeBankTxnModal();
+});
+// Close on Escape
+document.addEventListener('keydown', function(e) {
+  if (e.key === 'Escape') {
+    const modal = document.getElementById('bank-txn-modal');
+    if (modal && modal.style.display === 'flex') closeBankTxnModal();
+  }
+});
 
 // ─── PAYMENT MATCHING ───
 let matchData = [];

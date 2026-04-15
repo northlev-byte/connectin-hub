@@ -126,16 +126,23 @@ export default async function handler(req, res) {
     const toDate = url.searchParams.get('to');
 
     // Reports use a different API path
-    const isReport = type === 'pnl' || type === 'balancesheet';
+    const isReport = type === 'pnl' || type === 'balancesheet' || type === 'txn-list';
 
     if (isReport) {
       const reportMap = {
         pnl: 'ProfitAndLoss',
         balancesheet: 'BalanceSheet',
+        'txn-list': 'TransactionList',
       };
       const reportParams = new URLSearchParams({ minorversion: '65' });
       if (fromDate) reportParams.set('start_date', fromDate);
       if (toDate) reportParams.set('end_date', toDate);
+      // TransactionList accepts additional filters
+      if (type === 'txn-list') {
+        const accountId = url.searchParams.get('account');
+        if (accountId) reportParams.set('account', accountId);
+        reportParams.set('columns', 'tx_date,txn_type,doc_num,name,memo,subt_nat_amount');
+      }
       const reportUrl = `${QB_API_BASE}/${tokens.realm_id}/reports/${reportMap[type]}?${reportParams.toString()}`;
       const reportRes = await fetch(reportUrl, {
         headers: {
