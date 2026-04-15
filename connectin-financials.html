@@ -1777,7 +1777,7 @@ async function loadMatching() {
   try {
     const [payRes, invRes, depRes] = await Promise.all([
       fetch('/api/qb-invoices?type=payments'),
-      fetch('/api/qb-invoices?type=unpaid'),
+      fetch('/api/qb-invoices?type=all'),
       fetch('/api/qb-invoices?type=deposits')
     ]);
 
@@ -1806,44 +1806,60 @@ async function loadMatching() {
 
 function analyseMatches(payments, invoices, deposits) {
   const results = [];
-  const today = new Date();
-  const invMap = {};
-  invoices.forEach(inv => {
-    const key = (inv.CustomerRef?.name || '').toLowerCase();
-    if (!invMap[key]) invMap[key] = [];
-    invMap[key].push(inv);
-  });
 
-  // Analyse payments — check if they match invoices correctly
+  // Build invoice lookup by QB internal Id so we can resolve DocNumbers for linked invoices
+  const invById = {};
+  invoices.forEach(inv => { invById[inv.Id] = inv; });
+
+  // Classify each payment using QuickBooks' own LinkedTxn data
+  // (QB stores confirmed payment→invoice links in pay.Line[].LinkedTxn[] with TxnType === 'Invoice')
   payments.forEach(pay => {
     const custName = pay.CustomerRef?.name || 'Unknown';
-    const custKey = custName.toLowerCase();
     const amt = pay.TotalAmt || 0;
-    const custInvoices = invMap[custKey] || [];
+    const unapplied = pay.UnappliedAmt || 0;
 
-    // Check for exact amount match against an unpaid invoice
-    const exactMatch = custInvoices.find(inv => Math.abs(inv.Balance - amt) < 0.01);
-    const closeMatch = custInvoices.find(inv => Math.abs(inv.Balance - amt) < amt * 0.1 && Math.abs(inv.Balance - amt) >= 0.01);
-    const anyInvoice = custInvoices[0];
+    // Collect invoice links from the payment's line entries
+    const linkedInvoices = [];
+    (pay.Line || []).forEach(line => {
+      (line.LinkedTxn || []).forEach(lt => {
+        if (lt.TxnType === 'Invoice') {
+          linkedInvoices.push({
+            id: lt.TxnId,
+            amountApplied: line.Amount || 0,
+            invoice: invById[lt.TxnId]
+          });
+        }
+      });
+    });
 
     let status, flag, suggestedInv;
 
-    if (exactMatch) {
+    if (linkedInvoices.length > 0 && unapplied < 0.01) {
+      // Fully matched by QB
       status = 'matched';
       flag = '';
-      suggestedInv = '#' + (exactMatch.DocNumber || exactMatch.Id) + ' ($' + f(exactMatch.Balance) + ')';
-    } else if (closeMatch) {
+      if (linkedInvoices.length === 1) {
+        const li = linkedInvoices[0];
+        const invNum = li.invoice?.DocNumber || ('ID ' + li.id);
+        suggestedInv = '#' + invNum + ' (£' + f(li.amountApplied) + ')';
+      } else {
+        suggestedInv = linkedInvoices.length + ' invoices (£' + f(amt) + ')';
+      }
+    } else if (linkedInvoices.length > 0 && unapplied >= 0.01) {
+      // Payment is linked but has unapplied balance (overpayment / credit on account)
       status = 'flagged';
-      const diff = amt - closeMatch.Balance;
-      flag = diff > 0 ? 'Overpayment by $' + f(Math.abs(diff)) : 'Underpayment by $' + f(Math.abs(diff));
-      suggestedInv = '#' + (closeMatch.DocNumber || closeMatch.Id) + ' ($' + f(closeMatch.Balance) + ')';
-    } else if (anyInvoice) {
-      status = 'flagged';
-      flag = 'Amount doesn\'t match any invoice';
-      suggestedInv = '#' + (anyInvoice.DocNumber || anyInvoice.Id) + ' ($' + f(anyInvoice.Balance) + ') ?';
+      flag = 'Overpayment: £' + f(unapplied) + ' unapplied credit';
+      if (linkedInvoices.length === 1) {
+        const li = linkedInvoices[0];
+        const invNum = li.invoice?.DocNumber || ('ID ' + li.id);
+        suggestedInv = '#' + invNum + ' (£' + f(li.amountApplied) + ')';
+      } else {
+        suggestedInv = linkedInvoices.length + ' invoices';
+      }
     } else {
+      // No linked invoices — payment sitting as unapplied credit in QB
       status = 'unmatched';
-      flag = 'No unpaid invoice found for this customer';
+      flag = 'Payment not linked to any invoice in QuickBooks';
       suggestedInv = '—';
     }
 
@@ -1858,30 +1874,14 @@ function analyseMatches(payments, invoices, deposits) {
     });
   });
 
-  // Check for stale invoices (unpaid > 30 days, no matching payment)
-  const paidCustomers = new Set(payments.map(p => (p.CustomerRef?.name || '').toLowerCase()));
-  invoices.forEach(inv => {
-    if (inv.Balance <= 0) return;
-    const custKey = (inv.CustomerRef?.name || '').toLowerCase();
-    const daysOld = Math.floor((today - new Date(inv.DueDate)) / 86400000);
-    if (daysOld > 30 && !paidCustomers.has(custKey)) {
-      results.push({
-        date: inv.DueDate || '—',
-        description: (inv.CustomerRef?.name || 'Unknown') + ' — Invoice #' + (inv.DocNumber || inv.Id),
-        amount: inv.Balance,
-        suggestedInv: '#' + (inv.DocNumber || inv.Id),
-        status: 'flagged',
-        flag: 'Stale: ' + daysOld + ' days overdue, no payment received',
-        source: 'invoice'
-      });
-    }
-  });
-
-  // Check deposits that don't clearly link to a payment
+  // Check deposits: only flag ones that QuickBooks itself considers orphaned
+  // (a normal deposit has LinkedTxn entries moving Undeposited Funds into the bank account)
   deposits.forEach(dep => {
     const depAmt = dep.TotalAmt || 0;
-    const hasMatchingPayment = payments.some(p => Math.abs((p.TotalAmt || 0) - depAmt) < 0.01);
-    if (!hasMatchingPayment && depAmt > 0) {
+    if (depAmt <= 0) return;
+
+    const hasAnyLink = (dep.Line || []).some(line => (line.LinkedTxn || []).length > 0);
+    if (!hasAnyLink) {
       const desc = dep.Line?.[0]?.Description || dep.PrivateNote || 'Bank deposit';
       results.push({
         date: dep.TxnDate || '—',
@@ -1889,7 +1889,7 @@ function analyseMatches(payments, invoices, deposits) {
         amount: depAmt,
         suggestedInv: '—',
         status: 'unmatched',
-        flag: 'Deposit with no matching payment record',
+        flag: 'Deposit with no linked transactions in QuickBooks',
         source: 'deposit'
       });
     }

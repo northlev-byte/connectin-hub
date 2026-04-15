@@ -152,7 +152,7 @@ export default async function handler(req, res) {
         query = `SELECT * FROM Invoice WHERE DueDate < '${new Date().toISOString().split('T')[0]}' AND Balance > '0' ORDERBY DueDate ASC`;
         break;
       case 'all':
-        query = "SELECT * FROM Invoice ORDERBY MetaData.CreateTime DESC MAXRESULTS 100";
+        query = "SELECT * FROM Invoice ORDERBY MetaData.CreateTime DESC MAXRESULTS 1000";
         break;
       case 'unpaid':
         query = "SELECT * FROM Invoice WHERE Balance > '0' ORDERBY DueDate ASC";
