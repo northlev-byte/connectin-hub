@@ -1273,10 +1273,19 @@ if (new URLSearchParams(window.location.search).get('qb') === 'connected') {
 // ─── DATE RANGE HELPERS ───
 // Per-page date ranges keyed by a short prefix. Default is the current UK financial year (Apr–Mar).
 const dateRanges = {};
-function defaultRange() {
+function currentFyRange() {
   const now = new Date();
   const fyStart = now.getMonth() >= 3 ? now.getFullYear() : now.getFullYear() - 1;
   return { from: fyStart + '-04-01', to: (fyStart + 1) + '-03-31' };
+}
+function previousFyRange() {
+  const now = new Date();
+  const fyStart = now.getMonth() >= 3 ? now.getFullYear() - 1 : now.getFullYear() - 2;
+  return { from: fyStart + '-04-01', to: (fyStart + 1) + '-03-31' };
+}
+function defaultRange() {
+  // Default to previous FY (the most complete year of data)
+  return previousFyRange();
 }
 function getRange(prefix) {
   if (!dateRanges[prefix]) dateRanges[prefix] = defaultRange();
@@ -1290,6 +1299,21 @@ function setRangeTo(prefix, val, reloadFnName) {
   getRange(prefix).to = val;
   if (reloadFnName && typeof window[reloadFnName] === 'function') window[reloadFnName]();
 }
+// Apply a preset (currentFy or previousFy) to a prefix and reload
+function applyRangePreset(prefix, preset, reloadFnName) {
+  const r = preset === 'currentFy' ? currentFyRange() : previousFyRange();
+  dateRanges[prefix] = r;
+  if (reloadFnName && typeof window[reloadFnName] === 'function') window[reloadFnName]();
+}
+// Which preset does the current range match? (for highlighting the active button)
+function activePreset(prefix) {
+  const r = getRange(prefix);
+  const cur = currentFyRange();
+  const prev = previousFyRange();
+  if (r.from === cur.from && r.to === cur.to) return 'currentFy';
+  if (r.from === prev.from && r.to === prev.to) return 'previousFy';
+  return null;
+}
 // Filter a list of QB records by a date field within the stored range for that prefix.
 function filterByDate(items, dateField, prefix) {
   const { from, to } = getRange(prefix);
@@ -1302,18 +1326,32 @@ function filterByDate(items, dateField, prefix) {
     return true;
   });
 }
-// HTML for a two-input date range picker. `asOfOnly` renders just the "To" (as-of) field.
+// HTML for a two-input date range picker plus Last FY / Current FY preset buttons.
+// `asOfOnly` renders just the "To" (as-of) field instead of a full From/To range.
 function dateRangeHTML(prefix, reloadFnName, asOfOnly) {
   const { from, to } = getRange(prefix);
+  const active = activePreset(prefix);
   const inputStyle = 'background:var(--bg);border:1px solid var(--border);color:var(--text);padding:.4rem .6rem;border-radius:6px;font-family:inherit;font-size:.82rem;color-scheme:dark;';
   const labelStyle = 'color:var(--muted);font-size:.78rem;font-weight:600;text-transform:uppercase;letter-spacing:.05em;';
+  const btn = (preset, label) => {
+    const isActive = active === preset;
+    const style = isActive
+      ? 'padding:.4rem .85rem;border:1px solid var(--accent);background:var(--accent);color:#000;border-radius:6px;cursor:pointer;font-size:.78rem;font-weight:600;font-family:inherit;'
+      : 'padding:.4rem .85rem;border:1px solid var(--border);background:transparent;color:var(--muted);border-radius:6px;cursor:pointer;font-size:.78rem;font-weight:600;font-family:inherit;';
+    return '<button type="button" onclick="applyRangePreset(\'' + prefix + '\', \'' + preset + '\', \'' + reloadFnName + '\')" style="' + style + '">' + label + '</button>';
+  };
+  const presets = btn('previousFy', 'Last FY') + btn('currentFy', 'Current FY');
   if (asOfOnly) {
     return '<div style="display:flex;gap:.6rem;align-items:center;margin-bottom:1rem;flex-wrap:wrap;">'
+      + presets
+      + '<span style="width:1px;height:1.6rem;background:var(--border);margin:0 .25rem;"></span>'
       + '<label style="' + labelStyle + '">As of:</label>'
       + '<input type="date" value="' + to + '" onchange="setRangeTo(\'' + prefix + '\', this.value, \'' + reloadFnName + '\')" style="' + inputStyle + '">'
       + '</div>';
   }
   return '<div style="display:flex;gap:.6rem;align-items:center;margin-bottom:1rem;flex-wrap:wrap;">'
+    + presets
+    + '<span style="width:1px;height:1.6rem;background:var(--border);margin:0 .25rem;"></span>'
     + '<label style="' + labelStyle + '">From:</label>'
     + '<input type="date" value="' + from + '" onchange="setRangeFrom(\'' + prefix + '\', this.value, \'' + reloadFnName + '\')" style="' + inputStyle + '">'
     + '<label style="' + labelStyle + '">To:</label>'
