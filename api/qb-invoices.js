@@ -140,8 +140,11 @@ export default async function handler(req, res) {
       // TransactionList accepts additional filters
       if (type === 'txn-list') {
         const accountId = url.searchParams.get('account');
-        if (accountId) reportParams.set('account', accountId);
-        reportParams.set('columns', 'tx_date,txn_type,doc_num,name,memo,subt_nat_amount');
+        // QB's TransactionList uses `source_account` to filter by the account
+        // that a transaction posts to/from. `account` alone means something else.
+        if (accountId) reportParams.set('source_account', accountId);
+        // Request multiple amount columns so we can fall back if one is empty
+        reportParams.set('columns', 'tx_date,txn_type,doc_num,name,memo,subt_nat_amount,nat_amount,credit_amt,debt_amt');
       }
       const reportUrl = `${QB_API_BASE}/${tokens.realm_id}/reports/${reportMap[type]}?${reportParams.toString()}`;
       const reportRes = await fetch(reportUrl, {

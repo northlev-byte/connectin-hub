@@ -1999,25 +1999,45 @@ async function openBankTxnModal(accountId, accountName) {
       num: findCol('doc_num'),
       name: findCol('name'),
       memo: findCol('memo'),
-      amount: findCol('subt_nat_amount'),
+      subtNat: findCol('subt_nat_amount'),
+      natAmt: findCol('nat_amount'),
+      credit: findCol('credit_amt'),
+      debit: findCol('debt_amt'),
     };
-    // Fallback to positional indices if ColKey lookup failed (matches our
-    // requested `columns=tx_date,txn_type,doc_num,name,memo,subt_nat_amount`)
-    if (colIdx.date === -1) colIdx.date = 0;
-    if (colIdx.type === -1) colIdx.type = 1;
-    if (colIdx.num === -1) colIdx.num = 2;
-    if (colIdx.name === -1) colIdx.name = 3;
-    if (colIdx.memo === -1) colIdx.memo = 4;
-    if (colIdx.amount === -1) colIdx.amount = 5;
+
+    // Helper: pull a numeric amount from a row, trying multiple columns.
+    // In QB TransactionList, credit_amt and debt_amt are populated per line,
+    // while subt_nat_amount / nat_amount may only populate for certain row types.
+    const readAmount = (colData) => {
+      const tryNum = (i) => {
+        if (i < 0 || !colData[i]) return null;
+        const raw = String(colData[i].value ?? '').replace(/[,£$]/g, '').trim();
+        if (!raw) return null;
+        const n = parseFloat(raw);
+        return isNaN(n) ? null : n;
+      };
+      // credit = money in, debit = money out → net = credit - debit
+      const credit = tryNum(colIdx.credit);
+      const debit = tryNum(colIdx.debit);
+      if (credit !== null || debit !== null) {
+        return (credit || 0) - (debit || 0);
+      }
+      // Fall back to subtotal or natural amount if credit/debit aren't there
+      const subt = tryNum(colIdx.subtNat);
+      if (subt !== null) return subt;
+      const nat = tryNum(colIdx.natAmt);
+      if (nat !== null) return nat;
+      return 0;
+    };
 
     // Flatten nested report rows into a single list
     const txns = [];
     function walk(rows) {
       (rows || []).forEach(row => {
         if (row.ColData) {
-          const amt = parseFloat(row.ColData[colIdx.amount]?.value || '0') || 0;
           const date = row.ColData[colIdx.date]?.value || '';
-          // Skip section header/total rows that have no date or amount
+          const amt = readAmount(row.ColData);
+          // Skip section header/total rows that have no date and no amount
           if (date || amt !== 0) {
             txns.push({
               date,
