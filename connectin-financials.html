@@ -244,6 +244,7 @@ async function checkFinPw(e){
         <button onclick="navGo('customers',this)" id="tab-customers">Customers</button>
         <button onclick="navGo('payments',this)" id="tab-payments">Payments</button>
         <button onclick="navGo('aged',this)" id="tab-aged">Aged Receivables</button>
+        <button onclick="navGo('creditors',this)" id="tab-creditors">Trade Creditors</button>
         <button onclick="navGo('expenses',this)" id="tab-expenses">Expenses</button>
         <button onclick="navGo('estimates',this)" id="tab-estimates">Estimates</button>
         <button onclick="navGo('creditnotes',this)" id="tab-creditnotes">Credit Notes</button>
@@ -553,6 +554,37 @@ async function checkFinPw(e){
       <div class="card"><div class="card-hd"><div class="card-title">By Customer</div><div class="card-tag" id="aged-cust-count">0 customers</div></div>
         <div class="mtwrap"><table class="ft" id="aged-table"><thead><tr><th>Customer</th><th>Current</th><th>1–30 days</th><th>31–60 days</th><th>61–90 days</th><th>90+ days</th><th>Total</th></tr></thead><tbody id="aged-tbody"></tbody></table></div>
       </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════ VIEW: TRADE CREDITORS ═══════ -->
+<div id="view-creditors" class="view">
+  <div class="page-header"><h1>Trade Creditors</h1><p>Live from QuickBooks &nbsp;·&nbsp; Bills &amp; amounts owed to suppliers</p></div>
+  <div id="cred-not-connected" style="display:none;"><div class="notice notice-blue"><span>ℹ️</span><div>QuickBooks is not connected. <a href="/api/qb-auth" style="color:var(--accent);font-weight:600;">Connect now →</a></div></div></div>
+  <div id="cred-loading" style="display:none;text-align:center;padding:3rem;color:var(--muted);">Loading trade creditors...</div>
+  <div id="cred-content" style="display:none;">
+    <div class="kpi-grid" id="cred-kpis"></div>
+    <div style="display:flex;gap:6px;margin-bottom:1.25rem;">
+      <button class="top-tab active" onclick="filterCreditors('overdue',this)" id="cred-filter-overdue">Overdue</button>
+      <button class="top-tab" onclick="filterCreditors('unpaid',this)">All Unpaid</button>
+      <button class="top-tab" onclick="filterCreditors('all',this)">All Bills</button>
+    </div>
+    <div class="card">
+      <div class="card-hd">
+        <div class="card-title" id="cred-table-title">Overdue Bills</div>
+        <div style="display:flex;gap:.6rem;align-items:center;">
+          <div class="card-tag" id="cred-count">0 bills</div>
+          <button id="cred-pdf-btn" onclick="downloadCreditorPDF()" style="display:none;padding:.35rem .8rem;border:1px solid var(--accent);background:transparent;color:var(--accent);border-radius:5px;cursor:pointer;font-size:.72rem;font-weight:600;font-family:inherit;transition:all .15s;" onmouseover="this.style.background='var(--accent)';this.style.color='#000'" onmouseout="this.style.background='transparent';this.style.color='var(--accent)'">Download PDF</button>
+        </div>
+      </div>
+      <div class="mtwrap">
+        <table class="ft" id="cred-table">
+          <thead><tr><th>Bill #</th><th>Vendor</th><th>Date</th><th>Due Date</th><th>Days Overdue</th><th>Amount</th><th>Balance</th></tr></thead>
+          <tbody id="cred-tbody"></tbody>
+        </table>
+      </div>
+      <div id="cred-empty" style="display:none;text-align:center;padding:2rem;color:var(--muted);font-size:.85rem;">No bills found.</div>
     </div>
   </div>
 </div>
@@ -1722,6 +1754,189 @@ function renderAged(data) {
   document.getElementById('aged-tbody').innerHTML = sorted.map(([name, d]) =>
     `<tr><td>${name}</td><td>£${f(d.current)}</td><td>£${f(d.b30)}</td><td>£${f(d.b60)}</td><td>£${f(d.b90)}</td><td class="${d.b90plus>0?'tr2':''}">£${f(d.b90plus)}</td><td><strong>£${f(d.total)}</strong></td></tr>`
   ).join('');
+}
+
+// ─── TRADE CREDITORS (BILLS / AP) ───
+let creditorFilter = 'overdue';
+let creditorCache = null;
+
+async function loadCreditors() {
+  if (creditorCache) {
+    document.getElementById('cred-content').style.display = 'block';
+    filterCreditors(creditorFilter, document.getElementById('cred-filter-overdue'));
+    return;
+  }
+  const data = await loadQB('bills', 'cred');
+  if (data) {
+    creditorCache = data;
+    filterCreditors('overdue', document.getElementById('cred-filter-overdue'));
+  }
+}
+
+function filterCreditors(type, btn) {
+  creditorFilter = type;
+  document.querySelectorAll('#cred-content .top-tab').forEach(t => t.classList.remove('active'));
+  if (btn) btn.classList.add('active');
+
+  const titles = { overdue: 'Overdue Bills', unpaid: 'All Unpaid Bills', all: 'All Bills' };
+  document.getElementById('cred-table-title').textContent = titles[type] || 'Bills';
+
+  const allBills = creditorCache?.QueryResponse?.Bill || [];
+  const today = new Date();
+  let bills;
+  if (type === 'overdue') bills = allBills.filter(b => b.Balance > 0 && new Date(b.DueDate) < today);
+  else if (type === 'unpaid') bills = allBills.filter(b => b.Balance > 0);
+  else bills = allBills;
+
+  renderCreditorKPIs(bills, allBills);
+  renderCreditorTable(bills);
+}
+
+function renderCreditorKPIs(bills, allBills) {
+  const kpis = document.getElementById('cred-kpis');
+  if (!bills || !bills.length) { kpis.innerHTML = ''; return; }
+
+  const totalBalance = bills.reduce((s, b) => s + (b.Balance || 0), 0);
+  const totalAmount = bills.reduce((s, b) => s + (b.TotalAmt || 0), 0);
+  const today = new Date();
+  const overdue = bills.filter(b => b.Balance > 0 && new Date(b.DueDate) < today);
+  const overdueBalance = overdue.reduce((s, b) => s + (b.Balance || 0), 0);
+  const worst = overdue.reduce((max, b) => {
+    const days = Math.floor((today - new Date(b.DueDate)) / 86400000);
+    return days > max ? days : max;
+  }, 0);
+
+  // Count unique vendors
+  const vendors = new Set(bills.map(b => b.VendorRef?.name || 'Unknown'));
+
+  kpis.innerHTML = `
+    <div class="kpi" style="--kpi-color:#ef4444"><div class="kpi-label">Overdue Balance</div><div class="kpi-value">£${f(overdueBalance)}</div><div class="kpi-sub"><span class="badge br">${overdue.length} bill${overdue.length !== 1 ? 's' : ''}</span></div></div>
+    <div class="kpi" style="--kpi-color:#f59e0b"><div class="kpi-label">Total Owed</div><div class="kpi-value">£${f(totalBalance)}</div><div class="kpi-sub">${bills.filter(b => b.Balance > 0).length} outstanding</div></div>
+    <div class="kpi" style="--kpi-color:#3b82f6"><div class="kpi-label">Total Billed</div><div class="kpi-value">£${f(totalAmount)}</div><div class="kpi-sub">${vendors.size} vendor${vendors.size !== 1 ? 's' : ''}</div></div>
+    <div class="kpi" style="--kpi-color:#8b5cf6"><div class="kpi-label">Longest Overdue</div><div class="kpi-value">${worst} days</div><div class="kpi-sub">${worst > 30 ? '<span class="badge br">Needs attention</span>' : worst > 0 ? '<span class="badge ba">Monitor</span>' : '<span class="badge bg">All clear</span>'}</div></div>
+  `;
+}
+
+function renderCreditorTable(bills) {
+  const tbody = document.getElementById('cred-tbody');
+  const empty = document.getElementById('cred-empty');
+  const countEl = document.getElementById('cred-count');
+  const table = document.getElementById('cred-table');
+  const pdfBtn = document.getElementById('cred-pdf-btn');
+
+  if (!bills || !bills.length) {
+    tbody.innerHTML = '';
+    table.style.display = 'none';
+    empty.style.display = 'block';
+    countEl.textContent = '0 bills';
+    if (pdfBtn) pdfBtn.style.display = 'none';
+    return;
+  }
+
+  table.style.display = '';
+  empty.style.display = 'none';
+  if (pdfBtn) pdfBtn.style.display = 'inline-block';
+  countEl.textContent = bills.length + ' bill' + (bills.length !== 1 ? 's' : '');
+
+  const today = new Date();
+  tbody.innerHTML = bills.map(b => {
+    const due = new Date(b.DueDate);
+    const daysOver = Math.floor((today - due) / 86400000);
+    const vendor = b.VendorRef ? b.VendorRef.name : 'Unknown';
+    const balClass = b.Balance > 0 ? (daysOver > 0 ? 'tr2' : 'ta') : 'tg';
+    const daysClass = daysOver > 30 ? 'tr2' : daysOver > 0 ? 'ta' : 'tg';
+
+    return `<tr>
+      <td>#${b.DocNumber || b.Id}</td>
+      <td>${vendor}</td>
+      <td>${b.TxnDate || '—'}</td>
+      <td>${b.DueDate || '—'}</td>
+      <td class="${daysClass}">${daysOver > 0 ? daysOver + ' days' : daysOver === 0 ? 'Today' : 'Not yet'}</td>
+      <td>£${f(b.TotalAmt || 0)}</td>
+      <td class="${balClass}">£${f(b.Balance || 0)}</td>
+    </tr>`;
+  }).join('');
+}
+
+function downloadCreditorPDF() {
+  const filter = creditorFilter || 'overdue';
+  const allBills = creditorCache?.QueryResponse?.Bill || [];
+  const today = new Date();
+  let bills;
+  if (filter === 'overdue') bills = allBills.filter(b => b.Balance > 0 && new Date(b.DueDate) < today);
+  else if (filter === 'unpaid') bills = allBills.filter(b => b.Balance > 0);
+  else bills = allBills;
+  if (!bills.length) return;
+
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
+  const titles = { overdue: 'Overdue Bills', unpaid: 'All Unpaid Bills', all: 'All Bills' };
+  const title = titles[filter] || 'Bills';
+
+  const totalBalance = bills.reduce((s, b) => s + (b.Balance || 0), 0);
+  const totalAmount = bills.reduce((s, b) => s + (b.TotalAmt || 0), 0);
+  const overdue = bills.filter(b => b.Balance > 0 && new Date(b.DueDate) < today);
+  const overdueBalance = overdue.reduce((s, b) => s + (b.Balance || 0), 0);
+
+  // Header
+  doc.setFontSize(18);
+  doc.setFont('helvetica', 'bold');
+  doc.text('ConnectIn Events', 14, 16);
+  doc.setFontSize(13);
+  doc.setFont('helvetica', 'normal');
+  doc.text('Trade Creditors — ' + title, 14, 24);
+  doc.setFontSize(9);
+  doc.setTextColor(120);
+  doc.text('Generated: ' + today.toLocaleDateString('en-GB') + ' at ' + today.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' }), 14, 30);
+
+  // Summary line
+  doc.setFontSize(10);
+  doc.setTextColor(60);
+  const summary = bills.length + ' bills  |  Total billed: \u00A3' + f(totalAmount)
+    + '  |  Outstanding: \u00A3' + f(totalBalance)
+    + (filter !== 'all' ? '  |  Overdue: \u00A3' + f(overdueBalance) + ' (' + overdue.length + ')' : '');
+  doc.text(summary, 14, 37);
+
+  // Table
+  const rows = bills.map(b => {
+    const due = new Date(b.DueDate);
+    const daysOver = Math.floor((today - due) / 86400000);
+    return [
+      '#' + (b.DocNumber || b.Id),
+      b.VendorRef?.name || 'Unknown',
+      b.TxnDate || '',
+      b.DueDate || '',
+      daysOver > 0 ? daysOver + ' days' : daysOver === 0 ? 'Today' : 'Not yet',
+      '\u00A3' + f(b.TotalAmt || 0),
+      '\u00A3' + f(b.Balance || 0),
+    ];
+  });
+
+  doc.autoTable({
+    startY: 42,
+    head: [['Bill #', 'Vendor', 'Date', 'Due Date', 'Days Overdue', 'Amount', 'Balance']],
+    body: rows,
+    theme: 'striped',
+    headStyles: { fillColor: [239, 68, 68], textColor: [255, 255, 255], fontStyle: 'bold', fontSize: 8.5 },
+    bodyStyles: { fontSize: 8, textColor: [50, 50, 50] },
+    alternateRowStyles: { fillColor: [245, 247, 250] },
+    columnStyles: {
+      0: { cellWidth: 22 },
+      4: { halign: 'center' },
+      5: { halign: 'right' },
+      6: { halign: 'right', fontStyle: 'bold' },
+    },
+    margin: { left: 14, right: 14 },
+    didDrawPage: function (data) {
+      doc.setFontSize(7);
+      doc.setTextColor(150);
+      doc.text('ConnectIn Events Financial Dashboard \u2014 Internal use only \u2014 connectinevents.co.uk', 14, doc.internal.pageSize.height - 8);
+      doc.text('Page ' + doc.internal.getCurrentPageInfo().pageNumber, doc.internal.pageSize.width - 25, doc.internal.pageSize.height - 8);
+    },
+  });
+
+  const dateStr = today.toISOString().split('T')[0];
+  doc.save('ConnectIn-Trade-Creditors-' + title.replace(/\s+/g, '-') + '-' + dateStr + '.pdf');
 }
 
 // ─── EXPENSES ───
@@ -3327,6 +3542,7 @@ switchTop = function(name, btn) {
     customers: loadCustomers,
     payments: loadPayments,
     aged: loadAged,
+    creditors: loadCreditors,
     expenses: loadExpenses,
     estimates: loadEstimates,
     creditnotes: loadCreditNotes,
@@ -3341,7 +3557,7 @@ switchTop = function(name, btn) {
 
   // Update nav group active states
   const overviewViews = ['fy-overview','fy-monthly','nfy-overview','nfy-monthly'];
-  const qbViews = ['customers','payments','aged','expenses','estimates','creditnotes'];
+  const qbViews = ['customers','payments','aged','creditors','expenses','estimates','creditnotes'];
   const reportViews = ['pnl','balancesheet','jobs'];
 
   document.querySelectorAll('.nav-group-btn').forEach(g => g.classList.remove('active'));

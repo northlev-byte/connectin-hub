@@ -209,7 +209,7 @@ export default async function handler(req, res) {
         query = "SELECT * FROM Purchase ORDERBY MetaData.CreateTime DESC MAXRESULTS 100";
         break;
       case 'bills':
-        query = "SELECT * FROM Bill ORDERBY MetaData.CreateTime DESC MAXRESULTS 100";
+        query = "SELECT * FROM Bill ORDERBY DueDate ASC MAXRESULTS 1000";
         break;
       case 'accounts':
         query = "SELECT * FROM Account WHERE AccountType = 'Bank' ORDERBY Name ASC";
