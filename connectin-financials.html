@@ -668,6 +668,12 @@ async function checkFinPw(e){
   <div id="jobs-not-connected" style="display:none;"><div class="notice notice-blue"><span>ℹ️</span><div>QuickBooks is not connected. <a href="/api/qb-auth" style="color:var(--accent);font-weight:600;">Connect now →</a></div></div></div>
   <div id="jobs-loading" style="display:none;text-align:center;padding:3rem;color:var(--muted);">Loading jobs...</div>
   <div id="jobs-content" style="display:none;">
+    <div style="display:flex;gap:.6rem;align-items:center;margin-bottom:1rem;flex-wrap:wrap;">
+      <label style="color:var(--muted);font-size:.78rem;font-weight:600;text-transform:uppercase;letter-spacing:.05em;">Period:</label>
+      <button class="top-tab" onclick="setJobsPeriod('lastFy',this)" id="jobs-period-lastFy">Last FY</button>
+      <button class="top-tab" onclick="setJobsPeriod('currentFy',this)" id="jobs-period-currentFy">Current FY</button>
+      <button class="top-tab active" onclick="setJobsPeriod('all',this)" id="jobs-period-all">All Time</button>
+    </div>
     <div class="kpi-grid" id="jobs-kpis"></div>
     <!-- View toggle -->
     <div style="display:flex;gap:.6rem;align-items:center;margin-bottom:1rem;flex-wrap:wrap;">
@@ -1879,6 +1885,27 @@ function renderReport(data, prefix) {
 let jobsData = [];
 let jobsSortBy = 'date';
 let jobsView = 'class'; // 'class' | 'customer'
+let jobsPeriod = 'all'; // 'lastFy' | 'currentFy' | 'all'
+
+function setJobsPeriod(period, btn) {
+  jobsPeriod = period;
+  if (btn) {
+    btn.closest('div').querySelectorAll('.top-tab').forEach(t => t.classList.remove('active'));
+    btn.classList.add('active');
+  }
+  loadJobs();
+}
+
+// Normalize a customer name — strip common prefixes/suffixes so
+// "Complete ANS" / "Completed ANS" / "ANS" all group together.
+function normalizeCustomer(name) {
+  if (!name) return 'Unknown';
+  const prefixes = /^(complete|completed|cancelled|canceled|final|pending|draft|tbc|tba)\s+/i;
+  const suffixes = /\s+(complete|completed|cancelled|canceled|final|pending|draft|tbc|tba)$/i;
+  let n = name.trim();
+  n = n.replace(prefixes, '').replace(suffixes, '').trim();
+  return n || name.trim();
+}
 
 // Parse a class name like "ANS - Jan 2025 Conference" into { customer, date, raw }
 // Handles customer before the date (with various delimiters) and multiple date formats.
@@ -1936,7 +1963,7 @@ function parseJobName(name) {
     } catch (e) { /* ignore */ }
 
     return {
-      customer: customer || 'Unknown',
+      customer: normalizeCustomer(customer || 'Unknown'),
       date: dateSort || null,
       dateLabel,
       raw: name,
@@ -1945,8 +1972,8 @@ function parseJobName(name) {
 
   // No date found — try to extract customer from text before first delimiter (including comma)
   const delim = name.match(/^([^,\-–—:]+?)[\s]*[,\-–—:]/);
-  if (delim) return { customer: delim[1].trim() || 'Unknown', date: null, dateLabel: '', raw: name };
-  return { customer: name.trim(), date: null, dateLabel: '', raw: name };
+  if (delim) return { customer: normalizeCustomer(delim[1].trim() || 'Unknown'), date: null, dateLabel: '', raw: name };
+  return { customer: normalizeCustomer(name.trim()), date: null, dateLabel: '', raw: name };
 }
 
 async function loadJobs() {
@@ -1957,8 +1984,19 @@ async function loadJobs() {
   if (content) content.style.display = 'none';
   if (notConn) notConn.style.display = 'none';
   try {
-    // No date params — the API will use a wide explicit date range for pnl-class
-    const res = await fetch('/api/qb-invoices?type=pnl-class');
+    // Build the fetch URL based on the period toggle
+    const qs = new URLSearchParams({ type: 'pnl-class' });
+    if (jobsPeriod === 'lastFy') {
+      const r = previousFyRange();
+      qs.set('from', r.from);
+      qs.set('to', r.to);
+    } else if (jobsPeriod === 'currentFy') {
+      const r = currentFyRange();
+      qs.set('from', r.from);
+      qs.set('to', r.to);
+    }
+    // 'all' → no from/to, API defaults to wide explicit range
+    const res = await fetch('/api/qb-invoices?' + qs.toString());
     if (!res.ok) {
       const err = await res.json().catch(() => ({}));
       // Only show the "not connected" banner for actual auth failures
