@@ -1907,9 +1907,12 @@ function parseJobName(name) {
     if (!m) continue;
     // Extract customer = text before the date (or after, if before is empty)
     let customer = name.substring(0, m.index).trim();
-    customer = customer.replace(/[\s\-–—:,]+$/, '').trim();
+    customer = customer.replace(/[\s,\-–—:]+$/, '').trim();
+    // If the text before the date has commas, take only the first segment as the customer
+    if (customer.includes(',')) customer = customer.split(',')[0].trim();
     if (!customer) {
-      customer = name.substring(m.index + m[0].length).trim().replace(/^[\s\-–—:,]+/, '').trim();
+      customer = name.substring(m.index + m[0].length).trim().replace(/^[\s,\-–—:]+/, '').trim();
+      if (customer.includes(',')) customer = customer.split(',')[0].trim();
     }
 
     let dateSort = '';
@@ -1940,8 +1943,8 @@ function parseJobName(name) {
     };
   }
 
-  // No date found — try to extract customer from text before first delimiter
-  const delim = name.match(/^([^\-–—:]+?)[\s]*[-–—:]/);
+  // No date found — try to extract customer from text before first delimiter (including comma)
+  const delim = name.match(/^([^,\-–—:]+?)[\s]*[,\-–—:]/);
   if (delim) return { customer: delim[1].trim() || 'Unknown', date: null, dateLabel: '', raw: name };
   return { customer: name.trim(), date: null, dateLabel: '', raw: name };
 }
