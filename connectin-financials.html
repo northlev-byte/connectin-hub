@@ -6,6 +6,8 @@
 <title>ConnectIn Events — Financial Dashboard</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
 <link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
 <style>
 :root {
@@ -438,7 +440,10 @@ async function checkFinPw(e){
     <div class="card">
       <div class="card-hd">
         <div class="card-title" id="inv-table-title">Overdue Invoices</div>
-        <div class="card-tag" id="inv-count">0 invoices</div>
+        <div style="display:flex;gap:.6rem;align-items:center;">
+          <div class="card-tag" id="inv-count">0 invoices</div>
+          <button id="inv-pdf-btn" onclick="downloadInvoicePDF()" style="display:none;padding:.35rem .8rem;border:1px solid var(--accent);background:transparent;color:var(--accent);border-radius:5px;cursor:pointer;font-size:.72rem;font-weight:600;font-family:inherit;transition:all .15s;" onmouseover="this.style.background='var(--accent)';this.style.color='#000'" onmouseout="this.style.background='transparent';this.style.color='var(--accent)'">Download PDF</button>
+        </div>
       </div>
       <div class="mtwrap">
         <table class="ft" id="inv-table">
@@ -1171,17 +1176,20 @@ function renderInvoiceTable(invoices) {
   const empty = document.getElementById('inv-empty');
   const countEl = document.getElementById('inv-count');
   const table = document.getElementById('inv-table');
+  const pdfBtn = document.getElementById('inv-pdf-btn');
 
   if (!invoices || !invoices.length) {
     tbody.innerHTML = '';
     table.style.display = 'none';
     empty.style.display = 'block';
     countEl.textContent = '0 invoices';
+    if (pdfBtn) pdfBtn.style.display = 'none';
     return;
   }
 
   table.style.display = '';
   empty.style.display = 'none';
+  if (pdfBtn) pdfBtn.style.display = 'inline-block';
   countEl.textContent = invoices.length + ' invoice' + (invoices.length !== 1 ? 's' : '');
 
   const today = new Date();
@@ -1211,6 +1219,86 @@ function renderInvoiceTable(invoices) {
       }).replace(/'/g,"&#39;")})' style="padding:.3rem .7rem;border:1px solid var(--accent);background:transparent;color:var(--accent);border-radius:4px;cursor:pointer;font-size:.72rem;font-weight:600;transition:all .15s;" onmouseover="this.style.background='var(--accent)';this.style.color='#000'" onmouseout="this.style.background='transparent';this.style.color='var(--accent)'"'>Chase</button>` : '<span class="tg" style="font-size:.72rem;">Paid</span>'}</td>
     </tr>`;
   }).join('');
+}
+
+function downloadInvoicePDF() {
+  const filter = currentFilter || 'overdue';
+  const invoices = invoiceCache[filter]?.QueryResponse?.Invoice || [];
+  if (!invoices.length) return;
+
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
+  const today = new Date();
+  const titles = { overdue: 'Overdue Invoices', unpaid: 'All Unpaid Invoices', all: 'All Invoices' };
+  const title = titles[filter] || 'Invoices';
+
+  // Summary stats
+  const totalBalance = invoices.reduce((s, i) => s + (i.Balance || 0), 0);
+  const totalAmount = invoices.reduce((s, i) => s + (i.TotalAmt || 0), 0);
+  const overdue = invoices.filter(i => i.Balance > 0 && new Date(i.DueDate) < today);
+  const overdueBalance = overdue.reduce((s, i) => s + (i.Balance || 0), 0);
+
+  // Header
+  doc.setFontSize(18);
+  doc.setFont('helvetica', 'bold');
+  doc.text('ConnectIn Events', 14, 16);
+  doc.setFontSize(13);
+  doc.setFont('helvetica', 'normal');
+  doc.text(title, 14, 24);
+  doc.setFontSize(9);
+  doc.setTextColor(120);
+  doc.text('Generated: ' + today.toLocaleDateString('en-GB') + ' at ' + today.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' }), 14, 30);
+
+  // Summary line
+  doc.setFontSize(10);
+  doc.setTextColor(60);
+  const summary = invoices.length + ' invoices  |  Total invoiced: \u00A3' + f(totalAmount)
+    + '  |  Outstanding: \u00A3' + f(totalBalance)
+    + (filter !== 'all' ? '  |  Overdue: \u00A3' + f(overdueBalance) + ' (' + overdue.length + ')' : '');
+  doc.text(summary, 14, 37);
+
+  // Table
+  const rows = invoices.map(inv => {
+    const due = new Date(inv.DueDate);
+    const daysOver = Math.floor((today - due) / 86400000);
+    return [
+      '#' + (inv.DocNumber || inv.Id),
+      inv.CustomerRef?.name || 'Unknown',
+      inv.TxnDate || '',
+      inv.DueDate || '',
+      daysOver > 0 ? daysOver + ' days' : daysOver === 0 ? 'Today' : 'Not yet',
+      '\u00A3' + f(inv.TotalAmt || 0),
+      '\u00A3' + f(inv.Balance || 0),
+    ];
+  });
+
+  doc.autoTable({
+    startY: 42,
+    head: [['Invoice #', 'Customer', 'Date', 'Due Date', 'Days Overdue', 'Amount', 'Balance']],
+    body: rows,
+    theme: 'striped',
+    headStyles: { fillColor: [0, 212, 170], textColor: [0, 0, 0], fontStyle: 'bold', fontSize: 8.5 },
+    bodyStyles: { fontSize: 8, textColor: [50, 50, 50] },
+    alternateRowStyles: { fillColor: [245, 247, 250] },
+    columnStyles: {
+      0: { cellWidth: 22 },
+      4: { halign: 'center' },
+      5: { halign: 'right' },
+      6: { halign: 'right', fontStyle: 'bold' },
+    },
+    margin: { left: 14, right: 14 },
+    didDrawPage: function (data) {
+      // Footer on every page
+      doc.setFontSize(7);
+      doc.setTextColor(150);
+      doc.text('ConnectIn Events Financial Dashboard \u2014 Internal use only \u2014 connectinevents.co.uk', 14, doc.internal.pageSize.height - 8);
+      doc.text('Page ' + doc.internal.getCurrentPageInfo().pageNumber, doc.internal.pageSize.width - 25, doc.internal.pageSize.height - 8);
+    },
+  });
+
+  // Download
+  const dateStr = today.toISOString().split('T')[0];
+  doc.save('ConnectIn-' + title.replace(/\s+/g, '-') + '-' + dateStr + '.pdf');
 }
 
 async function filterInvoices(type, btn) {
