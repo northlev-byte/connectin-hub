@@ -134,7 +134,7 @@ export default async function handler(req, res) {
         balancesheet: 'BalanceSheet',
         'txn-list': 'TransactionList',
         'pnl-class': 'ProfitAndLoss',
-        'aged-payables': 'AgedPayableSummary',
+        'aged-payables': 'AgedPayableDetail',
       };
       const reportParams = new URLSearchParams({ minorversion: '65' });
       if (fromDate) reportParams.set('start_date', fromDate);
@@ -165,8 +165,8 @@ export default async function handler(req, res) {
         reportParams.set('start_date', '2000-01-01');
         reportParams.set('end_date', '2099-12-31');
       }
-      // AgedPayableSummary doesn't need explicit columns — QB returns
-      // vendor name + aging buckets (Current, 1-30, 31-60, 61-90, 91+, Total) by default
+      // AgedPayableDetail — don't set explicit columns (breaks the report);
+      // parse whatever QB returns using ColKey metadata detection
       const reportUrl = `${QB_API_BASE}/${tokens.realm_id}/reports/${reportMap[type]}?${reportParams.toString()}`;
       const reportRes = await fetch(reportUrl, {
         headers: {

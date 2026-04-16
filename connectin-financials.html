@@ -575,7 +575,7 @@ async function checkFinPw(e){
       </div>
       <div class="mtwrap">
         <table class="ft" id="cred-table">
-          <thead><tr><th>Vendor</th><th style="text-align:right;">Current</th><th style="text-align:right;">1–30 Days</th><th style="text-align:right;">31–60 Days</th><th style="text-align:right;">61–90 Days</th><th style="text-align:right;">90+ Days</th><th style="text-align:right;"><strong>Total</strong></th></tr></thead>
+          <thead><tr><th>Vendor</th><th>Type</th><th>Ref #</th><th>Date</th><th>Due Date</th><th>Days Overdue</th><th style="text-align:right;">Amount Owed</th></tr></thead>
           <tbody id="cred-tbody"></tbody>
         </table>
       </div>
@@ -1786,43 +1786,65 @@ async function loadCreditors() {
   }
 }
 
-// Parse QB's AgedPayableSummary report — one row per vendor with aging buckets.
-// Columns are typically: [Vendor, Current, 1-30, 31-60, 61-90, 91 and over, Total]
+// Parse QB's AgedPayableDetail report into a flat list.
+// Uses ColKey metadata to detect column indices, falls back to section headers for vendor name.
 function parseAgedPayables(data) {
+  // Build column key map from metadata (same pattern as bank txn modal)
+  const getColKey = (col) => {
+    const meta = (col.MetaData || []).find(m => m.Name === 'ColKey');
+    return (meta?.Value || col.ColTitle || '').toLowerCase();
+  };
+  const colKeys = (data.Columns?.Column || []).map(getColKey);
+  const findCol = (keys) => {
+    for (const k of keys) { const i = colKeys.indexOf(k); if (i >= 0) return i; }
+    return -1;
+  };
+  const ci = {
+    vendor: findCol(['vend_name', 'vendor_name', 'name', 'vendor']),
+    date: findCol(['tx_date', 'date']),
+    type: findCol(['txn_type', 'transaction type']),
+    num: findCol(['doc_num', 'num']),
+    dueDate: findCol(['due_date', 'due date']),
+    amount: findCol(['subt_nat_amount', 'open_bal', 'amount', 'open balance']),
+  };
+
   const items = [];
+  const isAgingBucket = (t) => /^\d+\s*[-–]\s*\d+\s*days?\s*past\s*due$|^current$/i.test((t || '').trim());
   const tryNum = (v) => { const n = parseFloat(String(v || '').replace(/[,£$]/g, '')); return isNaN(n) ? 0 : n; };
 
-  function walk(rows) {
+  function walk(rows, vendorFromHeader) {
     (rows || []).forEach(row => {
-      // Data rows have ColData and no Summary/Rows children
-      if (row.ColData && row.ColData.length >= 2) {
-        const cells = row.ColData.map(c => c?.value || '');
-        const vendor = cells[0] || '';
-        // Skip total/summary rows at the bottom
-        if (vendor.toLowerCase() === 'total' || !vendor) { return; }
-        const item = {
-          vendor: vendor,
-          current: tryNum(cells[1]),
-          b30: tryNum(cells[2]),
-          b60: tryNum(cells[3]),
-          b90: tryNum(cells[4]),
-          b90plus: tryNum(cells[5]),
-          total: tryNum(cells[6]) || tryNum(cells[cells.length - 1]),
-        };
-        // Only include vendors with non-zero totals
-        if (item.total !== 0 || item.current || item.b30 || item.b60 || item.b90 || item.b90plus) {
-          // Recalculate total if it wasn't in the last column
-          if (!item.total) item.total = item.current + item.b30 + item.b60 + item.b90 + item.b90plus;
-          items.push(item);
+      // Section headers: vendor names (skip aging bucket headers)
+      if (row.Header?.ColData) {
+        const hdr = row.Header.ColData[0]?.value || '';
+        if (!isAgingBucket(hdr) && hdr.toLowerCase() !== 'total') {
+          vendorFromHeader = hdr;
         }
       }
-      // Recurse into nested sections (some reports nest vendor rows under a section)
-      if (row.Rows?.Row) walk(row.Rows.Row);
+      // Data rows
+      if (row.ColData && !row.Summary) {
+        // Try column-based vendor first, fall back to section header
+        let vendor = vendorFromHeader || 'Unknown';
+        if (ci.vendor >= 0 && row.ColData[ci.vendor]?.value) {
+          vendor = row.ColData[ci.vendor].value;
+        }
+        const val = (idx) => idx >= 0 ? (row.ColData[idx]?.value || '') : '';
+        const amount = tryNum(val(ci.amount));
+        if (amount !== 0 || val(ci.date)) {
+          items.push({
+            vendor,
+            type: val(ci.type),
+            num: val(ci.num),
+            date: val(ci.date),
+            dueDate: val(ci.dueDate),
+            amount,
+          });
+        }
+      }
+      if (row.Rows?.Row) walk(row.Rows.Row, vendorFromHeader);
     });
   }
-  walk(data.Rows?.Row || []);
-  // Sort by total descending (biggest creditor first)
-  items.sort((a, b) => b.total - a.total);
+  walk(data.Rows?.Row || [], '');
   return items;
 }
 
@@ -1831,16 +1853,21 @@ function renderCreditorKPIs() {
   const items = creditorData;
   if (!items.length) { kpis.innerHTML = ''; return; }
 
-  const totalOwed = items.reduce((s, i) => s + i.total, 0);
-  const totalOverdue = items.reduce((s, i) => s + i.b30 + i.b60 + i.b90 + i.b90plus, 0);
-  const totalCurrent = items.reduce((s, i) => s + i.current, 0);
-  const overdueVendors = items.filter(i => (i.b30 + i.b60 + i.b90 + i.b90plus) > 0).length;
+  const totalOwed = items.reduce((s, i) => s + (i.amount || 0), 0);
+  const vendors = new Set(items.map(i => i.vendor));
+  const today = new Date();
+  const overdue = items.filter(i => i.dueDate && new Date(i.dueDate) < today);
+  const overdueAmt = overdue.reduce((s, i) => s + (i.amount || 0), 0);
+  const worst = overdue.reduce((max, i) => {
+    const d = Math.floor((today - new Date(i.dueDate)) / 86400000);
+    return d > max ? d : max;
+  }, 0);
 
   kpis.innerHTML = `
-    <div class="kpi" style="--kpi-color:#ef4444"><div class="kpi-label">Total Owed</div><div class="kpi-value">£${f(totalOwed)}</div><div class="kpi-sub">${items.length} vendor${items.length !== 1 ? 's' : ''}</div></div>
-    <div class="kpi" style="--kpi-color:#f59e0b"><div class="kpi-label">Overdue</div><div class="kpi-value">£${f(totalOverdue)}</div><div class="kpi-sub">${overdueVendors} vendor${overdueVendors !== 1 ? 's' : ''} overdue</div></div>
-    <div class="kpi" style="--kpi-color:#10b981"><div class="kpi-label">Current (Not Due)</div><div class="kpi-value">£${f(totalCurrent)}</div><div class="kpi-sub">Within terms</div></div>
-    <div class="kpi" style="--kpi-color:#8b5cf6"><div class="kpi-label">90+ Days</div><div class="kpi-value">£${f(items.reduce((s,i) => s + i.b90plus, 0))}</div><div class="kpi-sub">${items.reduce((s,i) => s + i.b90plus, 0) > 0 ? '<span class="badge br">Needs attention</span>' : '<span class="badge bg">All clear</span>'}</div></div>
+    <div class="kpi" style="--kpi-color:#ef4444"><div class="kpi-label">Total Owed</div><div class="kpi-value">£${f(totalOwed)}</div><div class="kpi-sub">${items.length} item${items.length !== 1 ? 's' : ''}</div></div>
+    <div class="kpi" style="--kpi-color:#f59e0b"><div class="kpi-label">Overdue</div><div class="kpi-value">£${f(overdueAmt)}</div><div class="kpi-sub">${overdue.length} overdue</div></div>
+    <div class="kpi" style="--kpi-color:#3b82f6"><div class="kpi-label">Vendors</div><div class="kpi-value">${vendors.size}</div><div class="kpi-sub">Unique suppliers</div></div>
+    <div class="kpi" style="--kpi-color:#8b5cf6"><div class="kpi-label">Longest Overdue</div><div class="kpi-value">${worst} days</div><div class="kpi-sub">${worst > 30 ? '<span class="badge br">Needs attention</span>' : worst > 0 ? '<span class="badge ba">Monitor</span>' : '<span class="badge bg">All clear</span>'}</div></div>
   `;
 }
 
@@ -1855,7 +1882,7 @@ function renderCreditorTable(items) {
     tbody.innerHTML = '';
     table.style.display = 'none';
     empty.style.display = 'block';
-    countEl.textContent = '0 vendors';
+    countEl.textContent = '0 items';
     if (pdfBtn) pdfBtn.style.display = 'none';
     return;
   }
@@ -1863,18 +1890,21 @@ function renderCreditorTable(items) {
   table.style.display = '';
   empty.style.display = 'none';
   if (pdfBtn) pdfBtn.style.display = 'inline-block';
-  countEl.textContent = items.length + ' vendor' + (items.length !== 1 ? 's' : '');
+  countEl.textContent = items.length + ' item' + (items.length !== 1 ? 's' : '');
 
+  const today = new Date();
   tbody.innerHTML = items.map(item => {
-    const hasOverdue = (item.b30 + item.b60 + item.b90 + item.b90plus) > 0;
+    const daysOver = item.dueDate ? Math.floor((today - new Date(item.dueDate)) / 86400000) : 0;
+    const daysClass = daysOver > 30 ? 'tr2' : daysOver > 0 ? 'ta' : '';
+
     return `<tr>
       <td><strong>${item.vendor}</strong></td>
-      <td style="text-align:right;">${item.current ? '£' + f(item.current) : '<span class="tm">—</span>'}</td>
-      <td style="text-align:right;" class="${item.b30 ? 'ta' : ''}">${item.b30 ? '£' + f(item.b30) : '<span class="tm">—</span>'}</td>
-      <td style="text-align:right;" class="${item.b60 ? 'tr2' : ''}">${item.b60 ? '£' + f(item.b60) : '<span class="tm">—</span>'}</td>
-      <td style="text-align:right;" class="${item.b90 ? 'tr2' : ''}">${item.b90 ? '£' + f(item.b90) : '<span class="tm">—</span>'}</td>
-      <td style="text-align:right;" class="${item.b90plus ? 'tr2' : ''}">${item.b90plus ? '£' + f(item.b90plus) : '<span class="tm">—</span>'}</td>
-      <td style="text-align:right;"><strong class="${hasOverdue ? 'tr2' : ''}">£${f(item.total)}</strong></td>
+      <td>${item.type || '—'}</td>
+      <td>${item.num || '—'}</td>
+      <td>${item.date || '—'}</td>
+      <td>${item.dueDate || '—'}</td>
+      <td class="${daysClass}">${daysOver > 0 ? daysOver + ' days' : '—'}</td>
+      <td style="text-align:right;" class="tr2"><strong>£${f(item.amount || 0)}</strong></td>
     </tr>`;
   }).join('');
 }
@@ -1886,8 +1916,10 @@ function downloadCreditorPDF() {
   const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
   const today = new Date();
 
-  const totalOwed = creditorData.reduce((s, i) => s + i.total, 0);
-  const totalOverdue = creditorData.reduce((s, i) => s + i.b30 + i.b60 + i.b90 + i.b90plus, 0);
+  const totalOwed = creditorData.reduce((s, i) => s + (i.amount || 0), 0);
+  const vendors = new Set(creditorData.map(i => i.vendor));
+  const overdue = creditorData.filter(i => i.dueDate && new Date(i.dueDate) < today);
+  const overdueAmt = overdue.reduce((s, i) => s + (i.amount || 0), 0);
 
   // Header
   doc.setFontSize(18);
@@ -1895,7 +1927,7 @@ function downloadCreditorPDF() {
   doc.text('ConnectIn Events', 14, 16);
   doc.setFontSize(13);
   doc.setFont('helvetica', 'normal');
-  doc.text('Trade Creditors — Aged Payables Summary', 14, 24);
+  doc.text('Trade Creditors — Who We Owe', 14, 24);
   doc.setFontSize(9);
   doc.setTextColor(120);
   doc.text('Generated: ' + today.toLocaleDateString('en-GB') + ' at ' + today.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' }), 14, 30);
@@ -1903,30 +1935,32 @@ function downloadCreditorPDF() {
   // Summary
   doc.setFontSize(10);
   doc.setTextColor(60);
-  doc.text(creditorData.length + ' vendors  |  Total owed: \u00A3' + f(totalOwed) + '  |  Overdue: \u00A3' + f(totalOverdue), 14, 37);
+  doc.text(creditorData.length + ' items  |  ' + vendors.size + ' vendors  |  Total owed: \u00A3' + f(totalOwed) + '  |  Overdue: \u00A3' + f(overdueAmt), 14, 37);
 
   // Table
-  const rows = creditorData.map(item => [
-    item.vendor,
-    item.current ? '\u00A3' + f(item.current) : '—',
-    item.b30 ? '\u00A3' + f(item.b30) : '—',
-    item.b60 ? '\u00A3' + f(item.b60) : '—',
-    item.b90 ? '\u00A3' + f(item.b90) : '—',
-    item.b90plus ? '\u00A3' + f(item.b90plus) : '—',
-    '\u00A3' + f(item.total),
-  ]);
+  const rows = creditorData.map(item => {
+    const daysOver = item.dueDate ? Math.floor((today - new Date(item.dueDate)) / 86400000) : 0;
+    return [
+      item.vendor,
+      item.type || '—',
+      item.num || '—',
+      item.date || '',
+      item.dueDate || '',
+      daysOver > 0 ? daysOver + ' days' : '—',
+      '\u00A3' + f(item.amount || 0),
+    ];
+  });
 
   doc.autoTable({
     startY: 42,
-    head: [['Vendor', 'Current', '1–30 Days', '31–60 Days', '61–90 Days', '90+ Days', 'Total']],
+    head: [['Vendor', 'Type', 'Ref #', 'Date', 'Due Date', 'Days Overdue', 'Amount Owed']],
     body: rows,
     theme: 'striped',
     headStyles: { fillColor: [239, 68, 68], textColor: [255, 255, 255], fontStyle: 'bold', fontSize: 8.5 },
     bodyStyles: { fontSize: 8, textColor: [50, 50, 50] },
     alternateRowStyles: { fillColor: [245, 247, 250] },
     columnStyles: {
-      1: { halign: 'right' }, 2: { halign: 'right' }, 3: { halign: 'right' },
-      4: { halign: 'right' }, 5: { halign: 'right' },
+      5: { halign: 'center' },
       6: { halign: 'right', fontStyle: 'bold' },
     },
     margin: { left: 14, right: 14 },
