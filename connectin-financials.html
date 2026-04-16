@@ -1811,21 +1811,35 @@ function parseAgedPayables(data) {
       if (row.ColData && !row.Summary) {
         const item = { vendor: vendor || 'Unknown' };
         row.ColData.forEach((cell, i) => {
-          const key = columns[i] || '';
+          const key = (columns[i] || '').toLowerCase();
           const val = cell?.value || '';
-          if (key === 'tx_date' || key === 'Date') item.date = val;
-          else if (key === 'txn_type' || key === 'Transaction Type') item.type = val;
-          else if (key === 'doc_num' || key === 'Num') item.num = val;
-          else if (key === 'due_date' || key === 'Due Date') item.dueDate = val;
-          else if (key === 'subt_nat_amount' || key === 'open_bal' || key === 'Amount' || key === 'Open Balance') {
+          // Vendor name can come as a column (vend_name, name, vendor_name) or from the section header
+          if (key === 'vend_name' || key === 'vendor_name' || key === 'name' || key === 'vendor') {
+            if (val) item.vendor = val;
+          }
+          else if (key === 'tx_date' || key === 'date') item.date = val;
+          else if (key === 'txn_type' || key === 'transaction type') item.type = val;
+          else if (key === 'doc_num' || key === 'num') item.num = val;
+          else if (key === 'due_date' || key === 'due date') item.dueDate = val;
+          else if (key === 'subt_nat_amount' || key === 'open_bal' || key === 'amount' || key === 'open balance') {
             const n = parseFloat(String(val).replace(/[,£$]/g, ''));
             if (!isNaN(n) && n !== 0) item.amount = n;
           }
-          else if (key === 'past_due' || key === 'Past Due') {
+          else if (key === 'past_due' || key === 'past due') {
             const n = parseFloat(String(val).replace(/[,£$]/g, ''));
             if (!isNaN(n)) item.pastDue = n;
           }
         });
+        // Also try the cell's `id` field — QB sometimes puts the vendor name in ColData[].id on the first column
+        if (item.vendor === (vendor || 'Unknown') || item.vendor === 'Unknown') {
+          for (const cell of row.ColData) {
+            if (cell?.id && cell?.value && !cell.value.match(/^\d/) && !cell.value.match(/^[£$]/)) {
+              // First non-numeric, non-currency cell with an id is likely the vendor/entity name
+              item.vendor = cell.value;
+              break;
+            }
+          }
+        }
         if (item.amount || item.pastDue) {
           if (!item.amount) item.amount = item.pastDue || 0;
           items.push(item);

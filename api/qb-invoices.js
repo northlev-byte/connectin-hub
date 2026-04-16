@@ -165,6 +165,10 @@ export default async function handler(req, res) {
         reportParams.set('start_date', '2000-01-01');
         reportParams.set('end_date', '2099-12-31');
       }
+      // AgedPayableDetail — explicitly request vendor name column
+      if (type === 'aged-payables') {
+        reportParams.set('columns', 'vend_name,tx_date,txn_type,doc_num,due_date,subt_nat_amount,open_bal');
+      }
       const reportUrl = `${QB_API_BASE}/${tokens.realm_id}/reports/${reportMap[type]}?${reportParams.toString()}`;
       const reportRes = await fetch(reportUrl, {
         headers: {
