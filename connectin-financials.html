@@ -1775,18 +1775,6 @@ async function loadCreditors() {
     loading.style.display = 'none'; content.style.display = 'block';
     renderCreditorKPIs();
     renderCreditorTable(creditorData);
-    // Debug: show QB column keys so we can identify the right amount column
-    const debugCols = (data.Columns?.Column || []).map((col, i) => {
-      const meta = (col.MetaData || []).find(m => m.Name === 'ColKey');
-      return i + ':' + (meta?.Value || col.ColTitle || '?');
-    }).join(', ');
-    const firstRow = data.Rows?.Row?.[0]?.Rows?.Row?.[0]?.Rows?.Row?.[0]?.ColData
-      || data.Rows?.Row?.[0]?.Rows?.Row?.[0]?.ColData
-      || data.Rows?.Row?.[0]?.ColData || [];
-    const debugVals = firstRow.map((c, i) => i + ':' + (c?.value || '')).join(', ');
-    const debugEl = document.getElementById('cred-empty');
-    debugEl.style.display = 'block';
-    debugEl.innerHTML = '<div style="font-size:.7rem;color:var(--muted);word-break:break-all;"><strong>DEBUG cols:</strong> ' + debugCols + '<br><strong>DEBUG first row:</strong> ' + debugVals + '</div>';
   } catch (e) {
     loading.style.display = 'none';
     content.style.display = 'block';
@@ -1817,9 +1805,9 @@ function parseAgedPayables(data) {
     type: findCol(['txn_type', 'transaction type']),
     num: findCol(['doc_num', 'num']),
     dueDate: findCol(['due_date', 'due date']),
-    amount: findCol(['subt_nat_amount', 'open_bal', 'amount', 'open balance', 'a_nat_amount', 'nat_amount', 'debt_amt', 'net_amount', 'past_due', 'balance']),
+    amount: findCol(['subt_neg_home_open_bal', 'open_bal', 'subt_neg_home_amount', 'subt_nat_amount', 'amount', 'open balance', 'balance']),
   };
-  // If no named amount column found, use the LAST column as a fallback (reports often put the total/amount there)
+  // If no named amount column found, use the LAST column as a fallback
   if (ci.amount === -1 && colKeys.length > 0) ci.amount = colKeys.length - 1;
 
   const items = [];
@@ -1843,7 +1831,7 @@ function parseAgedPayables(data) {
           vendor = row.ColData[ci.vendor].value;
         }
         const val = (idx) => idx >= 0 ? (row.ColData[idx]?.value || '') : '';
-        const amount = tryNum(val(ci.amount));
+        const amount = Math.abs(tryNum(val(ci.amount)));
         if (amount !== 0 || val(ci.date)) {
           items.push({
             vendor,
