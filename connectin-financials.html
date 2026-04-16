@@ -228,16 +228,8 @@ async function checkFinPw(e){
   </a>
   <div class="top-tabs">
     <!-- Grouped nav -->
-    <div class="nav-group">
-      <button class="nav-group-btn active" id="ng-overview">Overview ▾</button>
-      <div class="nav-dropdown">
-        <button onclick="navGo('fy-overview',this)">Current FY</button>
-        <button onclick="navGo('fy-monthly',this)">Current FY Monthly</button>
-        <button onclick="navGo('nfy-overview',this)">Next FY Forecast</button>
-        <button onclick="navGo('nfy-monthly',this)">Next FY Monthly</button>
-      </div>
-    </div>
-    <button class="top-tab" onclick="switchTop('invoices',this)" id="tab-invoices">Invoices</button>
+    <!-- Overview removed — Invoices is the default landing page -->
+    <button class="top-tab active" onclick="switchTop('invoices',this)" id="tab-invoices">Invoices</button>
     <div class="nav-group">
       <button class="nav-group-btn" id="ng-qb">QuickBooks ▾</button>
       <div class="nav-dropdown">
@@ -273,7 +265,7 @@ async function checkFinPw(e){
 <div class="month-strip" id="strip-nfy" style="display:none"></div>
 
 <!-- ═══════ VIEW: CURRENT FY OVERVIEW ═══════ -->
-<div id="view-fy-overview" class="view active">
+<div id="view-fy-overview" class="view" style="display:none;">
   <div class="page-header"><h1>Financial Overview</h1><p>1 April 2025 – 18 March 2026 &nbsp;·&nbsp; QuickBooks Accrual Basis</p></div>
   <div class="kpi-grid">
     <div class="kpi" style="--kpi-color:#00d4aa"><div class="kpi-label">Total Revenue</div><div class="kpi-value">£1.72M</div><div class="kpi-sub">£1,721,780</div></div>
@@ -409,7 +401,7 @@ async function checkFinPw(e){
 </div>
 
 <!-- ═══════ VIEW: INVOICES (QuickBooks Live) ═══════ -->
-<div id="view-invoices" class="view">
+<div id="view-invoices" class="view active">
   <div class="page-header">
     <h1>Invoices</h1>
     <p>Live from QuickBooks &nbsp;·&nbsp; Overdue &amp; unpaid invoices</p>
@@ -1459,10 +1451,9 @@ function openInOutlook() {
   window.open(mailto, '_blank');
 }
 
-// If ?qb=connected, auto-switch to invoices tab
-if (new URLSearchParams(window.location.search).get('qb') === 'connected') {
-  switchTop('invoices', document.getElementById('tab-invoices'));
-}
+// Auto-load invoices on page load (it's the default landing page)
+// Also handles the ?qb=connected redirect after OAuth
+filterInvoices('overdue', document.getElementById('inv-filter-overdue'));
 
 // ─── DATE RANGE HELPERS ───
 // Per-page date ranges keyed by a short prefix. Default is the current UK financial year (Apr–Mar).
@@ -3594,7 +3585,7 @@ switchTop = function(name, btn) {
   if (loaders[name]) loaders[name]();
 
   // Update nav group active states
-  const overviewViews = ['fy-overview','fy-monthly','nfy-overview','nfy-monthly'];
+  const overviewViews = [];
   const qbViews = ['customers','payments','aged','creditors','expenses','estimates','creditnotes'];
   const reportViews = ['pnl','balancesheet','jobs'];
 
