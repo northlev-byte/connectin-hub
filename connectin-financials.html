@@ -1805,8 +1805,10 @@ function parseAgedPayables(data) {
     type: findCol(['txn_type', 'transaction type']),
     num: findCol(['doc_num', 'num']),
     dueDate: findCol(['due_date', 'due date']),
-    amount: findCol(['subt_nat_amount', 'open_bal', 'amount', 'open balance']),
+    amount: findCol(['subt_nat_amount', 'open_bal', 'amount', 'open balance', 'a_nat_amount', 'nat_amount', 'debt_amt', 'net_amount', 'past_due', 'balance']),
   };
+  // If no named amount column found, use the LAST column as a fallback (reports often put the total/amount there)
+  if (ci.amount === -1 && colKeys.length > 0) ci.amount = colKeys.length - 1;
 
   const items = [];
   const isAgingBucket = (t) => /^\d+\s*[-–]\s*\d+\s*days?\s*past\s*due$|^current$/i.test((t || '').trim());
