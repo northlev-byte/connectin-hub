@@ -1775,6 +1775,18 @@ async function loadCreditors() {
     loading.style.display = 'none'; content.style.display = 'block';
     renderCreditorKPIs();
     renderCreditorTable(creditorData);
+    // Debug: show QB column keys so we can identify the right amount column
+    const debugCols = (data.Columns?.Column || []).map((col, i) => {
+      const meta = (col.MetaData || []).find(m => m.Name === 'ColKey');
+      return i + ':' + (meta?.Value || col.ColTitle || '?');
+    }).join(', ');
+    const firstRow = data.Rows?.Row?.[0]?.Rows?.Row?.[0]?.Rows?.Row?.[0]?.ColData
+      || data.Rows?.Row?.[0]?.Rows?.Row?.[0]?.ColData
+      || data.Rows?.Row?.[0]?.ColData || [];
+    const debugVals = firstRow.map((c, i) => i + ':' + (c?.value || '')).join(', ');
+    const debugEl = document.getElementById('cred-empty');
+    debugEl.style.display = 'block';
+    debugEl.innerHTML = '<div style="font-size:.7rem;color:var(--muted);word-break:break-all;"><strong>DEBUG cols:</strong> ' + debugCols + '<br><strong>DEBUG first row:</strong> ' + debugVals + '</div>';
   } catch (e) {
     loading.style.display = 'none';
     content.style.display = 'block';
