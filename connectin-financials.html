@@ -565,14 +565,9 @@ async function checkFinPw(e){
   <div id="cred-loading" style="display:none;text-align:center;padding:3rem;color:var(--muted);">Loading trade creditors...</div>
   <div id="cred-content" style="display:none;">
     <div class="kpi-grid" id="cred-kpis"></div>
-    <div style="display:flex;gap:6px;margin-bottom:1.25rem;">
-      <button class="top-tab active" onclick="filterCreditors('overdue',this)" id="cred-filter-overdue">Overdue</button>
-      <button class="top-tab" onclick="filterCreditors('unpaid',this)">All Unpaid</button>
-      <button class="top-tab" onclick="filterCreditors('all',this)">All Bills</button>
-    </div>
     <div class="card">
       <div class="card-hd">
-        <div class="card-title" id="cred-table-title">Overdue Bills</div>
+        <div class="card-title" id="cred-table-title">Outstanding Payables</div>
         <div style="display:flex;gap:.6rem;align-items:center;">
           <div class="card-tag" id="cred-count">0 bills</div>
           <button id="cred-pdf-btn" onclick="downloadCreditorPDF()" style="display:none;padding:.35rem .8rem;border:1px solid var(--accent);background:transparent;color:var(--accent);border-radius:5px;cursor:pointer;font-size:.72rem;font-weight:600;font-family:inherit;transition:all .15s;" onmouseover="this.style.background='var(--accent)';this.style.color='#000'" onmouseout="this.style.background='transparent';this.style.color='var(--accent)'">Download PDF</button>
@@ -1756,79 +1751,123 @@ function renderAged(data) {
   ).join('');
 }
 
-// ─── TRADE CREDITORS (BILLS / AP) ───
-let creditorFilter = 'overdue';
-let creditorCache = null;
+// ─── TRADE CREDITORS (AGED PAYABLES) ───
+let creditorData = []; // Parsed from QB's AgedPayableDetail report
 
 async function loadCreditors() {
-  if (creditorCache) {
-    document.getElementById('cred-content').style.display = 'block';
-    filterCreditors(creditorFilter, document.getElementById('cred-filter-overdue'));
-    return;
-  }
-  const data = await loadQB('bills', 'cred');
-  if (data) {
-    creditorCache = data;
-    filterCreditors('overdue', document.getElementById('cred-filter-overdue'));
+  const loading = document.getElementById('cred-loading');
+  const content = document.getElementById('cred-content');
+  const notConn = document.getElementById('cred-not-connected');
+  if (loading) loading.style.display = 'block';
+  if (content) content.style.display = 'none';
+  if (notConn) notConn.style.display = 'none';
+  try {
+    const res = await fetch('/api/qb-invoices?type=aged-payables');
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      if (err.error === 'not_connected' || err.error === 'auth_expired') {
+        loading.style.display = 'none'; notConn.style.display = 'block'; return;
+      }
+      throw new Error(err.error || err.message || 'Failed');
+    }
+    const data = await res.json();
+    creditorData = parseAgedPayables(data);
+    loading.style.display = 'none'; content.style.display = 'block';
+    renderCreditorKPIs();
+    renderCreditorTable(creditorData);
+  } catch (e) {
+    loading.style.display = 'none';
+    content.style.display = 'block';
+    document.getElementById('cred-kpis').innerHTML = `
+      <div class="notice" style="grid-column:1/-1;background:rgba(239,68,68,.08);border:1px solid rgba(239,68,68,.3);color:#ef4444;padding:1rem 1.25rem;border-radius:8px;">
+        <strong>Failed to load trade creditors:</strong> ${(e && e.message ? e.message : 'Unknown error').replace(/</g,'&lt;')}
+      </div>
+    `;
   }
 }
 
-function filterCreditors(type, btn) {
-  creditorFilter = type;
-  document.querySelectorAll('#cred-content .top-tab').forEach(t => t.classList.remove('active'));
-  if (btn) btn.classList.add('active');
+// Parse QB's AgedPayableDetail report into a flat list of line items per vendor
+function parseAgedPayables(data) {
+  const getColKey = (col) => {
+    const meta = (col.MetaData || []).find(m => m.Name === 'ColKey');
+    return meta?.Value || col.ColTitle || '';
+  };
+  const columns = (data.Columns?.Column || []).map(getColKey);
 
-  const titles = { overdue: 'Overdue Bills', unpaid: 'All Unpaid Bills', all: 'All Bills' };
-  document.getElementById('cred-table-title').textContent = titles[type] || 'Bills';
-
-  const allBills = creditorCache?.QueryResponse?.Bill || [];
-  const today = new Date();
-  let bills;
-  if (type === 'overdue') bills = allBills.filter(b => b.Balance > 0 && new Date(b.DueDate) < today);
-  else if (type === 'unpaid') bills = allBills.filter(b => b.Balance > 0);
-  else bills = allBills;
-
-  renderCreditorKPIs(bills, allBills);
-  renderCreditorTable(bills);
+  const items = [];
+  function walk(rows, vendor) {
+    (rows || []).forEach(row => {
+      // Section header = vendor name
+      if (row.Header?.ColData) {
+        vendor = row.Header.ColData[0]?.value || vendor;
+      }
+      // Data rows = individual payable lines
+      if (row.ColData && !row.Summary) {
+        const item = { vendor: vendor || 'Unknown' };
+        row.ColData.forEach((cell, i) => {
+          const key = columns[i] || '';
+          const val = cell?.value || '';
+          if (key === 'tx_date' || key === 'Date') item.date = val;
+          else if (key === 'txn_type' || key === 'Transaction Type') item.type = val;
+          else if (key === 'doc_num' || key === 'Num') item.num = val;
+          else if (key === 'due_date' || key === 'Due Date') item.dueDate = val;
+          else if (key === 'subt_nat_amount' || key === 'open_bal' || key === 'Amount' || key === 'Open Balance') {
+            const n = parseFloat(String(val).replace(/[,£$]/g, ''));
+            if (!isNaN(n) && n !== 0) item.amount = n;
+          }
+          else if (key === 'past_due' || key === 'Past Due') {
+            const n = parseFloat(String(val).replace(/[,£$]/g, ''));
+            if (!isNaN(n)) item.pastDue = n;
+          }
+        });
+        if (item.amount || item.pastDue) {
+          if (!item.amount) item.amount = item.pastDue || 0;
+          items.push(item);
+        }
+      }
+      // Recurse into nested rows (but skip summary rows)
+      if (row.Rows?.Row) walk(row.Rows.Row, vendor);
+    });
+  }
+  walk(data.Rows?.Row || [], '');
+  return items;
 }
 
-function renderCreditorKPIs(bills, allBills) {
+function renderCreditorKPIs() {
   const kpis = document.getElementById('cred-kpis');
-  if (!bills || !bills.length) { kpis.innerHTML = ''; return; }
+  const items = creditorData;
+  if (!items.length) { kpis.innerHTML = ''; return; }
 
-  const totalBalance = bills.reduce((s, b) => s + (b.Balance || 0), 0);
-  const totalAmount = bills.reduce((s, b) => s + (b.TotalAmt || 0), 0);
+  const totalOwed = items.reduce((s, i) => s + (i.amount || 0), 0);
+  const vendors = new Set(items.map(i => i.vendor));
   const today = new Date();
-  const overdue = bills.filter(b => b.Balance > 0 && new Date(b.DueDate) < today);
-  const overdueBalance = overdue.reduce((s, b) => s + (b.Balance || 0), 0);
-  const worst = overdue.reduce((max, b) => {
-    const days = Math.floor((today - new Date(b.DueDate)) / 86400000);
+  const overdue = items.filter(i => i.dueDate && new Date(i.dueDate) < today);
+  const overdueAmt = overdue.reduce((s, i) => s + (i.amount || 0), 0);
+  const worst = overdue.reduce((max, i) => {
+    const days = Math.floor((today - new Date(i.dueDate)) / 86400000);
     return days > max ? days : max;
   }, 0);
 
-  // Count unique vendors
-  const vendors = new Set(bills.map(b => b.VendorRef?.name || 'Unknown'));
-
   kpis.innerHTML = `
-    <div class="kpi" style="--kpi-color:#ef4444"><div class="kpi-label">Overdue Balance</div><div class="kpi-value">£${f(overdueBalance)}</div><div class="kpi-sub"><span class="badge br">${overdue.length} bill${overdue.length !== 1 ? 's' : ''}</span></div></div>
-    <div class="kpi" style="--kpi-color:#f59e0b"><div class="kpi-label">Total Owed</div><div class="kpi-value">£${f(totalBalance)}</div><div class="kpi-sub">${bills.filter(b => b.Balance > 0).length} outstanding</div></div>
-    <div class="kpi" style="--kpi-color:#3b82f6"><div class="kpi-label">Total Billed</div><div class="kpi-value">£${f(totalAmount)}</div><div class="kpi-sub">${vendors.size} vendor${vendors.size !== 1 ? 's' : ''}</div></div>
+    <div class="kpi" style="--kpi-color:#ef4444"><div class="kpi-label">Total Owed</div><div class="kpi-value">£${f(totalOwed)}</div><div class="kpi-sub">${items.length} item${items.length !== 1 ? 's' : ''}</div></div>
+    <div class="kpi" style="--kpi-color:#f59e0b"><div class="kpi-label">Overdue</div><div class="kpi-value">£${f(overdueAmt)}</div><div class="kpi-sub">${overdue.length} overdue</div></div>
+    <div class="kpi" style="--kpi-color:#3b82f6"><div class="kpi-label">Vendors</div><div class="kpi-value">${vendors.size}</div><div class="kpi-sub">Unique suppliers</div></div>
     <div class="kpi" style="--kpi-color:#8b5cf6"><div class="kpi-label">Longest Overdue</div><div class="kpi-value">${worst} days</div><div class="kpi-sub">${worst > 30 ? '<span class="badge br">Needs attention</span>' : worst > 0 ? '<span class="badge ba">Monitor</span>' : '<span class="badge bg">All clear</span>'}</div></div>
   `;
 }
 
-function renderCreditorTable(bills) {
+function renderCreditorTable(items) {
   const tbody = document.getElementById('cred-tbody');
   const empty = document.getElementById('cred-empty');
   const countEl = document.getElementById('cred-count');
   const table = document.getElementById('cred-table');
   const pdfBtn = document.getElementById('cred-pdf-btn');
 
-  if (!bills || !bills.length) {
+  if (!items || !items.length) {
     tbody.innerHTML = '';
     table.style.display = 'none';
     empty.style.display = 'block';
-    countEl.textContent = '0 bills';
+    countEl.textContent = '0 items';
     if (pdfBtn) pdfBtn.style.display = 'none';
     return;
   }
@@ -1836,47 +1875,37 @@ function renderCreditorTable(bills) {
   table.style.display = '';
   empty.style.display = 'none';
   if (pdfBtn) pdfBtn.style.display = 'inline-block';
-  countEl.textContent = bills.length + ' bill' + (bills.length !== 1 ? 's' : '');
+  countEl.textContent = items.length + ' item' + (items.length !== 1 ? 's' : '');
 
   const today = new Date();
-  tbody.innerHTML = bills.map(b => {
-    const due = new Date(b.DueDate);
-    const daysOver = Math.floor((today - due) / 86400000);
-    const vendor = b.VendorRef ? b.VendorRef.name : 'Unknown';
-    const balClass = b.Balance > 0 ? (daysOver > 0 ? 'tr2' : 'ta') : 'tg';
+  tbody.innerHTML = items.map(item => {
+    const daysOver = item.dueDate ? Math.floor((today - new Date(item.dueDate)) / 86400000) : 0;
     const daysClass = daysOver > 30 ? 'tr2' : daysOver > 0 ? 'ta' : 'tg';
+    const amtClass = (item.amount || 0) > 0 ? 'tr2' : 'tg';
 
     return `<tr>
-      <td>#${b.DocNumber || b.Id}</td>
-      <td>${vendor}</td>
-      <td>${b.TxnDate || '—'}</td>
-      <td>${b.DueDate || '—'}</td>
-      <td class="${daysClass}">${daysOver > 0 ? daysOver + ' days' : daysOver === 0 ? 'Today' : 'Not yet'}</td>
-      <td>£${f(b.TotalAmt || 0)}</td>
-      <td class="${balClass}">£${f(b.Balance || 0)}</td>
+      <td>${item.num || '—'}</td>
+      <td>${item.vendor}</td>
+      <td>${item.date || '—'}</td>
+      <td>${item.dueDate || '—'}</td>
+      <td class="${daysClass}">${daysOver > 0 ? daysOver + ' days' : daysOver === 0 ? 'Today' : '—'}</td>
+      <td>£${f(item.amount || 0)}</td>
+      <td class="${amtClass}">£${f(item.amount || 0)}</td>
     </tr>`;
   }).join('');
 }
 
 function downloadCreditorPDF() {
-  const filter = creditorFilter || 'overdue';
-  const allBills = creditorCache?.QueryResponse?.Bill || [];
-  const today = new Date();
-  let bills;
-  if (filter === 'overdue') bills = allBills.filter(b => b.Balance > 0 && new Date(b.DueDate) < today);
-  else if (filter === 'unpaid') bills = allBills.filter(b => b.Balance > 0);
-  else bills = allBills;
-  if (!bills.length) return;
+  if (!creditorData.length) return;
 
   const { jsPDF } = window.jspdf;
   const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
-  const titles = { overdue: 'Overdue Bills', unpaid: 'All Unpaid Bills', all: 'All Bills' };
-  const title = titles[filter] || 'Bills';
+  const today = new Date();
 
-  const totalBalance = bills.reduce((s, b) => s + (b.Balance || 0), 0);
-  const totalAmount = bills.reduce((s, b) => s + (b.TotalAmt || 0), 0);
-  const overdue = bills.filter(b => b.Balance > 0 && new Date(b.DueDate) < today);
-  const overdueBalance = overdue.reduce((s, b) => s + (b.Balance || 0), 0);
+  const totalOwed = creditorData.reduce((s, i) => s + (i.amount || 0), 0);
+  const vendors = new Set(creditorData.map(i => i.vendor));
+  const overdue = creditorData.filter(i => i.dueDate && new Date(i.dueDate) < today);
+  const overdueAmt = overdue.reduce((s, i) => s + (i.amount || 0), 0);
 
   // Header
   doc.setFontSize(18);
@@ -1884,50 +1913,43 @@ function downloadCreditorPDF() {
   doc.text('ConnectIn Events', 14, 16);
   doc.setFontSize(13);
   doc.setFont('helvetica', 'normal');
-  doc.text('Trade Creditors — ' + title, 14, 24);
+  doc.text('Trade Creditors — Who We Owe', 14, 24);
   doc.setFontSize(9);
   doc.setTextColor(120);
   doc.text('Generated: ' + today.toLocaleDateString('en-GB') + ' at ' + today.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' }), 14, 30);
 
-  // Summary line
+  // Summary
   doc.setFontSize(10);
   doc.setTextColor(60);
-  const summary = bills.length + ' bills  |  Total billed: \u00A3' + f(totalAmount)
-    + '  |  Outstanding: \u00A3' + f(totalBalance)
-    + (filter !== 'all' ? '  |  Overdue: \u00A3' + f(overdueBalance) + ' (' + overdue.length + ')' : '');
-  doc.text(summary, 14, 37);
+  doc.text(creditorData.length + ' items  |  Total owed: \u00A3' + f(totalOwed) + '  |  Overdue: \u00A3' + f(overdueAmt) + ' (' + overdue.length + ')  |  ' + vendors.size + ' vendors', 14, 37);
 
   // Table
-  const rows = bills.map(b => {
-    const due = new Date(b.DueDate);
-    const daysOver = Math.floor((today - due) / 86400000);
+  const rows = creditorData.map(item => {
+    const daysOver = item.dueDate ? Math.floor((today - new Date(item.dueDate)) / 86400000) : 0;
     return [
-      '#' + (b.DocNumber || b.Id),
-      b.VendorRef?.name || 'Unknown',
-      b.TxnDate || '',
-      b.DueDate || '',
-      daysOver > 0 ? daysOver + ' days' : daysOver === 0 ? 'Today' : 'Not yet',
-      '\u00A3' + f(b.TotalAmt || 0),
-      '\u00A3' + f(b.Balance || 0),
+      item.num || '—',
+      item.vendor,
+      item.date || '',
+      item.dueDate || '',
+      daysOver > 0 ? daysOver + ' days' : '—',
+      '\u00A3' + f(item.amount || 0),
     ];
   });
 
   doc.autoTable({
     startY: 42,
-    head: [['Bill #', 'Vendor', 'Date', 'Due Date', 'Days Overdue', 'Amount', 'Balance']],
+    head: [['Ref #', 'Vendor', 'Date', 'Due Date', 'Days Overdue', 'Amount Owed']],
     body: rows,
     theme: 'striped',
     headStyles: { fillColor: [239, 68, 68], textColor: [255, 255, 255], fontStyle: 'bold', fontSize: 8.5 },
     bodyStyles: { fontSize: 8, textColor: [50, 50, 50] },
     alternateRowStyles: { fillColor: [245, 247, 250] },
     columnStyles: {
-      0: { cellWidth: 22 },
       4: { halign: 'center' },
-      5: { halign: 'right' },
-      6: { halign: 'right', fontStyle: 'bold' },
+      5: { halign: 'right', fontStyle: 'bold' },
     },
     margin: { left: 14, right: 14 },
-    didDrawPage: function (data) {
+    didDrawPage: function () {
       doc.setFontSize(7);
       doc.setTextColor(150);
       doc.text('ConnectIn Events Financial Dashboard \u2014 Internal use only \u2014 connectinevents.co.uk', 14, doc.internal.pageSize.height - 8);
@@ -1935,8 +1957,7 @@ function downloadCreditorPDF() {
     },
   });
 
-  const dateStr = today.toISOString().split('T')[0];
-  doc.save('ConnectIn-Trade-Creditors-' + title.replace(/\s+/g, '-') + '-' + dateStr + '.pdf');
+  doc.save('ConnectIn-Trade-Creditors-' + today.toISOString().split('T')[0] + '.pdf');
 }
 
 // ─── EXPENSES ───
