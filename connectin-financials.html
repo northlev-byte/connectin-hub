@@ -1795,11 +1795,17 @@ function parseAgedPayables(data) {
   const columns = (data.Columns?.Column || []).map(getColKey);
 
   const items = [];
+  // Aging bucket headers look like "1 - 30 days past due" or "Current" — don't treat these as vendor names
+  const isAgingBucket = (text) => /^\d+\s*[-–]\s*\d+\s*days?\s*past\s*due$|^current$/i.test((text || '').trim());
+
   function walk(rows, vendor) {
     (rows || []).forEach(row => {
-      // Section header = vendor name
+      // Section header = vendor name (but skip aging bucket sub-headers)
       if (row.Header?.ColData) {
-        vendor = row.Header.ColData[0]?.value || vendor;
+        const headerText = row.Header.ColData[0]?.value || '';
+        if (!isAgingBucket(headerText)) {
+          vendor = headerText || vendor;
+        }
       }
       // Data rows = individual payable lines
       if (row.ColData && !row.Summary) {
