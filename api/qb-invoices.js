@@ -126,11 +126,12 @@ export default async function handler(req, res) {
     const toDate = url.searchParams.get('to');
 
     // Reports use a different API path
-    const isReport = type === 'pnl' || type === 'balancesheet' || type === 'txn-list' || type === 'pnl-class' || type === 'aged-payables';
+    const isReport = type === 'pnl' || type === 'balancesheet' || type === 'txn-list' || type === 'pnl-class' || type === 'aged-payables' || type === 'pnl-detail';
 
     if (isReport) {
       const reportMap = {
         pnl: 'ProfitAndLoss',
+        'pnl-detail': 'ProfitAndLossDetail',
         balancesheet: 'BalanceSheet',
         'txn-list': 'TransactionList',
         'pnl-class': 'ProfitAndLoss',

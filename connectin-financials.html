@@ -2204,6 +2204,7 @@ function selectPnlMonth(monthIndex) {
     dateRanges['pnl'] = { from: fyFrom, to: lastDayStr };
   }
 
+  pnlDetailCache = {};
   loadPnl();
   loadPnlSnapshot();
 }
@@ -2444,8 +2445,9 @@ function renderYoYComparison(curData, prevData, curLabel, prevLabel) {
     if (hasChildren) {
       s.children.forEach(cr => {
         const cc = yoyCell(cr);
-        html += '<tr class="' + s.group + '-row" style="display:none;' + cc.highlight + '">';
-        html += '<td style="padding-left:1.5rem;">' + cr.label + '</td>';
+        const safeLabel = cr.label.replace(/'/g, "\\'").replace(/"/g, '&quot;');
+        html += '<tr class="' + s.group + '-row" style="display:none;cursor:pointer;' + cc.highlight + '" onclick="drillCategory(\'' + safeLabel + '\', this)">';
+        html += '<td style="padding-left:1.5rem;"><span class="drill-chev" style="display:inline-block;transition:transform .2s;margin-right:.3rem;font-size:.65rem;color:var(--muted);">▶</span>' + cr.label + '</td>';
         html += '<td>£' + f(cr.prev) + '</td>';
         html += '<td>£' + f(cr.cur) + '</td>';
         html += '<td style="color:' + cc.changeColor + ';">' + cc.arrow + ' £' + f(Math.abs(cc.change)) + '</td>';
@@ -2651,6 +2653,197 @@ function toggleYoySection(group) {
   const isOpen = rows[0]?.style.display !== 'none';
   rows.forEach(r => r.style.display = isOpen ? 'none' : 'table-row');
   if (chev) chev.style.transform = isOpen ? '' : 'rotate(90deg)';
+}
+
+// ─── P&L CATEGORY DRILL-DOWN ───
+// Cache detail data so we only fetch once per period
+let pnlDetailCache = {};
+
+async function drillCategory(catLabel, rowEl) {
+  const { from, to } = getRange('pnl');
+  const cacheKey = from + '|' + to;
+
+  // Toggle off if already open
+  const existingDetail = rowEl.nextElementSibling;
+  if (existingDetail && existingDetail.classList.contains('pnl-drill-row')) {
+    existingDetail.remove();
+    const chev = rowEl.querySelector('.drill-chev');
+    if (chev) chev.style.transform = '';
+    return;
+  }
+
+  // Remove any other open drill-downs in this table
+  rowEl.closest('tbody').querySelectorAll('.pnl-drill-row').forEach(r => r.remove());
+  rowEl.closest('tbody').querySelectorAll('.drill-chev').forEach(c => c.style.transform = '');
+
+  const chev = rowEl.querySelector('.drill-chev');
+  if (chev) chev.style.transform = 'rotate(90deg)';
+
+  // Insert loading row
+  const loadRow = document.createElement('tr');
+  loadRow.className = 'pnl-drill-row';
+  loadRow.innerHTML = '<td colspan="5" style="padding:1rem 1.5rem;color:var(--muted);font-size:.82rem;">Loading transactions...</td>';
+  rowEl.after(loadRow);
+
+  try {
+    // Fetch or use cached detail report
+    if (!pnlDetailCache[cacheKey]) {
+      const data = await fetchReport('pnl-detail', from, to);
+      // Capture column headers for parsing
+      if (data?.Columns?.Column) {
+        pnlDetailColumns = data.Columns.Column.map(c => c.ColTitle || '');
+      }
+      pnlDetailCache[cacheKey] = data;
+    }
+    const detail = pnlDetailCache[cacheKey];
+    const txns = extractCategoryTransactions(detail, catLabel);
+
+    if (txns.length === 0) {
+      loadRow.innerHTML = '<td colspan="5" style="padding:1rem 1.5rem;color:var(--muted);font-size:.82rem;">No transaction detail available for "' + catLabel + '"</td>';
+      return;
+    }
+
+    // Group by vendor/name first, then show individual txns underneath
+    const byVendor = {};
+    txns.forEach(t => {
+      const key = t.name || 'Uncategorised';
+      if (!byVendor[key]) byVendor[key] = { name: key, total: 0, txns: [] };
+      byVendor[key].total += t.amount;
+      byVendor[key].txns.push(t);
+    });
+    const vendors = Object.values(byVendor).sort((a, b) => Math.abs(b.total) - Math.abs(a.total));
+
+    let html = '<td colspan="5" style="padding:.5rem 1rem;">';
+    html += '<div style="background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:.75rem;max-height:400px;overflow-y:auto;">';
+    html += '<div style="font-size:.72rem;text-transform:uppercase;letter-spacing:.1em;color:var(--accent);margin-bottom:.5rem;font-weight:600;">' + catLabel + ' — Transaction Detail</div>';
+    html += '<table style="width:100%;font-size:.8rem;border-collapse:collapse;">';
+
+    vendors.forEach((v, vi) => {
+      const hasMulti = v.txns.length > 1;
+      const clickAttr = hasMulti ? ' style="cursor:pointer;font-weight:600;border-bottom:1px solid var(--border);background:rgba(0,212,170,.04);" onclick="toggleDrillVendor(\'dv-' + vi + '\')"' : ' style="font-weight:600;border-bottom:1px solid var(--border);"';
+      const vendChev = hasMulti ? '<span id="dv-' + vi + '-chev" style="display:inline-block;transition:transform .2s;margin-right:.3rem;font-size:.65rem;color:var(--muted);">▶</span>' : '';
+      html += '<tr' + clickAttr + '>';
+      html += '<td style="padding:.4rem .5rem;">' + vendChev + v.name + (hasMulti ? ' <span style="color:var(--muted);font-weight:400;">(' + v.txns.length + ')</span>' : '') + '</td>';
+      html += '<td style="padding:.4rem .5rem;text-align:right;white-space:nowrap;">£' + f(Math.abs(v.total)) + '</td>';
+      html += '</tr>';
+
+      // Individual transactions (hidden if multiple)
+      v.txns.forEach(t => {
+        const display = hasMulti ? 'display:none;' : '';
+        html += '<tr class="dv-' + vi + '-row" style="' + display + 'color:var(--muted);border-bottom:1px solid rgba(255,255,255,.03);">';
+        html += '<td style="padding:.3rem .5rem .3rem 1.8rem;font-size:.75rem;">' + (t.date || '') + ' — ' + (t.type || '') + (t.memo ? ' <span style="color:var(--muted);opacity:.7;">(' + t.memo + ')</span>' : '') + '</td>';
+        html += '<td style="padding:.3rem .5rem;text-align:right;font-size:.75rem;white-space:nowrap;">£' + f(Math.abs(t.amount)) + '</td>';
+        html += '</tr>';
+      });
+    });
+
+    html += '</table></div></td>';
+    loadRow.innerHTML = html;
+
+  } catch (e) {
+    loadRow.innerHTML = '<td colspan="5" style="padding:1rem 1.5rem;color:#ef4444;font-size:.82rem;">Error loading detail: ' + (e.message || 'Unknown') + '</td>';
+  }
+}
+
+function toggleDrillVendor(group) {
+  const rows = document.querySelectorAll('.' + group + '-row');
+  const chev = document.getElementById(group + '-chev');
+  const isOpen = rows[0]?.style.display !== 'none';
+  rows.forEach(r => r.style.display = isOpen ? 'none' : 'table-row');
+  if (chev) chev.style.transform = isOpen ? '' : 'rotate(90deg)';
+}
+
+// Parse QB ProfitAndLossDetail report to extract individual transactions for a given account/category
+function extractCategoryTransactions(data, categoryLabel) {
+  if (!data?.Rows?.Row) return [];
+  const txns = [];
+  const catLower = categoryLabel.toLowerCase().trim();
+
+  function walkDetail(rows, currentAccount) {
+    (rows || []).forEach(row => {
+      const headerLabel = row.Header?.ColData?.[0]?.value || '';
+
+      // Check if this section matches the category we're looking for
+      const isMatch = headerLabel.toLowerCase().trim() === catLower ||
+                      headerLabel.toLowerCase().includes(catLower) ||
+                      catLower.includes(headerLabel.toLowerCase().trim());
+
+      if (isMatch && row.Rows?.Row) {
+        // Extract all transactions from this section
+        extractTxns(row.Rows.Row, txns);
+        return;
+      }
+
+      // Keep searching deeper
+      if (row.Rows?.Row) walkDetail(row.Rows.Row, headerLabel || currentAccount);
+    });
+  }
+
+  function extractTxns(rows, out) {
+    (rows || []).forEach(row => {
+      if (row.ColData) {
+        // This is an individual transaction row
+        const cols = row.ColData;
+        // ProfitAndLossDetail columns vary, but typically:
+        // Date, Transaction Type, Num, Name/Payee, Memo/Description, Account, Amount, Balance
+        // We need to find the right columns by looking at column headers
+        const t = parsePnlDetailRow(cols);
+        if (t) out.push(t);
+      }
+      if (row.Rows?.Row) extractTxns(row.Rows.Row, out);
+      // Sub-sections within a matched category (e.g. sub-accounts)
+      if (row.Header && row.Rows?.Row) {
+        extractTxns(row.Rows.Row, out);
+      }
+    });
+  }
+
+  walkDetail(data.Rows.Row, '');
+  return txns;
+}
+
+// Store column mapping from the detail report header
+let pnlDetailColumns = null;
+
+function parsePnlDetailRow(colData) {
+  if (!pnlDetailColumns || colData.length !== pnlDetailColumns.length) {
+    // Fallback: guess based on position
+    // Typical order: Date, Transaction Type, No., Name, Memo, Split, Amount, Balance
+    if (colData.length >= 7) {
+      return {
+        date: colData[0]?.value || '',
+        type: colData[1]?.value || '',
+        num: colData[2]?.value || '',
+        name: colData[3]?.value || '',
+        memo: colData[4]?.value || '',
+        amount: parseFloat(colData[colData.length - 2]?.value || colData[colData.length - 1]?.value || '0') || 0,
+      };
+    }
+    if (colData.length >= 4) {
+      return {
+        date: colData[0]?.value || '',
+        type: '',
+        name: colData[1]?.value || '',
+        memo: colData[2]?.value || '',
+        amount: parseFloat(colData[colData.length - 1]?.value || '0') || 0,
+      };
+    }
+    return null;
+  }
+
+  // Use column mapping
+  const get = (key) => {
+    const idx = pnlDetailColumns.indexOf(key);
+    return idx >= 0 ? (colData[idx]?.value || '') : '';
+  };
+  return {
+    date: get('tx_date') || get('Date'),
+    type: get('txn_type') || get('Transaction Type'),
+    num: get('doc_num') || get('Num'),
+    name: get('name') || get('Name'),
+    memo: get('memo') || get('Memo/Description'),
+    amount: parseFloat(get('subt_nat_amount') || get('nat_amount') || get('Amount') || get('Balance') || '0') || 0,
+  };
 }
 
 function renderPnlInsights(curData, prevData, curClasses, prevClasses, curLabel, prevLabel) {
