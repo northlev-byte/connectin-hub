@@ -2304,10 +2304,23 @@ function extractPnlSections(data) {
       if (label && val) categories[label] = Math.abs(val);
     });
   }
+  // Also extract COGS sub-categories
+  const cogsSection = rows.find(r => {
+    const lbl = r.Header?.ColData?.[0]?.value?.toLowerCase() || '';
+    return lbl.includes('cost of sales') || lbl.includes('cost of goods');
+  });
+  const cogsCategories = {};
+  if (cogsSection?.Rows?.Row) {
+    cogsSection.Rows.Row.forEach(r => {
+      const label = r.Header?.ColData?.[0]?.value || r.ColData?.[0]?.value || '';
+      const val = parseFloat(r.Summary?.ColData?.[1]?.value || r.ColData?.[1]?.value || '0') || 0;
+      if (label && val) cogsCategories[label] = Math.abs(val);
+    });
+  }
   const income = get('income') || get('revenue');
-  const cogs = get('cost of goods');
+  const cogs = get('cost of sales') || get('cost of goods');
   const expenses = get('expenses');
-  return { income, cogs, expenses, netIncome: income - cogs - expenses, categories };
+  return { income, cogs, expenses, netIncome: income - cogs - expenses, categories, cogsCategories };
 }
 
 function renderYoYComparison(curData, prevData, curLabel, prevLabel) {
@@ -2321,12 +2334,23 @@ function renderYoYComparison(curData, prevData, curLabel, prevLabel) {
 
   // Table rows — top level + expense categories
   const tbody = document.getElementById('pnl-yoy-tbody');
-  const rows = [
+  const topRows = [
     { label: 'Total Income', cur: cur.income, prev: prev.income, bold: true },
-    { label: 'Cost of Goods', cur: cur.cogs, prev: prev.cogs, bold: false },
-    { label: 'Total Expenses', cur: cur.expenses, prev: prev.expenses, bold: true },
-    { label: 'Net Income', cur: cur.netIncome, prev: prev.netIncome, bold: true },
+    { label: 'Cost of Sales', cur: cur.cogs, prev: prev.cogs, bold: true },
   ];
+
+  // COGS sub-categories
+  const allCogsCats = new Set([...Object.keys(cur.cogsCategories || {}), ...Object.keys(prev.cogsCategories || {})]);
+  const cogsRows = [];
+  allCogsCats.forEach(cat => {
+    cogsRows.push({ label: cat, cur: cur.cogsCategories?.[cat] || 0, prev: prev.cogsCategories?.[cat] || 0, bold: false, indent: true });
+  });
+  cogsRows.sort((a, b) => b.cur - a.cur);
+
+  // Gross profit
+  const gpRow = { label: 'Gross Profit', cur: cur.income - cur.cogs, prev: prev.income - prev.cogs, bold: true };
+
+  const expRow = { label: 'Total Expenses', cur: cur.expenses, prev: prev.expenses, bold: true };
 
   // Merge expense categories from both periods
   const allCats = new Set([...Object.keys(cur.categories || {}), ...Object.keys(prev.categories || {})]);
@@ -2336,21 +2360,22 @@ function renderYoYComparison(curData, prevData, curLabel, prevLabel) {
   });
   catRows.sort((a, b) => b.cur - a.cur);
 
-  // Insert category rows after Total Expenses
-  const allRows = [...rows.slice(0, 3), ...catRows, rows[3]];
+  const netRow = { label: 'Net Income', cur: cur.netIncome, prev: prev.netIncome, bold: true };
+
+  const allRows = [...topRows, ...cogsRows, gpRow, expRow, ...catRows, netRow];
 
   let html = '';
   allRows.forEach(r => {
     const change = r.cur - r.prev;
     const pct = r.prev !== 0 ? ((change / Math.abs(r.prev)) * 100) : (r.cur !== 0 ? 100 : 0);
     const isUp = change > 0;
-    const isExpenseRow = r.label !== 'Total Income' && r.label !== 'Net Income';
-    // For expenses, going up is bad (red). For income/net, going up is good (green).
-    const changeColor = isExpenseRow ? (isUp ? '#ef4444' : '#10b981') : (isUp ? '#10b981' : '#ef4444');
+    const isGoodWhenUp = r.label === 'Total Income' || r.label === 'Net Income' || r.label === 'Gross Profit';
+    // For costs/expenses, going up is bad (red). For income/profit, going up is good (green).
+    const changeColor = isGoodWhenUp ? (isUp ? '#10b981' : '#ef4444') : (isUp ? '#ef4444' : '#10b981');
     const arrow = change === 0 ? '—' : (isUp ? '▲' : '▼');
     const fw = r.bold ? 'font-weight:700;' : '';
     const pl = r.indent ? 'padding-left:1.5rem;' : '';
-    const highlight = (isExpenseRow && change > 0 && Math.abs(pct) >= 20) ? 'background:rgba(239,68,68,.06);' : '';
+    const highlight = (!isGoodWhenUp && change > 0 && Math.abs(pct) >= 20) ? 'background:rgba(239,68,68,.06);' : '';
     html += '<tr style="' + fw + highlight + '">';
     html += '<td style="' + pl + '">' + r.label + '</td>';
     html += '<td>£' + f(r.prev) + '</td>';
@@ -2369,10 +2394,10 @@ function renderYoYComparison(curData, prevData, curLabel, prevLabel) {
     barCtx._chart = new Chart(barCtx, {
       type: 'bar',
       data: {
-        labels: ['Income', 'COGS', 'Expenses', 'Net Income'],
+        labels: ['Income', 'Cost of Sales', 'Gross Profit', 'Expenses', 'Net Income'],
         datasets: [
-          { label: prevLabel, data: [prev.income, prev.cogs, prev.expenses, prev.netIncome], backgroundColor: chartColors2.prev, borderRadius: 4, barPercentage: 0.7 },
-          { label: curLabel, data: [cur.income, cur.cogs, cur.expenses, cur.netIncome], backgroundColor: chartColors2.cur, borderRadius: 4, barPercentage: 0.7 },
+          { label: prevLabel, data: [prev.income, prev.cogs, prev.income - prev.cogs, prev.expenses, prev.netIncome], backgroundColor: chartColors2.prev, borderRadius: 4, barPercentage: 0.7 },
+          { label: curLabel, data: [cur.income, cur.cogs, cur.income - cur.cogs, cur.expenses, cur.netIncome], backgroundColor: chartColors2.cur, borderRadius: 4, barPercentage: 0.7 },
         ]
       },
       options: {
@@ -2406,7 +2431,7 @@ function renderYoYComparison(curData, prevData, curLabel, prevLabel) {
   hHtml += '<div style="font-size:1.1rem;font-weight:700;color:' + (netChange >= 0 ? '#10b981' : '#ef4444') + ';">' + (netChange >= 0 ? '▲' : '▼') + ' £' + f(Math.abs(netChange)) + ' (' + netPct + '%)</div>';
   hHtml += '</div>';
 
-  // Biggest expense increase
+  // Biggest cost increase (expenses + COGS)
   const expChanges = [];
   allCats.forEach(cat => {
     const c = cur.categories?.[cat] || 0;
@@ -2414,11 +2439,17 @@ function renderYoYComparison(curData, prevData, curLabel, prevLabel) {
     if (c > p && p > 0) expChanges.push({ label: cat, change: c - p, pct: ((c - p) / p * 100) });
     else if (c > 0 && p === 0) expChanges.push({ label: cat, change: c, pct: 100 });
   });
+  allCogsCats.forEach(cat => {
+    const c = cur.cogsCategories?.[cat] || 0;
+    const p = prev.cogsCategories?.[cat] || 0;
+    if (c > p && p > 0) expChanges.push({ label: cat, change: c - p, pct: ((c - p) / p * 100) });
+    else if (c > 0 && p === 0) expChanges.push({ label: cat, change: c, pct: 100 });
+  });
   expChanges.sort((a, b) => b.change - a.change);
   if (expChanges.length > 0) {
     const top = expChanges[0];
     hHtml += '<div style="padding:.75rem 1rem;border-radius:8px;background:rgba(245,158,11,.08);border:1px solid rgba(245,158,11,.25);">';
-    hHtml += '<div style="font-size:.7rem;text-transform:uppercase;letter-spacing:.1em;color:var(--muted);margin-bottom:.25rem;">Biggest Expense Increase</div>';
+    hHtml += '<div style="font-size:.7rem;text-transform:uppercase;letter-spacing:.1em;color:var(--muted);margin-bottom:.25rem;">Biggest Cost Increase</div>';
     hHtml += '<div style="font-weight:600;color:#f59e0b;">' + top.label + '</div>';
     hHtml += '<div style="font-size:.85rem;color:var(--muted);">▲ £' + f(top.change) + ' (+' + top.pct.toFixed(0) + '% vs ' + prevLabel.split(' ')[0] + ')</div>';
     hHtml += '</div>';
@@ -2572,10 +2603,10 @@ function renderPnlInsights(curData, prevData, curClasses, prevClasses, curLabel,
     insights.push({ icon: '💰', text: 'Most profitable client: <strong>' + best.name + '</strong> — £' + f(best.profit) + ' profit (' + bestMargin + '% margin)' });
   }
 
-  // 7. Expense categories that spiked > 30%
+  // 7. Cost categories that spiked > 30% (expenses + COGS)
   const spikes = [];
-  const allCats = new Set([...Object.keys(cur.categories || {}), ...Object.keys(prev.categories || {})]);
-  allCats.forEach(cat => {
+  const allExpCats = new Set([...Object.keys(cur.categories || {}), ...Object.keys(prev.categories || {})]);
+  allExpCats.forEach(cat => {
     const c = cur.categories?.[cat] || 0;
     const p = prev.categories?.[cat] || 0;
     if (p > 0 && c > p) {
@@ -2583,9 +2614,18 @@ function renderPnlInsights(curData, prevData, curClasses, prevClasses, curLabel,
       if (pct >= 30) spikes.push({ label: cat, change: c - p, pct });
     }
   });
+  const allCogsCats2 = new Set([...Object.keys(cur.cogsCategories || {}), ...Object.keys(prev.cogsCategories || {})]);
+  allCogsCats2.forEach(cat => {
+    const c = cur.cogsCategories?.[cat] || 0;
+    const p = prev.cogsCategories?.[cat] || 0;
+    if (p > 0 && c > p) {
+      const pct = ((c - p) / p * 100);
+      if (pct >= 30) spikes.push({ label: cat + ' (COGS)', change: c - p, pct });
+    }
+  });
   spikes.sort((a, b) => b.pct - a.pct);
   if (spikes.length > 0) {
-    insights.push({ icon: '🔴', text: '<strong>' + spikes.length + ' expense categor' + (spikes.length > 1 ? 'ies' : 'y') + ' spiked 30%+:</strong> ' + spikes.slice(0, 3).map(s => s.label + ' (+' + s.pct.toFixed(0) + '%)').join(', ') });
+    insights.push({ icon: '🔴', text: '<strong>' + spikes.length + ' cost categor' + (spikes.length > 1 ? 'ies' : 'y') + ' spiked 30%+:</strong> ' + spikes.slice(0, 3).map(s => s.label + ' (+' + s.pct.toFixed(0) + '%)').join(', ') });
   }
 
   // 8. Event count comparison
