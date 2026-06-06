@@ -1514,20 +1514,23 @@ function getRange(prefix) {
 }
 function setRangeFrom(prefix, val, reloadFnName) {
   getRange(prefix).from = val;
-  if (prefix === 'pnl') { pnlActiveMonth = null; const snap = document.getElementById('pnl-snapshot'); if (snap) snap.style.display = 'none'; }
+  if (prefix === 'pnl') { pnlActiveMonth = null; pnlDetailCache = {}; }
   if (reloadFnName && typeof window[reloadFnName] === 'function') window[reloadFnName]();
+  if (prefix === 'pnl') loadPnlSnapshot();
 }
 function setRangeTo(prefix, val, reloadFnName) {
   getRange(prefix).to = val;
-  if (prefix === 'pnl') { pnlActiveMonth = null; const snap = document.getElementById('pnl-snapshot'); if (snap) snap.style.display = 'none'; }
+  if (prefix === 'pnl') { pnlActiveMonth = null; pnlDetailCache = {}; }
   if (reloadFnName && typeof window[reloadFnName] === 'function') window[reloadFnName]();
+  if (prefix === 'pnl') loadPnlSnapshot();
 }
 // Apply a preset (currentFy or previousFy) to a prefix and reload
 function applyRangePreset(prefix, preset, reloadFnName) {
   const r = preset === 'currentFy' ? currentFyRange() : previousFyRange();
   dateRanges[prefix] = r;
-  if (prefix === 'pnl') { pnlActiveMonth = null; const snap = document.getElementById('pnl-snapshot'); if (snap) snap.style.display = 'none'; }
+  if (prefix === 'pnl') { pnlActiveMonth = null; pnlDetailCache = {}; }
   if (reloadFnName && typeof window[reloadFnName] === 'function') window[reloadFnName]();
+  if (prefix === 'pnl') loadPnlSnapshot();
 }
 // Which preset does the current range match? (for highlighting the active button)
 function activePreset(prefix) {
@@ -2131,9 +2134,17 @@ function renderCreditNotes(data) {
 async function loadPnl() {
   const { from, to } = getRange('pnl');
   const data = await loadQBReport('pnl', 'pnl', from, to);
-  if (data) renderReport(data, 'pnl');
+  if (data) {
+    renderReport(data, 'pnl');
+    loadPnlSnapshot();
+  }
 }
-function rerenderPnl() { loadPnl(); }
+function rerenderPnl() {
+  const { from, to } = getRange('pnl');
+  loadQBReport('pnl', 'pnl', from, to).then(data => {
+    if (data) renderReport(data, 'pnl');
+  });
+}
 
 // ─── P&L MONTHLY TABS ───
 let pnlMonthMode = 'single'; // 'single' or 'ytd'
@@ -2224,52 +2235,85 @@ function setPnlMonthMode(mode) {
 async function loadPnlSnapshot() {
   const snapshot = document.getElementById('pnl-snapshot');
   const loading = document.getElementById('pnl-snapshot-loading');
-  if (pnlActiveMonth === null) { snapshot.style.display = 'none'; return; }
   snapshot.style.display = 'block';
   loading.style.display = 'block';
 
-  const { from: rangeFrom } = getRange('pnl');
+  const { from: rangeFrom, to: rangeTo } = getRange('pnl');
   const fyStart = rangeFrom ? parseInt(rangeFrom.substring(0, 4)) : (new Date().getMonth() >= 3 ? new Date().getFullYear() : new Date().getFullYear() - 1);
 
-  const monthNum = pnlActiveMonth < 9 ? pnlActiveMonth + 4 : pnlActiveMonth - 8;
-  const year = monthNum >= 4 ? fyStart : fyStart + 1;
-  const prevYear = year - 1;
-  const lastDay = new Date(year, monthNum, 0).getDate();
-  const prevLastDay = new Date(prevYear, monthNum, 0).getDate();
+  let curFrom, curTo, prevFrom, prevTo, curLabel, prevLabel;
+  let classFrom, classPrevFrom, classPrevTo;
 
-  const curFrom = year + '-' + String(monthNum).padStart(2, '0') + '-01';
-  const curTo = year + '-' + String(monthNum).padStart(2, '0') + '-' + String(lastDay).padStart(2, '0');
-  const prevFrom = prevYear + '-' + String(monthNum).padStart(2, '0') + '-01';
-  const prevTo = prevYear + '-' + String(monthNum).padStart(2, '0') + '-' + String(prevLastDay).padStart(2, '0');
+  if (pnlActiveMonth !== null) {
+    // Month-specific view
+    const monthNum = pnlActiveMonth < 9 ? pnlActiveMonth + 4 : pnlActiveMonth - 8;
+    const year = monthNum >= 4 ? fyStart : fyStart + 1;
+    const prevYear = year - 1;
+    const lastDay = new Date(year, monthNum, 0).getDate();
+    const prevLastDay = new Date(prevYear, monthNum, 0).getDate();
 
-  // Also load full FY for both years for FY context
-  const curFyFrom = fyStart + '-04-01';
-  const curFyTo = curTo; // YTD up to selected month
-  const prevFyFrom = (fyStart - 1) + '-04-01';
-  const prevFyTo = prevYear + '-' + String(monthNum).padStart(2, '0') + '-' + String(prevLastDay).padStart(2, '0');
+    curFrom = year + '-' + String(monthNum).padStart(2, '0') + '-01';
+    curTo = year + '-' + String(monthNum).padStart(2, '0') + '-' + String(lastDay).padStart(2, '0');
+    prevFrom = prevYear + '-' + String(monthNum).padStart(2, '0') + '-01';
+    prevTo = prevYear + '-' + String(monthNum).padStart(2, '0') + '-' + String(prevLastDay).padStart(2, '0');
 
-  const monthLabel = MONTH_NAMES[pnlActiveMonth] + ' ' + year;
-  const prevMonthLabel = MONTH_NAMES[pnlActiveMonth] + ' ' + prevYear;
+    curLabel = MONTH_NAMES[pnlActiveMonth] + ' ' + year;
+    prevLabel = MONTH_NAMES[pnlActiveMonth] + ' ' + prevYear;
+
+    // For classes: use FY range if YTD mode, else single month
+    classFrom = pnlMonthMode === 'ytd' ? (fyStart + '-04-01') : curFrom;
+    classPrevFrom = pnlMonthMode === 'ytd' ? ((fyStart - 1) + '-04-01') : prevFrom;
+    classPrevTo = prevTo;
+  } else {
+    // Full FY view — compare current range to same range previous year
+    curFrom = rangeFrom;
+    curTo = rangeTo;
+    const prevFyStart = fyStart - 1;
+    prevFrom = rangeFrom.replace(String(fyStart), String(prevFyStart));
+    // Handle Jan-Mar dates (fyStart+1 year)
+    if (rangeTo) {
+      const toYear = parseInt(rangeTo.substring(0, 4));
+      prevTo = rangeTo.replace(String(toYear), String(toYear - 1));
+    } else {
+      prevTo = null;
+    }
+
+    const curFy = currentFyRange();
+    const prevFy = previousFyRange();
+    if (rangeFrom === curFy.from) {
+      curLabel = 'Current FY';
+      prevLabel = 'Previous FY';
+    } else if (rangeFrom === prevFy.from) {
+      curLabel = 'FY ' + fyStart + '/' + (fyStart + 1);
+      prevLabel = 'FY ' + (fyStart - 1) + '/' + fyStart;
+    } else {
+      curLabel = rangeFrom + ' to ' + rangeTo;
+      prevLabel = prevFrom + ' to ' + prevTo;
+    }
+
+    classFrom = curFrom;
+    classPrevFrom = prevFrom;
+    classPrevTo = prevTo;
+  }
 
   try {
-    // Fetch current month P&L, previous year same month P&L, and classes for both
     const [curPnl, prevPnl, curClasses, prevClasses] = await Promise.all([
       fetchReport('pnl', curFrom, curTo),
       fetchReport('pnl', prevFrom, prevTo),
-      fetchReport('pnl-class', pnlMonthMode === 'ytd' ? curFyFrom : curFrom, curTo),
-      fetchReport('pnl-class', pnlMonthMode === 'ytd' ? prevFyFrom : prevFrom, prevTo),
+      fetchReport('pnl-class', classFrom, curTo),
+      fetchReport('pnl-class', classPrevFrom, classPrevTo),
     ]);
 
     loading.style.display = 'none';
 
     // ─── YoY Comparison ───
-    renderYoYComparison(curPnl, prevPnl, monthLabel, prevMonthLabel);
+    renderYoYComparison(curPnl, prevPnl, curLabel, prevLabel);
 
     // ─── Top Clients ───
-    renderTopClients(curClasses, monthLabel);
+    renderTopClients(curClasses, curLabel);
 
     // ─── Insights ───
-    renderPnlInsights(curPnl, prevPnl, curClasses, prevClasses, monthLabel, prevMonthLabel);
+    renderPnlInsights(curPnl, prevPnl, curClasses, prevClasses, curLabel, prevLabel);
 
   } catch (e) {
     loading.style.display = 'none';
