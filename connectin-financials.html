@@ -2362,27 +2362,54 @@ function renderYoYComparison(curData, prevData, curLabel, prevLabel) {
 
   const netRow = { label: 'Net Income', cur: cur.netIncome, prev: prev.netIncome, bold: true };
 
-  const allRows = [...topRows, ...cogsRows, gpRow, expRow, ...catRows, netRow];
+  // Build rows with section grouping for expand/collapse
+  const sections = [
+    { header: topRows[0] },                                          // Total Income
+    { header: topRows[1], children: cogsRows, group: 'yoy-cogs' },  // Cost of Sales + sub-items
+    { header: gpRow },                                               // Gross Profit
+    { header: expRow, children: catRows, group: 'yoy-exp' },        // Expenses + sub-items
+    { header: netRow },                                              // Net Income
+  ];
 
-  let html = '';
-  allRows.forEach(r => {
+  function yoyCell(r) {
     const change = r.cur - r.prev;
     const pct = r.prev !== 0 ? ((change / Math.abs(r.prev)) * 100) : (r.cur !== 0 ? 100 : 0);
     const isUp = change > 0;
     const isGoodWhenUp = r.label === 'Total Income' || r.label === 'Net Income' || r.label === 'Gross Profit';
-    // For costs/expenses, going up is bad (red). For income/profit, going up is good (green).
     const changeColor = isGoodWhenUp ? (isUp ? '#10b981' : '#ef4444') : (isUp ? '#ef4444' : '#10b981');
     const arrow = change === 0 ? '—' : (isUp ? '▲' : '▼');
-    const fw = r.bold ? 'font-weight:700;' : '';
-    const pl = r.indent ? 'padding-left:1.5rem;' : '';
     const highlight = (!isGoodWhenUp && change > 0 && Math.abs(pct) >= 20) ? 'background:rgba(239,68,68,.06);' : '';
-    html += '<tr style="' + fw + highlight + '">';
-    html += '<td style="' + pl + '">' + r.label + '</td>';
+    return { change, pct, changeColor, arrow, highlight };
+  }
+
+  let html = '';
+  sections.forEach(s => {
+    const r = s.header;
+    const c = yoyCell(r);
+    const hasChildren = s.children && s.children.length > 0;
+    const clickAttr = hasChildren ? ' style="cursor:pointer;font-weight:700;' + c.highlight + '" onclick="toggleYoySection(\'' + s.group + '\')"' : ' style="font-weight:' + (r.bold ? '700' : '400') + ';' + c.highlight + '"';
+    const chevron = hasChildren ? '<span id="' + s.group + '-chev" style="display:inline-block;transition:transform .2s;margin-right:.4rem;font-size:.7rem;color:var(--muted);">▶</span>' : '';
+
+    html += '<tr' + clickAttr + '>';
+    html += '<td>' + chevron + r.label + '</td>';
     html += '<td>£' + f(r.prev) + '</td>';
     html += '<td>£' + f(r.cur) + '</td>';
-    html += '<td style="color:' + changeColor + ';">' + arrow + ' £' + f(Math.abs(change)) + '</td>';
-    html += '<td style="color:' + changeColor + ';">' + (pct === 0 ? '—' : (pct > 0 ? '+' : '') + pct.toFixed(1) + '%') + '</td>';
+    html += '<td style="color:' + c.changeColor + ';">' + c.arrow + ' £' + f(Math.abs(c.change)) + '</td>';
+    html += '<td style="color:' + c.changeColor + ';">' + (c.pct === 0 ? '—' : (c.pct > 0 ? '+' : '') + c.pct.toFixed(1) + '%') + '</td>';
     html += '</tr>';
+
+    if (hasChildren) {
+      s.children.forEach(cr => {
+        const cc = yoyCell(cr);
+        html += '<tr class="' + s.group + '-row" style="display:none;' + cc.highlight + '">';
+        html += '<td style="padding-left:1.5rem;">' + cr.label + '</td>';
+        html += '<td>£' + f(cr.prev) + '</td>';
+        html += '<td>£' + f(cr.cur) + '</td>';
+        html += '<td style="color:' + cc.changeColor + ';">' + cc.arrow + ' £' + f(Math.abs(cc.change)) + '</td>';
+        html += '<td style="color:' + cc.changeColor + ';">' + (cc.pct === 0 ? '—' : (cc.pct > 0 ? '+' : '') + cc.pct.toFixed(1) + '%') + '</td>';
+        html += '</tr>';
+      });
+    }
   });
   tbody.innerHTML = html;
 
@@ -2470,15 +2497,16 @@ function renderYoYComparison(curData, prevData, curLabel, prevLabel) {
 
 function renderTopClients(classData, label) {
   const jobs = classData ? parsePnlByClass(classData) : [];
-  // Group by normalised client name
+  // Group by normalised client name, keeping individual events
   const byClient = {};
   jobs.forEach(j => {
     const key = j.customer;
-    if (!byClient[key]) byClient[key] = { name: key, revenue: 0, cogs: 0, expenses: 0, events: 0 };
+    if (!byClient[key]) byClient[key] = { name: key, revenue: 0, cogs: 0, expenses: 0, events: 0, jobs: [] };
     byClient[key].revenue += j.revenue;
     byClient[key].cogs += j.cogs;
     byClient[key].expenses += j.expenses;
     byClient[key].events += 1;
+    byClient[key].jobs.push(j);
   });
   const clients = Object.values(byClient)
     .map(c => ({ ...c, profit: c.revenue - c.cogs - c.expenses }))
@@ -2487,21 +2515,56 @@ function renderTopClients(classData, label) {
 
   document.getElementById('pnl-clients-count').textContent = clients.length + ' clients';
 
-  // Table
+  // Table with expandable rows
   const tbody = document.getElementById('pnl-clients-tbody');
   let html = '';
-  clients.forEach(c => {
+  clients.forEach((c, ci) => {
     const margin = c.revenue > 0 ? (c.profit / c.revenue * 100).toFixed(1) : '0.0';
     const marginColor = c.profit >= 0 ? '#10b981' : '#ef4444';
     const costs = c.cogs + c.expenses;
-    html += '<tr>';
-    html += '<td style="font-weight:600;">' + c.name + '</td>';
-    html += '<td>' + c.events + '</td>';
+    const hasMultiple = c.events > 1;
+    const clickable = ' style="cursor:pointer;" onclick="toggleClientDetail(' + ci + ')"';
+    const chevron = '<span id="pnl-client-chev-' + ci + '" style="display:inline-block;transition:transform .2s;margin-right:.4rem;font-size:.7rem;color:var(--muted);">▶</span>';
+
+    html += '<tr' + clickable + '>';
+    html += '<td style="font-weight:600;">' + chevron + c.name + '</td>';
+    html += '<td>' + (hasMultiple ? '<span style="background:var(--accent);color:#000;padding:2px 8px;border-radius:10px;font-size:.72rem;font-weight:700;">' + c.events + '</span>' : c.events) + '</td>';
     html += '<td>£' + f(c.revenue) + '</td>';
     html += '<td>£' + f(costs) + '</td>';
     html += '<td style="color:' + marginColor + ';font-weight:600;">£' + f(c.profit) + '</td>';
     html += '<td style="color:' + marginColor + ';">' + margin + '%</td>';
     html += '</tr>';
+
+    // Expandable detail rows (hidden by default)
+    // Individual events
+    if (hasMultiple) {
+      c.jobs.sort((a, b) => b.revenue - a.revenue);
+      c.jobs.forEach(j => {
+        const jCosts = j.cogs + j.expenses;
+        const jProfit = j.revenue - jCosts;
+        const jMargin = j.revenue > 0 ? (jProfit / j.revenue * 100).toFixed(1) : '0.0';
+        const jColor = jProfit >= 0 ? '#10b981' : '#ef4444';
+        html += '<tr class="pnl-client-detail-' + ci + '" style="display:none;background:rgba(0,212,170,.03);">';
+        html += '<td style="padding-left:2rem;font-size:.82rem;color:var(--muted);">↳ ' + (j.name || j.raw) + '</td>';
+        html += '<td></td>';
+        html += '<td style="font-size:.82rem;">£' + f(j.revenue) + '</td>';
+        html += '<td style="font-size:.82rem;">£' + f(jCosts) + '</td>';
+        html += '<td style="font-size:.82rem;color:' + jColor + ';">£' + f(jProfit) + '</td>';
+        html += '<td style="font-size:.82rem;color:' + jColor + ';">' + jMargin + '%</td>';
+        html += '</tr>';
+      });
+    }
+
+    // Cost breakdown row (always expandable)
+    html += '<tr class="pnl-client-detail-' + ci + '" style="display:none;background:rgba(0,212,170,.03);">';
+    html += '<td colspan="6" style="padding:.75rem 1rem ' + (hasMultiple ? '.75rem 2rem' : '.75rem 1rem') + ';">';
+    html += '<div style="display:flex;gap:1.5rem;flex-wrap:wrap;font-size:.8rem;">';
+    if (c.revenue > 0) html += '<div><span style="color:var(--muted);">Revenue:</span> <strong>£' + f(c.revenue) + '</strong></div>';
+    if (c.cogs > 0) html += '<div><span style="color:var(--muted);">Cost of Sales:</span> <strong style="color:#ef4444;">£' + f(c.cogs) + '</strong></div>';
+    if (c.expenses > 0) html += '<div><span style="color:var(--muted);">Expenses:</span> <strong style="color:#f59e0b;">£' + f(c.expenses) + '</strong></div>';
+    html += '<div><span style="color:var(--muted);">Profit:</span> <strong style="color:' + marginColor + ';">£' + f(c.profit) + '</strong></div>';
+    html += '<div><span style="color:var(--muted);">Margin:</span> <strong style="color:' + marginColor + ';">' + margin + '%</strong></div>';
+    html += '</div></td></tr>';
   });
   tbody.innerHTML = html || '<tr><td colspan="6" style="text-align:center;color:var(--muted);padding:1.5rem;">No class data for this period</td></tr>';
 
@@ -2529,6 +2592,22 @@ function renderTopClients(classData, label) {
       }
     });
   }
+}
+
+function toggleClientDetail(idx) {
+  const rows = document.querySelectorAll('.pnl-client-detail-' + idx);
+  const chev = document.getElementById('pnl-client-chev-' + idx);
+  const isOpen = rows[0]?.style.display !== 'none';
+  rows.forEach(r => r.style.display = isOpen ? 'none' : 'table-row');
+  if (chev) chev.style.transform = isOpen ? '' : 'rotate(90deg)';
+}
+
+function toggleYoySection(group) {
+  const rows = document.querySelectorAll('.' + group + '-row');
+  const chev = document.getElementById(group + '-chev');
+  const isOpen = rows[0]?.style.display !== 'none';
+  rows.forEach(r => r.style.display = isOpen ? 'none' : 'table-row');
+  if (chev) chev.style.transform = isOpen ? '' : 'rotate(90deg)';
 }
 
 function renderPnlInsights(curData, prevData, curClasses, prevClasses, curLabel, prevLabel) {
