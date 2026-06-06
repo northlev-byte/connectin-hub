@@ -3524,19 +3524,22 @@ function parsePnlByClass(data) {
   walk(data.Rows?.Row || []);
 
   // Compute profit and parse customer/date from each class name
-  const jobs = Object.values(byClass).map(j => {
-    const parsed = parseJobName(j.name);
-    return {
-      name: j.name,
-      customer: parsed.customer,
-      date: parsed.date,
-      dateLabel: parsed.dateLabel,
-      revenue: j.revenue,
-      cogs: j.cogs,
-      expenses: j.expenses,
-      profit: j.revenue - j.cogs - j.expenses,
-    };
-  });
+  // Filter out classes with zero activity in the period
+  const jobs = Object.values(byClass)
+    .filter(j => j.revenue !== 0 || j.cogs !== 0 || j.expenses !== 0)
+    .map(j => {
+      const parsed = parseJobName(j.name);
+      return {
+        name: j.name,
+        customer: parsed.customer,
+        date: parsed.date,
+        dateLabel: parsed.dateLabel,
+        revenue: j.revenue,
+        cogs: j.cogs,
+        expenses: j.expenses,
+        profit: j.revenue - j.cogs - j.expenses,
+      };
+    });
   return jobs;
 }
 
