@@ -2297,17 +2297,35 @@ async function loadPnlSnapshot() {
   }
 
   try {
-    const [curPnl, prevPnl, curClasses, prevClasses] = await Promise.all([
+    console.log('[Snapshot] Fetching data:', { curFrom, curTo, prevFrom, prevTo, classFrom, classPrevFrom, classPrevTo, curLabel, prevLabel });
+
+    // Use Promise.allSettled so one failure doesn't kill everything
+    const results = await Promise.allSettled([
       fetchReport('pnl', curFrom, curTo),
       fetchReport('pnl', prevFrom, prevTo),
       fetchReport('pnl-class', classFrom, curTo),
       fetchReport('pnl-class', classPrevFrom, classPrevTo),
     ]);
 
+    const curPnl = results[0].status === 'fulfilled' ? results[0].value : null;
+    const prevPnl = results[1].status === 'fulfilled' ? results[1].value : null;
+    const curClasses = results[2].status === 'fulfilled' ? results[2].value : null;
+    const prevClasses = results[3].status === 'fulfilled' ? results[3].value : null;
+
+    console.log('[Snapshot] Results:', {
+      curPnl: curPnl ? 'OK' : 'null',
+      prevPnl: prevPnl ? 'OK' : 'null',
+      curClasses: curClasses ? 'OK (' + (curClasses.Columns?.Column?.length || 0) + ' cols)' : 'null',
+      prevClasses: prevClasses ? 'OK' : 'null',
+      failures: results.filter(r => r.status === 'rejected').map(r => r.reason?.message || 'unknown')
+    });
+
     loading.style.display = 'none';
 
     // ─── YoY Comparison ───
-    renderYoYComparison(curPnl, prevPnl, curLabel, prevLabel);
+    if (curPnl || prevPnl) {
+      renderYoYComparison(curPnl, prevPnl, curLabel, prevLabel);
+    }
 
     // ─── Top Clients ───
     renderTopClients(curClasses, curLabel);
@@ -2317,7 +2335,7 @@ async function loadPnlSnapshot() {
 
   } catch (e) {
     loading.style.display = 'none';
-    console.error('Snapshot load error:', e);
+    console.error('[Snapshot] Load error:', e);
   }
 }
 
@@ -2585,7 +2603,9 @@ function renderYoYComparison(curData, prevData, curLabel, prevLabel) {
 }
 
 function renderTopClients(classData, label) {
+  console.log('[TopClients] classData:', classData ? 'has data' : 'null', 'Columns:', classData?.Columns?.Column?.length, 'Rows:', classData?.Rows?.Row?.length);
   const jobs = classData ? parsePnlByClass(classData) : [];
+  console.log('[TopClients] Parsed jobs:', jobs.length, jobs.slice(0, 3).map(j => j.name + ':£' + j.revenue));
   // Group by normalised client name, keeping individual events
   const byClient = {};
   jobs.forEach(j => {
