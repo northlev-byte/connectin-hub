@@ -2317,10 +2317,50 @@ function extractPnlSections(data) {
       if (label && val) cogsCategories[label] = Math.abs(val);
     });
   }
+  // Also extract income sub-categories
+  const incomeSection = rows.find(r => {
+    const lbl = r.Header?.ColData?.[0]?.value?.toLowerCase() || '';
+    return lbl.includes('income') || lbl.includes('revenue');
+  });
+  const incomeCategories = {};
+  if (incomeSection?.Rows?.Row) {
+    incomeSection.Rows.Row.forEach(r => {
+      const label = r.Header?.ColData?.[0]?.value || r.ColData?.[0]?.value || '';
+      const val = parseFloat(r.Summary?.ColData?.[1]?.value || r.ColData?.[1]?.value || '0') || 0;
+      if (label && val) incomeCategories[label] = Math.abs(val);
+    });
+  }
+  // Extract "Other Income" and "Other Expenses" sections
+  const otherIncomeSection = rows.find(r => {
+    const lbl = r.Header?.ColData?.[0]?.value?.toLowerCase() || '';
+    return lbl.includes('other income');
+  });
+  const otherIncomeCategories = {};
+  const otherIncome = otherIncomeSection ? parseFloat(otherIncomeSection?.Summary?.ColData?.[1]?.value || '0') || 0 : 0;
+  if (otherIncomeSection?.Rows?.Row) {
+    otherIncomeSection.Rows.Row.forEach(r => {
+      const label = r.Header?.ColData?.[0]?.value || r.ColData?.[0]?.value || '';
+      const val = parseFloat(r.Summary?.ColData?.[1]?.value || r.ColData?.[1]?.value || '0') || 0;
+      if (label && val) otherIncomeCategories[label] = Math.abs(val);
+    });
+  }
+  const otherExpSection = rows.find(r => {
+    const lbl = r.Header?.ColData?.[0]?.value?.toLowerCase() || '';
+    return lbl.includes('other expense');
+  });
+  const otherExpCategories = {};
+  const otherExpenses = otherExpSection ? parseFloat(otherExpSection?.Summary?.ColData?.[1]?.value || '0') || 0 : 0;
+  if (otherExpSection?.Rows?.Row) {
+    otherExpSection.Rows.Row.forEach(r => {
+      const label = r.Header?.ColData?.[0]?.value || r.ColData?.[0]?.value || '';
+      const val = parseFloat(r.Summary?.ColData?.[1]?.value || r.ColData?.[1]?.value || '0') || 0;
+      if (label && val) otherExpCategories[label] = Math.abs(val);
+    });
+  }
   const income = get('income') || get('revenue');
   const cogs = get('cost of sales') || get('cost of goods');
   const expenses = get('expenses');
-  return { income, cogs, expenses, netIncome: income - cogs - expenses, categories, cogsCategories };
+  return { income, cogs, expenses, netIncome: income - cogs - expenses + otherIncome - otherExpenses, categories, cogsCategories, incomeCategories, otherIncome, otherIncomeCategories, otherExpenses, otherExpCategories };
 }
 
 function renderYoYComparison(curData, prevData, curLabel, prevLabel) {
@@ -2334,42 +2374,45 @@ function renderYoYComparison(curData, prevData, curLabel, prevLabel) {
 
   // Table rows — top level + expense categories
   const tbody = document.getElementById('pnl-yoy-tbody');
-  const topRows = [
-    { label: 'Total Income', cur: cur.income, prev: prev.income, bold: true },
-    { label: 'Cost of Sales', cur: cur.cogs, prev: prev.cogs, bold: true },
-  ];
+  // Build sub-category rows for each section
+  function buildSubRows(curMap, prevMap) {
+    const allKeys = new Set([...Object.keys(curMap || {}), ...Object.keys(prevMap || {})]);
+    const rows = [];
+    allKeys.forEach(cat => {
+      rows.push({ label: cat, cur: curMap?.[cat] || 0, prev: prevMap?.[cat] || 0, bold: false, indent: true });
+    });
+    rows.sort((a, b) => b.cur - a.cur);
+    return rows;
+  }
 
-  // COGS sub-categories
-  const allCogsCats = new Set([...Object.keys(cur.cogsCategories || {}), ...Object.keys(prev.cogsCategories || {})]);
-  const cogsRows = [];
-  allCogsCats.forEach(cat => {
-    cogsRows.push({ label: cat, cur: cur.cogsCategories?.[cat] || 0, prev: prev.cogsCategories?.[cat] || 0, bold: false, indent: true });
-  });
-  cogsRows.sort((a, b) => b.cur - a.cur);
+  const incomeRows = buildSubRows(cur.incomeCategories, prev.incomeCategories);
+  const cogsRows = buildSubRows(cur.cogsCategories, prev.cogsCategories);
+  const catRows = buildSubRows(cur.categories, prev.categories);
+  const otherIncRows = buildSubRows(cur.otherIncomeCategories, prev.otherIncomeCategories);
+  const otherExpRows = buildSubRows(cur.otherExpCategories, prev.otherExpCategories);
 
-  // Gross profit
   const gpRow = { label: 'Gross Profit', cur: cur.income - cur.cogs, prev: prev.income - prev.cogs, bold: true };
+  const netOpRow = { label: 'Net Operating Income', cur: (cur.income - cur.cogs - cur.expenses), prev: (prev.income - prev.cogs - prev.expenses), bold: true };
 
-  const expRow = { label: 'Total Expenses', cur: cur.expenses, prev: prev.expenses, bold: true };
-
-  // Merge expense categories from both periods
-  const allCats = new Set([...Object.keys(cur.categories || {}), ...Object.keys(prev.categories || {})]);
-  const catRows = [];
-  allCats.forEach(cat => {
-    catRows.push({ label: cat, cur: cur.categories?.[cat] || 0, prev: prev.categories?.[cat] || 0, bold: false, indent: true });
-  });
-  catRows.sort((a, b) => b.cur - a.cur);
-
-  const netRow = { label: 'Net Income', cur: cur.netIncome, prev: prev.netIncome, bold: true };
-
-  // Build rows with section grouping for expand/collapse
+  // Build sections — every section with sub-items is expandable
   const sections = [
-    { header: topRows[0] },                                          // Total Income
-    { header: topRows[1], children: cogsRows, group: 'yoy-cogs' },  // Cost of Sales + sub-items
-    { header: gpRow },                                               // Gross Profit
-    { header: expRow, children: catRows, group: 'yoy-exp' },        // Expenses + sub-items
-    { header: netRow },                                              // Net Income
+    { header: { label: 'Total Income', cur: cur.income, prev: prev.income, bold: true }, children: incomeRows, group: 'yoy-income' },
+    { header: { label: 'Cost of Sales', cur: cur.cogs, prev: prev.cogs, bold: true }, children: cogsRows, group: 'yoy-cogs' },
+    { header: gpRow },
+    { header: { label: 'Total Expenses', cur: cur.expenses, prev: prev.expenses, bold: true }, children: catRows, group: 'yoy-exp' },
+    { header: netOpRow },
   ];
+
+  // Add Other Income / Other Expenses if they exist
+  if (cur.otherIncome || prev.otherIncome) {
+    sections.push({ header: { label: 'Other Income', cur: cur.otherIncome || 0, prev: prev.otherIncome || 0, bold: true }, children: otherIncRows, group: 'yoy-oinc' });
+  }
+  if (cur.otherExpenses || prev.otherExpenses) {
+    sections.push({ header: { label: 'Other Expenses', cur: cur.otherExpenses || 0, prev: prev.otherExpenses || 0, bold: true }, children: otherExpRows, group: 'yoy-oexp' });
+  }
+
+  // Always end with Net Income
+  sections.push({ header: { label: 'Net Income', cur: cur.netIncome, prev: prev.netIncome, bold: true } });
 
   function yoyCell(r) {
     const change = r.cur - r.prev;
