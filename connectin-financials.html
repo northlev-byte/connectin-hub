@@ -637,11 +637,39 @@ async function checkFinPw(e){
   <div id="pnl-loading" style="display:none;text-align:center;padding:3rem;color:var(--muted);">Loading P&amp;L report...</div>
   <div id="pnl-content" style="display:none;">
     <div id="pnl-date-range"></div>
+    <div id="pnl-month-tabs" style="display:flex;gap:6px;align-items:center;margin-bottom:1rem;flex-wrap:wrap;"></div>
     <div class="kpi-grid" id="pnl-kpis"></div>
     <div class="g2 mb">
       <div class="card"><div class="card-hd"><div class="card-title">Revenue vs Costs</div></div><div class="ch300"><canvas id="c-pnl-bar"></canvas></div></div>
       <div class="card"><div class="card-hd"><div class="card-title">Expense Breakdown</div></div><div class="ch300"><canvas id="c-pnl-donut"></canvas></div></div>
     </div>
+    <!-- Monthly Snapshot Section -->
+    <div id="pnl-snapshot" style="display:none;">
+      <div id="pnl-snapshot-loading" style="text-align:center;padding:2rem;color:var(--muted);display:none;">Loading snapshot data...</div>
+      <!-- YoY Comparison -->
+      <div class="card mb">
+        <div class="card-hd"><div class="card-title">Year-on-Year Comparison</div><div class="card-tag" id="pnl-yoy-label"></div></div>
+        <div class="g2 mb" style="margin-top:1rem;">
+          <div class="ch300"><canvas id="c-pnl-yoy-bar"></canvas></div>
+          <div id="pnl-yoy-highlights" style="font-size:.85rem;"></div>
+        </div>
+        <div class="mtwrap"><table class="ft" id="pnl-yoy-table"><thead><tr><th>Category</th><th id="pnl-yoy-th-prev">Last Year</th><th id="pnl-yoy-th-curr">This Year</th><th>Change</th><th>%</th></tr></thead><tbody id="pnl-yoy-tbody"></tbody></table></div>
+      </div>
+      <!-- Top Clients -->
+      <div class="g2 mb">
+        <div class="card">
+          <div class="card-hd"><div class="card-title">Top Clients by Revenue</div><div class="card-tag" id="pnl-clients-count"></div></div>
+          <div class="ch300"><canvas id="c-pnl-clients"></canvas></div>
+          <div class="mtwrap" style="margin-top:1rem;"><table class="ft" id="pnl-clients-table"><thead><tr><th>Client</th><th>Events</th><th>Revenue</th><th>Costs</th><th>Profit</th><th>Margin</th></tr></thead><tbody id="pnl-clients-tbody"></tbody></table></div>
+        </div>
+        <!-- Insights Panel -->
+        <div class="card">
+          <div class="card-hd"><div class="card-title">Insights</div></div>
+          <div id="pnl-insights" style="font-size:.85rem;line-height:1.7;"></div>
+        </div>
+      </div>
+    </div>
+
     <div class="card">
       <div class="card-hd"><div class="card-title">Profit &amp; Loss Statement</div><div class="card-tag" id="pnl-period"></div></div>
       <div class="mtwrap"><table class="ft" id="pnl-table"><tbody id="pnl-tbody"></tbody></table></div>
@@ -1486,16 +1514,19 @@ function getRange(prefix) {
 }
 function setRangeFrom(prefix, val, reloadFnName) {
   getRange(prefix).from = val;
+  if (prefix === 'pnl') { pnlActiveMonth = null; const snap = document.getElementById('pnl-snapshot'); if (snap) snap.style.display = 'none'; }
   if (reloadFnName && typeof window[reloadFnName] === 'function') window[reloadFnName]();
 }
 function setRangeTo(prefix, val, reloadFnName) {
   getRange(prefix).to = val;
+  if (prefix === 'pnl') { pnlActiveMonth = null; const snap = document.getElementById('pnl-snapshot'); if (snap) snap.style.display = 'none'; }
   if (reloadFnName && typeof window[reloadFnName] === 'function') window[reloadFnName]();
 }
 // Apply a preset (currentFy or previousFy) to a prefix and reload
 function applyRangePreset(prefix, preset, reloadFnName) {
   const r = preset === 'currentFy' ? currentFyRange() : previousFyRange();
   dateRanges[prefix] = r;
+  if (prefix === 'pnl') { pnlActiveMonth = null; const snap = document.getElementById('pnl-snapshot'); if (snap) snap.style.display = 'none'; }
   if (reloadFnName && typeof window[reloadFnName] === 'function') window[reloadFnName]();
 }
 // Which preset does the current range match? (for highlighting the active button)
@@ -2104,6 +2135,480 @@ async function loadPnl() {
 }
 function rerenderPnl() { loadPnl(); }
 
+// ─── P&L MONTHLY TABS ───
+let pnlMonthMode = 'single'; // 'single' or 'ytd'
+let pnlActiveMonth = null;   // null = no month selected (use date range)
+
+const MONTH_NAMES = ['Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec','Jan','Feb','Mar'];
+
+function buildPnlMonthTabs() {
+  const container = document.getElementById('pnl-month-tabs');
+  if (!container) return;
+
+  // Determine which FY we're looking at from the current range
+  const { from } = getRange('pnl');
+  const fyStart = from ? parseInt(from.substring(0, 4)) : (new Date().getMonth() >= 3 ? new Date().getFullYear() : new Date().getFullYear() - 1);
+
+  const today = new Date();
+  const tabStyle = 'padding:.35rem .7rem;border:1px solid var(--border);background:transparent;color:var(--muted);border-radius:6px;cursor:pointer;font-size:.72rem;font-weight:600;font-family:inherit;white-space:nowrap;';
+  const activeStyle = 'padding:.35rem .7rem;border:1px solid var(--accent);background:var(--accent);color:#000;border-radius:6px;cursor:pointer;font-size:.72rem;font-weight:600;font-family:inherit;white-space:nowrap;';
+  const toggleBase = 'padding:.3rem .6rem;border:1px solid var(--border);background:transparent;color:var(--muted);cursor:pointer;font-size:.68rem;font-weight:600;font-family:inherit;letter-spacing:.03em;';
+  const toggleActive = 'padding:.3rem .6rem;border:1px solid var(--accent);background:rgba(0,212,170,.15);color:var(--accent);cursor:pointer;font-size:.68rem;font-weight:600;font-family:inherit;letter-spacing:.03em;';
+
+  let html = '';
+
+  // Month buttons
+  MONTH_NAMES.forEach((name, i) => {
+    // Calculate actual year/month for this FY month
+    const monthNum = i < 9 ? i + 4 : i - 8; // Apr=4, ..., Dec=12, Jan=1, Feb=2, Mar=3
+    const year = monthNum >= 4 ? fyStart : fyStart + 1;
+    const monthDate = new Date(year, monthNum - 1, 1);
+
+    // Don't show future months
+    if (monthDate > today) return;
+
+    const isActive = pnlActiveMonth === i;
+    html += '<button type="button" onclick="selectPnlMonth(' + i + ')" style="' + (isActive ? activeStyle : tabStyle) + '">' + name + '</button>';
+  });
+
+  // Separator + mode toggle
+  html += '<span style="width:1px;height:1.4rem;background:var(--border);margin:0 .15rem;"></span>';
+  html += '<span style="display:inline-flex;border-radius:5px;overflow:hidden;">';
+  html += '<button type="button" onclick="setPnlMonthMode(\'single\')" style="' + (pnlMonthMode === 'single' ? toggleActive : toggleBase) + 'border-radius:5px 0 0 5px;">Month</button>';
+  html += '<button type="button" onclick="setPnlMonthMode(\'ytd\')" style="' + (pnlMonthMode === 'ytd' ? toggleActive : toggleBase) + 'border-radius:0 5px 5px 0;border-left:none;">YTD</button>';
+  html += '</span>';
+
+  container.innerHTML = html;
+}
+
+function selectPnlMonth(monthIndex) {
+  pnlActiveMonth = monthIndex;
+
+  const { from } = getRange('pnl');
+  const fyStart = from ? parseInt(from.substring(0, 4)) : (new Date().getMonth() >= 3 ? new Date().getFullYear() : new Date().getFullYear() - 1);
+
+  const monthNum = monthIndex < 9 ? monthIndex + 4 : monthIndex - 8;
+  const year = monthNum >= 4 ? fyStart : fyStart + 1;
+
+  if (pnlMonthMode === 'single') {
+    // Single month: first to last day of that month
+    const firstDay = year + '-' + String(monthNum).padStart(2, '0') + '-01';
+    const lastDay = new Date(year, monthNum, 0).getDate();
+    const lastDayStr = year + '-' + String(monthNum).padStart(2, '0') + '-' + String(lastDay).padStart(2, '0');
+    dateRanges['pnl'] = { from: firstDay, to: lastDayStr };
+  } else {
+    // YTD: FY start to end of selected month
+    const fyFrom = fyStart + '-04-01';
+    const lastDay = new Date(year, monthNum, 0).getDate();
+    const lastDayStr = year + '-' + String(monthNum).padStart(2, '0') + '-' + String(lastDay).padStart(2, '0');
+    dateRanges['pnl'] = { from: fyFrom, to: lastDayStr };
+  }
+
+  loadPnl();
+  loadPnlSnapshot();
+}
+
+function setPnlMonthMode(mode) {
+  pnlMonthMode = mode;
+  if (pnlActiveMonth !== null) {
+    selectPnlMonth(pnlActiveMonth);
+  } else {
+    buildPnlMonthTabs();
+  }
+}
+
+// ─── P&L MONTHLY SNAPSHOT ───
+// Loads YoY comparison, top clients (from classes), and insights when a month is selected.
+
+async function loadPnlSnapshot() {
+  const snapshot = document.getElementById('pnl-snapshot');
+  const loading = document.getElementById('pnl-snapshot-loading');
+  if (pnlActiveMonth === null) { snapshot.style.display = 'none'; return; }
+  snapshot.style.display = 'block';
+  loading.style.display = 'block';
+
+  const { from: rangeFrom } = getRange('pnl');
+  const fyStart = rangeFrom ? parseInt(rangeFrom.substring(0, 4)) : (new Date().getMonth() >= 3 ? new Date().getFullYear() : new Date().getFullYear() - 1);
+
+  const monthNum = pnlActiveMonth < 9 ? pnlActiveMonth + 4 : pnlActiveMonth - 8;
+  const year = monthNum >= 4 ? fyStart : fyStart + 1;
+  const prevYear = year - 1;
+  const lastDay = new Date(year, monthNum, 0).getDate();
+  const prevLastDay = new Date(prevYear, monthNum, 0).getDate();
+
+  const curFrom = year + '-' + String(monthNum).padStart(2, '0') + '-01';
+  const curTo = year + '-' + String(monthNum).padStart(2, '0') + '-' + String(lastDay).padStart(2, '0');
+  const prevFrom = prevYear + '-' + String(monthNum).padStart(2, '0') + '-01';
+  const prevTo = prevYear + '-' + String(monthNum).padStart(2, '0') + '-' + String(prevLastDay).padStart(2, '0');
+
+  // Also load full FY for both years for FY context
+  const curFyFrom = fyStart + '-04-01';
+  const curFyTo = curTo; // YTD up to selected month
+  const prevFyFrom = (fyStart - 1) + '-04-01';
+  const prevFyTo = prevYear + '-' + String(monthNum).padStart(2, '0') + '-' + String(prevLastDay).padStart(2, '0');
+
+  const monthLabel = MONTH_NAMES[pnlActiveMonth] + ' ' + year;
+  const prevMonthLabel = MONTH_NAMES[pnlActiveMonth] + ' ' + prevYear;
+
+  try {
+    // Fetch current month P&L, previous year same month P&L, and classes for both
+    const [curPnl, prevPnl, curClasses, prevClasses] = await Promise.all([
+      fetchReport('pnl', curFrom, curTo),
+      fetchReport('pnl', prevFrom, prevTo),
+      fetchReport('pnl-class', pnlMonthMode === 'ytd' ? curFyFrom : curFrom, curTo),
+      fetchReport('pnl-class', pnlMonthMode === 'ytd' ? prevFyFrom : prevFrom, prevTo),
+    ]);
+
+    loading.style.display = 'none';
+
+    // ─── YoY Comparison ───
+    renderYoYComparison(curPnl, prevPnl, monthLabel, prevMonthLabel);
+
+    // ─── Top Clients ───
+    renderTopClients(curClasses, monthLabel);
+
+    // ─── Insights ───
+    renderPnlInsights(curPnl, prevPnl, curClasses, prevClasses, monthLabel, prevMonthLabel);
+
+  } catch (e) {
+    loading.style.display = 'none';
+    console.error('Snapshot load error:', e);
+  }
+}
+
+// Lightweight report fetcher (no DOM side-effects)
+async function fetchReport(type, from, to) {
+  const qs = new URLSearchParams({ type });
+  if (from) qs.set('from', from);
+  if (to) qs.set('to', to);
+  const res = await fetch('/api/qb-invoices?' + qs.toString());
+  if (!res.ok) return null;
+  return res.json();
+}
+
+// Extract top-level section values from a P&L report
+function extractPnlSections(data) {
+  if (!data?.Rows?.Row) return {};
+  const rows = data.Rows.Row;
+  const get = (label) => {
+    const row = rows.find(r => r.Header?.ColData?.[0]?.value?.toLowerCase().includes(label));
+    return parseFloat(row?.Summary?.ColData?.[1]?.value || '0') || 0;
+  };
+  // Also extract individual expense categories
+  const expSection = rows.find(r => r.Header?.ColData?.[0]?.value?.toLowerCase().includes('expenses'));
+  const categories = {};
+  if (expSection?.Rows?.Row) {
+    expSection.Rows.Row.forEach(r => {
+      const label = r.Header?.ColData?.[0]?.value || r.ColData?.[0]?.value || '';
+      const val = parseFloat(r.Summary?.ColData?.[1]?.value || r.ColData?.[1]?.value || '0') || 0;
+      if (label && val) categories[label] = Math.abs(val);
+    });
+  }
+  const income = get('income') || get('revenue');
+  const cogs = get('cost of goods');
+  const expenses = get('expenses');
+  return { income, cogs, expenses, netIncome: income - cogs - expenses, categories };
+}
+
+function renderYoYComparison(curData, prevData, curLabel, prevLabel) {
+  const cur = extractPnlSections(curData);
+  const prev = extractPnlSections(prevData);
+
+  // Update column headers
+  document.getElementById('pnl-yoy-th-curr').textContent = curLabel;
+  document.getElementById('pnl-yoy-th-prev').textContent = prevLabel;
+  document.getElementById('pnl-yoy-label').textContent = curLabel + ' vs ' + prevLabel;
+
+  // Table rows — top level + expense categories
+  const tbody = document.getElementById('pnl-yoy-tbody');
+  const rows = [
+    { label: 'Total Income', cur: cur.income, prev: prev.income, bold: true },
+    { label: 'Cost of Goods', cur: cur.cogs, prev: prev.cogs, bold: false },
+    { label: 'Total Expenses', cur: cur.expenses, prev: prev.expenses, bold: true },
+    { label: 'Net Income', cur: cur.netIncome, prev: prev.netIncome, bold: true },
+  ];
+
+  // Merge expense categories from both periods
+  const allCats = new Set([...Object.keys(cur.categories || {}), ...Object.keys(prev.categories || {})]);
+  const catRows = [];
+  allCats.forEach(cat => {
+    catRows.push({ label: cat, cur: cur.categories?.[cat] || 0, prev: prev.categories?.[cat] || 0, bold: false, indent: true });
+  });
+  catRows.sort((a, b) => b.cur - a.cur);
+
+  // Insert category rows after Total Expenses
+  const allRows = [...rows.slice(0, 3), ...catRows, rows[3]];
+
+  let html = '';
+  allRows.forEach(r => {
+    const change = r.cur - r.prev;
+    const pct = r.prev !== 0 ? ((change / Math.abs(r.prev)) * 100) : (r.cur !== 0 ? 100 : 0);
+    const isUp = change > 0;
+    const isExpenseRow = r.label !== 'Total Income' && r.label !== 'Net Income';
+    // For expenses, going up is bad (red). For income/net, going up is good (green).
+    const changeColor = isExpenseRow ? (isUp ? '#ef4444' : '#10b981') : (isUp ? '#10b981' : '#ef4444');
+    const arrow = change === 0 ? '—' : (isUp ? '▲' : '▼');
+    const fw = r.bold ? 'font-weight:700;' : '';
+    const pl = r.indent ? 'padding-left:1.5rem;' : '';
+    const highlight = (isExpenseRow && change > 0 && Math.abs(pct) >= 20) ? 'background:rgba(239,68,68,.06);' : '';
+    html += '<tr style="' + fw + highlight + '">';
+    html += '<td style="' + pl + '">' + r.label + '</td>';
+    html += '<td>£' + f(r.prev) + '</td>';
+    html += '<td>£' + f(r.cur) + '</td>';
+    html += '<td style="color:' + changeColor + ';">' + arrow + ' £' + f(Math.abs(change)) + '</td>';
+    html += '<td style="color:' + changeColor + ';">' + (pct === 0 ? '—' : (pct > 0 ? '+' : '') + pct.toFixed(1) + '%') + '</td>';
+    html += '</tr>';
+  });
+  tbody.innerHTML = html;
+
+  // YoY Bar Chart
+  const chartColors2 = { prev: 'rgba(107,122,153,.5)', cur: '#00d4aa' };
+  const barCtx = document.getElementById('c-pnl-yoy-bar');
+  if (barCtx && typeof Chart !== 'undefined') {
+    if (barCtx._chart) barCtx._chart.destroy();
+    barCtx._chart = new Chart(barCtx, {
+      type: 'bar',
+      data: {
+        labels: ['Income', 'COGS', 'Expenses', 'Net Income'],
+        datasets: [
+          { label: prevLabel, data: [prev.income, prev.cogs, prev.expenses, prev.netIncome], backgroundColor: chartColors2.prev, borderRadius: 4, barPercentage: 0.7 },
+          { label: curLabel, data: [cur.income, cur.cogs, cur.expenses, cur.netIncome], backgroundColor: chartColors2.cur, borderRadius: 4, barPercentage: 0.7 },
+        ]
+      },
+      options: {
+        responsive: true, maintainAspectRatio: false,
+        plugins: { legend: { labels: { color: '#6b7a99', padding: 12, boxWidth: 10, font: { size: 11 } } } },
+        scales: {
+          y: { grid: { color: 'rgba(31,45,66,.4)' }, ticks: { callback: v => '£' + f(v) } },
+          x: { grid: { display: false } }
+        }
+      }
+    });
+  }
+
+  // Highlights panel
+  const highlights = document.getElementById('pnl-yoy-highlights');
+  let hHtml = '<div style="display:flex;flex-direction:column;gap:.75rem;">';
+
+  // Revenue change
+  const revChange = cur.income - prev.income;
+  const revPct = prev.income ? ((revChange / prev.income) * 100).toFixed(1) : '—';
+  hHtml += '<div style="padding:.75rem 1rem;border-radius:8px;background:' + (revChange >= 0 ? 'rgba(0,212,170,.08)' : 'rgba(239,68,68,.08)') + ';border:1px solid ' + (revChange >= 0 ? 'rgba(0,212,170,.25)' : 'rgba(239,68,68,.25)') + ';">';
+  hHtml += '<div style="font-size:.7rem;text-transform:uppercase;letter-spacing:.1em;color:var(--muted);margin-bottom:.25rem;">Revenue</div>';
+  hHtml += '<div style="font-size:1.1rem;font-weight:700;color:' + (revChange >= 0 ? '#00d4aa' : '#ef4444') + ';">' + (revChange >= 0 ? '▲' : '▼') + ' £' + f(Math.abs(revChange)) + ' (' + revPct + '%)</div>';
+  hHtml += '</div>';
+
+  // Net income change
+  const netChange = cur.netIncome - prev.netIncome;
+  const netPct = prev.netIncome ? ((netChange / prev.netIncome) * 100).toFixed(1) : '—';
+  hHtml += '<div style="padding:.75rem 1rem;border-radius:8px;background:' + (netChange >= 0 ? 'rgba(16,185,129,.08)' : 'rgba(239,68,68,.08)') + ';border:1px solid ' + (netChange >= 0 ? 'rgba(16,185,129,.25)' : 'rgba(239,68,68,.25)') + ';">';
+  hHtml += '<div style="font-size:.7rem;text-transform:uppercase;letter-spacing:.1em;color:var(--muted);margin-bottom:.25rem;">Net Income</div>';
+  hHtml += '<div style="font-size:1.1rem;font-weight:700;color:' + (netChange >= 0 ? '#10b981' : '#ef4444') + ';">' + (netChange >= 0 ? '▲' : '▼') + ' £' + f(Math.abs(netChange)) + ' (' + netPct + '%)</div>';
+  hHtml += '</div>';
+
+  // Biggest expense increase
+  const expChanges = [];
+  allCats.forEach(cat => {
+    const c = cur.categories?.[cat] || 0;
+    const p = prev.categories?.[cat] || 0;
+    if (c > p && p > 0) expChanges.push({ label: cat, change: c - p, pct: ((c - p) / p * 100) });
+    else if (c > 0 && p === 0) expChanges.push({ label: cat, change: c, pct: 100 });
+  });
+  expChanges.sort((a, b) => b.change - a.change);
+  if (expChanges.length > 0) {
+    const top = expChanges[0];
+    hHtml += '<div style="padding:.75rem 1rem;border-radius:8px;background:rgba(245,158,11,.08);border:1px solid rgba(245,158,11,.25);">';
+    hHtml += '<div style="font-size:.7rem;text-transform:uppercase;letter-spacing:.1em;color:var(--muted);margin-bottom:.25rem;">Biggest Expense Increase</div>';
+    hHtml += '<div style="font-weight:600;color:#f59e0b;">' + top.label + '</div>';
+    hHtml += '<div style="font-size:.85rem;color:var(--muted);">▲ £' + f(top.change) + ' (+' + top.pct.toFixed(0) + '% vs ' + prevLabel.split(' ')[0] + ')</div>';
+    hHtml += '</div>';
+  }
+
+  // Margin comparison
+  const curMargin = cur.income > 0 ? (cur.netIncome / cur.income * 100) : 0;
+  const prevMargin = prev.income > 0 ? (prev.netIncome / prev.income * 100) : 0;
+  hHtml += '<div style="padding:.75rem 1rem;border-radius:8px;background:rgba(139,92,246,.08);border:1px solid rgba(139,92,246,.25);">';
+  hHtml += '<div style="font-size:.7rem;text-transform:uppercase;letter-spacing:.1em;color:var(--muted);margin-bottom:.25rem;">Profit Margin</div>';
+  hHtml += '<div style="font-size:1.1rem;font-weight:700;color:#8b5cf6;">' + curMargin.toFixed(1) + '%</div>';
+  hHtml += '<div style="font-size:.8rem;color:var(--muted);">vs ' + prevMargin.toFixed(1) + '% last year</div>';
+  hHtml += '</div>';
+
+  hHtml += '</div>';
+  highlights.innerHTML = hHtml;
+}
+
+function renderTopClients(classData, label) {
+  const jobs = classData ? parsePnlByClass(classData) : [];
+  // Group by normalised client name
+  const byClient = {};
+  jobs.forEach(j => {
+    const key = j.customer;
+    if (!byClient[key]) byClient[key] = { name: key, revenue: 0, cogs: 0, expenses: 0, events: 0 };
+    byClient[key].revenue += j.revenue;
+    byClient[key].cogs += j.cogs;
+    byClient[key].expenses += j.expenses;
+    byClient[key].events += 1;
+  });
+  const clients = Object.values(byClient)
+    .map(c => ({ ...c, profit: c.revenue - c.cogs - c.expenses }))
+    .filter(c => c.revenue > 0 || c.expenses > 0 || c.cogs > 0)
+    .sort((a, b) => b.revenue - a.revenue);
+
+  document.getElementById('pnl-clients-count').textContent = clients.length + ' clients';
+
+  // Table
+  const tbody = document.getElementById('pnl-clients-tbody');
+  let html = '';
+  clients.forEach(c => {
+    const margin = c.revenue > 0 ? (c.profit / c.revenue * 100).toFixed(1) : '0.0';
+    const marginColor = c.profit >= 0 ? '#10b981' : '#ef4444';
+    const costs = c.cogs + c.expenses;
+    html += '<tr>';
+    html += '<td style="font-weight:600;">' + c.name + '</td>';
+    html += '<td>' + c.events + '</td>';
+    html += '<td>£' + f(c.revenue) + '</td>';
+    html += '<td>£' + f(costs) + '</td>';
+    html += '<td style="color:' + marginColor + ';font-weight:600;">£' + f(c.profit) + '</td>';
+    html += '<td style="color:' + marginColor + ';">' + margin + '%</td>';
+    html += '</tr>';
+  });
+  tbody.innerHTML = html || '<tr><td colspan="6" style="text-align:center;color:var(--muted);padding:1.5rem;">No class data for this period</td></tr>';
+
+  // Client bar chart
+  const chartCtx = document.getElementById('c-pnl-clients');
+  if (chartCtx && typeof Chart !== 'undefined' && clients.length > 0) {
+    if (chartCtx._chart) chartCtx._chart.destroy();
+    const top10 = clients.slice(0, 10);
+    chartCtx._chart = new Chart(chartCtx, {
+      type: 'bar',
+      data: {
+        labels: top10.map(c => c.name.length > 18 ? c.name.substring(0, 16) + '…' : c.name),
+        datasets: [
+          { label: 'Revenue', data: top10.map(c => c.revenue), backgroundColor: '#00d4aa', borderRadius: 4, barPercentage: 0.7 },
+          { label: 'Costs', data: top10.map(c => c.cogs + c.expenses), backgroundColor: '#ef4444', borderRadius: 4, barPercentage: 0.7 },
+        ]
+      },
+      options: {
+        indexAxis: 'y', responsive: true, maintainAspectRatio: false,
+        plugins: { legend: { labels: { color: '#6b7a99', padding: 10, boxWidth: 10, font: { size: 11 } } } },
+        scales: {
+          x: { grid: { color: 'rgba(31,45,66,.4)' }, ticks: { callback: v => '£' + f(v) } },
+          y: { grid: { display: false } }
+        }
+      }
+    });
+  }
+}
+
+function renderPnlInsights(curData, prevData, curClasses, prevClasses, curLabel, prevLabel) {
+  const cur = extractPnlSections(curData);
+  const prev = extractPnlSections(prevData);
+  const curJobs = curClasses ? parsePnlByClass(curClasses) : [];
+  const prevJobs = prevClasses ? parsePnlByClass(prevClasses) : [];
+
+  // Group jobs by client for both periods
+  const groupByClient = (jobs) => {
+    const map = {};
+    jobs.forEach(j => {
+      const key = j.customer;
+      if (!map[key]) map[key] = { name: key, revenue: 0, expenses: 0, cogs: 0, events: 0 };
+      map[key].revenue += j.revenue;
+      map[key].expenses += j.expenses;
+      map[key].cogs += j.cogs;
+      map[key].events += 1;
+    });
+    return map;
+  };
+
+  const curClients = groupByClient(curJobs);
+  const prevClients = groupByClient(prevJobs);
+
+  const insights = [];
+
+  // 1. Profit margin
+  const margin = cur.income > 0 ? (cur.netIncome / cur.income * 100) : 0;
+  if (margin > 0) {
+    insights.push({ icon: margin > 20 ? '✅' : (margin > 0 ? '⚠️' : '🔴'), text: 'Profit margin is <strong>' + margin.toFixed(1) + '%</strong> — ' + (margin > 20 ? 'healthy' : margin > 10 ? 'moderate' : margin > 0 ? 'thin' : 'loss-making') });
+  }
+
+  // 2. Revenue trend
+  if (prev.income > 0) {
+    const revGrowth = ((cur.income - prev.income) / prev.income * 100);
+    insights.push({ icon: revGrowth > 0 ? '📈' : '📉', text: 'Revenue ' + (revGrowth > 0 ? 'up' : 'down') + ' <strong>' + Math.abs(revGrowth).toFixed(1) + '%</strong> vs ' + prevLabel });
+  }
+
+  // 3. New clients this period
+  const newClients = Object.keys(curClients).filter(c => !prevClients[c] && curClients[c].revenue > 0);
+  if (newClients.length > 0) {
+    insights.push({ icon: '🆕', text: '<strong>' + newClients.length + ' new client' + (newClients.length > 1 ? 's' : '') + ':</strong> ' + newClients.slice(0, 5).join(', ') + (newClients.length > 5 ? ' + ' + (newClients.length - 5) + ' more' : '') });
+  }
+
+  // 4. Lost clients (were active last year, not this)
+  const lostClients = Object.keys(prevClients).filter(c => !curClients[c] && prevClients[c].revenue > 0);
+  if (lostClients.length > 0) {
+    const lostRev = lostClients.reduce((s, c) => s + prevClients[c].revenue, 0);
+    insights.push({ icon: '👋', text: '<strong>' + lostClients.length + ' client' + (lostClients.length > 1 ? 's' : '') + ' not active</strong> vs last year (£' + f(lostRev) + ' prev revenue): ' + lostClients.slice(0, 4).join(', ') });
+  }
+
+  // 5. Biggest client growth
+  const clientGrowth = [];
+  Object.keys(curClients).forEach(c => {
+    if (prevClients[c] && prevClients[c].revenue > 0) {
+      const growth = curClients[c].revenue - prevClients[c].revenue;
+      if (growth > 0) clientGrowth.push({ name: c, growth, pct: (growth / prevClients[c].revenue * 100) });
+    }
+  });
+  clientGrowth.sort((a, b) => b.growth - a.growth);
+  if (clientGrowth.length > 0) {
+    const top = clientGrowth[0];
+    insights.push({ icon: '🏆', text: 'Biggest client growth: <strong>' + top.name + '</strong> — up £' + f(top.growth) + ' (+' + top.pct.toFixed(0) + '%)' });
+  }
+
+  // 6. Most profitable client
+  const clientsByProfit = Object.values(curClients).map(c => ({ ...c, profit: c.revenue - c.cogs - c.expenses })).filter(c => c.revenue > 0).sort((a, b) => b.profit - a.profit);
+  if (clientsByProfit.length > 0) {
+    const best = clientsByProfit[0];
+    const bestMargin = best.revenue > 0 ? (best.profit / best.revenue * 100).toFixed(0) : '0';
+    insights.push({ icon: '💰', text: 'Most profitable client: <strong>' + best.name + '</strong> — £' + f(best.profit) + ' profit (' + bestMargin + '% margin)' });
+  }
+
+  // 7. Expense categories that spiked > 30%
+  const spikes = [];
+  const allCats = new Set([...Object.keys(cur.categories || {}), ...Object.keys(prev.categories || {})]);
+  allCats.forEach(cat => {
+    const c = cur.categories?.[cat] || 0;
+    const p = prev.categories?.[cat] || 0;
+    if (p > 0 && c > p) {
+      const pct = ((c - p) / p * 100);
+      if (pct >= 30) spikes.push({ label: cat, change: c - p, pct });
+    }
+  });
+  spikes.sort((a, b) => b.pct - a.pct);
+  if (spikes.length > 0) {
+    insights.push({ icon: '🔴', text: '<strong>' + spikes.length + ' expense categor' + (spikes.length > 1 ? 'ies' : 'y') + ' spiked 30%+:</strong> ' + spikes.slice(0, 3).map(s => s.label + ' (+' + s.pct.toFixed(0) + '%)').join(', ') });
+  }
+
+  // 8. Event count comparison
+  const curEventCount = curJobs.filter(j => j.revenue > 0).length;
+  const prevEventCount = prevJobs.filter(j => j.revenue > 0).length;
+  if (prevEventCount > 0 || curEventCount > 0) {
+    insights.push({ icon: '🎪', text: '<strong>' + curEventCount + ' event' + (curEventCount !== 1 ? 's' : '') + '</strong> this period vs <strong>' + prevEventCount + '</strong> last year' });
+  }
+
+  const container = document.getElementById('pnl-insights');
+  if (insights.length === 0) {
+    container.innerHTML = '<div style="color:var(--muted);padding:1rem;text-align:center;">No insights available for this period</div>';
+    return;
+  }
+  let html = '';
+  insights.forEach(i => {
+    html += '<div style="padding:.6rem .75rem;border-radius:6px;background:var(--bg);margin-bottom:.5rem;border:1px solid var(--border);">';
+    html += '<span style="margin-right:.5rem;">' + i.icon + '</span>' + i.text;
+    html += '</div>';
+  });
+  container.innerHTML = html;
+}
+
 // ─── BALANCE SHEET ───
 async function loadBalanceSheet() {
   const { to } = getRange('bs');
@@ -2152,6 +2657,9 @@ function renderReport(data, prefix) {
   const asOfOnly = prefix === 'bs';
   const reloadFn = prefix === 'pnl' ? 'rerenderPnl' : 'rerenderBalanceSheet';
   document.getElementById(prefix + '-date-range').innerHTML = dateRangeHTML(prefix, reloadFn, asOfOnly);
+
+  // Build monthly tabs for P&L
+  if (prefix === 'pnl') buildPnlMonthTabs();
 
   const header = data.Header || {};
   const periodEl = document.getElementById(prefix + '-period');
