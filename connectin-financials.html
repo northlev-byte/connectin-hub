@@ -2845,6 +2845,26 @@ function renderReport(data, prefix) {
     });
   }
   renderRows(rows, 0);
+
+  // Ensure a Net Income total row is always shown at the bottom
+  if (prefix === 'pnl') {
+    const getValue = (label) => {
+      const row = rows.find(r => r.Header?.ColData?.[0]?.value?.toLowerCase().includes(label));
+      return parseFloat(row?.Summary?.ColData?.[1]?.value || '0') || 0;
+    };
+    const income = getValue('income') || getValue('revenue');
+    const cogs = getValue('cost of sales') || getValue('cost of goods');
+    const expenses = getValue('expenses');
+    // Check for "Other Income" and "Other Expenses" sections
+    const otherIncome = getValue('other income');
+    const otherExpenses = getValue('other expense');
+    const netIncome = income - cogs - expenses + otherIncome - otherExpenses;
+    const niColor = netIncome >= 0 ? '#10b981' : '#ef4444';
+    html += `<tr style="border-top:2px solid var(--accent);font-weight:700;font-size:1rem;">
+      <td style="padding:.75rem 0;">Net Income</td>
+      <td style="padding:.75rem 0;color:${niColor};">£${f(netIncome)}</td></tr>`;
+  }
+
   tbody.innerHTML = html;
 
   // ─── CHARTS ───
