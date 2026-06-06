@@ -3100,12 +3100,12 @@ function renderReport(data, prefix) {
       return parseFloat(val) || 0;
     };
     const income = getValue('income') || getValue('revenue');
-    const cogs = getValue('cost of goods');
+    const cogs = getValue('cost of sales') || getValue('cost of goods');
     const expenses = getValue('expenses');
     const netIncome = getValue('net income') || (income - cogs - expenses);
     kpis.innerHTML = `
       <div class="kpi" style="--kpi-color:#00d4aa"><div class="kpi-label">Total Income</div><div class="kpi-value">£${f(income)}</div></div>
-      <div class="kpi" style="--kpi-color:#ef4444"><div class="kpi-label">Cost of Goods</div><div class="kpi-value">£${f(cogs)}</div></div>
+      <div class="kpi" style="--kpi-color:#ef4444"><div class="kpi-label">Cost of Sales</div><div class="kpi-value">£${f(cogs)}</div></div>
       <div class="kpi" style="--kpi-color:#f59e0b"><div class="kpi-label">Expenses</div><div class="kpi-value">£${f(expenses)}</div></div>
       <div class="kpi" style="--kpi-color:#10b981"><div class="kpi-label">Net Income</div><div class="kpi-value ${netIncome>=0?'tg':'tr2'}">£${f(netIncome)}</div></div>
     `;
@@ -3195,7 +3195,7 @@ function renderReport(data, prefix) {
       return parseFloat(val) || 0;
     };
     const income = getValue('income') || getValue('revenue');
-    const cogs = getValue('cost of goods');
+    const cogs = getValue('cost of sales') || getValue('cost of goods');
     const expenses = getValue('expenses');
     const grossProfit = income - cogs;
     const netIncome = grossProfit - expenses;
