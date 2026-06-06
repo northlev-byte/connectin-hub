@@ -2567,13 +2567,15 @@ function renderYoYComparison(curData, prevData, curLabel, prevLabel) {
 
   // Biggest cost increase (expenses + COGS)
   const expChanges = [];
-  allCats.forEach(cat => {
+  const hlExpCats = new Set([...Object.keys(cur.categories || {}), ...Object.keys(prev.categories || {})]);
+  hlExpCats.forEach(cat => {
     const c = cur.categories?.[cat] || 0;
     const p = prev.categories?.[cat] || 0;
     if (c > p && p > 0) expChanges.push({ label: cat, change: c - p, pct: ((c - p) / p * 100) });
     else if (c > 0 && p === 0) expChanges.push({ label: cat, change: c, pct: 100 });
   });
-  allCogsCats.forEach(cat => {
+  const hlCogsCats = new Set([...Object.keys(cur.cogsCategories || {}), ...Object.keys(prev.cogsCategories || {})]);
+  hlCogsCats.forEach(cat => {
     const c = cur.cogsCategories?.[cat] || 0;
     const p = prev.cogsCategories?.[cat] || 0;
     if (c > p && p > 0) expChanges.push({ label: cat, change: c - p, pct: ((c - p) / p * 100) });
