@@ -2677,6 +2677,25 @@ function renderTopClients(classData, label) {
     html += '<div><span style="color:var(--muted);">Margin:</span> <strong style="color:' + marginColor + ';">' + margin + '%</strong></div>';
     html += '</div></td></tr>';
   });
+
+  // Totals row
+  if (clients.length > 0) {
+    const totRev = clients.reduce((s, c) => s + c.revenue, 0);
+    const totCosts = clients.reduce((s, c) => s + c.cogs + c.expenses, 0);
+    const totProfit = totRev - totCosts;
+    const totEvents = clients.reduce((s, c) => s + c.events, 0);
+    const totMargin = totRev > 0 ? (totProfit / totRev * 100).toFixed(1) : '0.0';
+    const totColor = totProfit >= 0 ? '#10b981' : '#ef4444';
+    html += '<tr style="border-top:2px solid var(--accent);font-weight:700;">';
+    html += '<td>Total</td>';
+    html += '<td>' + totEvents + '</td>';
+    html += '<td>£' + f(totRev) + '</td>';
+    html += '<td>£' + f(totCosts) + '</td>';
+    html += '<td style="color:' + totColor + ';">£' + f(totProfit) + '</td>';
+    html += '<td style="color:' + totColor + ';">' + totMargin + '%</td>';
+    html += '</tr>';
+  }
+
   tbody.innerHTML = html || '<tr><td colspan="6" style="text-align:center;color:var(--muted);padding:1.5rem;">No class data for this period</td></tr>';
 
   // Client bar chart
