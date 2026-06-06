@@ -2757,6 +2757,7 @@ function toggleDrillVendor(group) {
 function extractCategoryTransactions(data, categoryLabel) {
   if (!data?.Rows?.Row) return [];
   const txns = [];
+  const seen = new Set();
   const catLower = categoryLabel.toLowerCase().trim();
 
   function walkDetail(rows, currentAccount) {
@@ -2770,7 +2771,7 @@ function extractCategoryTransactions(data, categoryLabel) {
 
       if (isMatch && row.Rows?.Row) {
         // Extract all transactions from this section
-        extractTxns(row.Rows.Row, txns);
+        extractTxns(row.Rows.Row, txns, seen);
         return;
       }
 
@@ -2779,22 +2780,22 @@ function extractCategoryTransactions(data, categoryLabel) {
     });
   }
 
-  function extractTxns(rows, out) {
+  function extractTxns(rows, out, seen) {
     (rows || []).forEach(row => {
-      if (row.ColData) {
-        // This is an individual transaction row
-        const cols = row.ColData;
-        // ProfitAndLossDetail columns vary, but typically:
-        // Date, Transaction Type, Num, Name/Payee, Memo/Description, Account, Amount, Balance
-        // We need to find the right columns by looking at column headers
-        const t = parsePnlDetailRow(cols);
-        if (t) out.push(t);
+      if (row.ColData && !row.Rows && !row.Summary) {
+        // Leaf-level transaction row only (no children = not a subtotal/summary)
+        const t = parsePnlDetailRow(row.ColData);
+        if (t) {
+          // Deduplicate by key fields
+          const key = (t.date || '') + '|' + (t.name || '') + '|' + (t.memo || '') + '|' + t.amount + '|' + (t.type || '') + '|' + (t.num || '');
+          if (!seen.has(key)) {
+            seen.add(key);
+            out.push(t);
+          }
+        }
       }
-      if (row.Rows?.Row) extractTxns(row.Rows.Row, out);
-      // Sub-sections within a matched category (e.g. sub-accounts)
-      if (row.Header && row.Rows?.Row) {
-        extractTxns(row.Rows.Row, out);
-      }
+      // Recurse into sub-sections
+      if (row.Rows?.Row) extractTxns(row.Rows.Row, out, seen);
     });
   }
 
